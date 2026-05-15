@@ -278,7 +278,7 @@
                                                    Margin="0,0,0,6"/>
                                         <ComboBox x:Name="MercureScriptCombo"
                                                   Background="#2A2A3E"
-                                                  Foreground="{StaticResource TextPrimaryBrush}"
+                                                  Foreground="#1A1A2E"
                                                   BorderBrush="#444466"
                                                   FontSize="12"/>
                                     </StackPanel>

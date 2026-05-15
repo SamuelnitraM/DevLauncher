@@ -167,7 +167,7 @@ public class LaunchService
             args.AddRange(new[]
             {
                 "new-tab", "--title", title,
-                "-d", $"\"{projectPath}\"",
+                "-d", projectPath,
                 "powershell", "-NoExit", "-Command", command
             });
             firstTab = false;
@@ -184,7 +184,7 @@ public class LaunchService
             args.AddRange(new[]
             {
                 "new-tab", "--title", "Mercure",
-                "-d", $"\"{_mercureDir}\"",
+                "-d", _mercureDir,
                 "powershell", "-NoExit", "-File", $"\"{scriptPath}\""
             });
             Log($"   → onglet Mercure ({opts.MercureScript})");

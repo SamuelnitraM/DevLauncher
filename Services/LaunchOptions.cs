@@ -12,10 +12,10 @@ public record LaunchOptions
     // ── Outils ──────────────────────────────────────────────
     public bool OpenVSCode          { get; init; }
     public bool OpenVisualStudio    { get; init; }
-    public bool OpenBrowser { get; init; }
-    public bool BrowserDefault { get; init; }
-    public bool BrowserChrome { get; init; }
-    public bool BrowserFirefox { get; init; }
+    public bool OpenBrowser         { get; init; }
+    public bool BrowserDefault      { get; init; }
+    public bool BrowserChrome       { get; init; }
+    public bool BrowserFirefox      { get; init; }
     public bool OpenTerminal        { get; init; }  // ← NOUVEAU : terminal optionnel non-Symfony
 
     // ── Services XAMPP ──────────────────────────────────────
