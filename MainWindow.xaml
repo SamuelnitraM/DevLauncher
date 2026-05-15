@@ -1,0 +1,431 @@
+<Window x:Class="DevLauncher.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Dev Launcher"
+        Height="680" Width="900"
+        MinHeight="600" MinWidth="800"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource DarkBgBrush}"
+        FontFamily="Segoe UI">
+
+    <DockPanel LastChildFill="True">
+
+        <!-- ═══════════════════ HEADER ═══════════════════ -->
+        <Border DockPanel.Dock="Top" Background="{StaticResource CardBgBrush}" Padding="24,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="⚡ Dev Launcher"
+                               FontSize="22" FontWeight="Bold"
+                               Foreground="{StaticResource AccentBlueBrush}"/>
+                    <TextBlock Text="Lance ton environnement de développement en un clic"
+                               FontSize="12"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <!-- Indicateurs de statut services -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border CornerRadius="12" Padding="10,5" Margin="4,0" Background="#1A3A1A">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="ApacheIndicator" Width="8" Height="8"
+                                     Fill="{StaticResource AccentRedBrush}"
+                                     VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Apache" FontSize="11"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border CornerRadius="12" Padding="10,5" Margin="4,0" Background="#1A3A1A">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="MySqlIndicator" Width="8" Height="8"
+                                     Fill="{StaticResource AccentRedBrush}"
+                                     VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="MySQL" FontSize="11"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border CornerRadius="12" Padding="10,5" Margin="4,0" Background="#1A3A1A">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="FileZillaIndicator" Width="8" Height="8"
+                                     Fill="{StaticResource AccentRedBrush}"
+                                     VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="FileZilla" FontSize="11"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════════════ FOOTER / BOUTONS ═══════════════════ -->
+        <!-- Déclaré AVANT le contenu pour que DockPanel le fixe toujours en bas -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{StaticResource CardBgBrush}"
+                Padding="24,14" Margin="0,4,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock x:Name="StatusText"
+                               Text="Sélectionne un projet pour commencer"
+                               FontSize="12"
+                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="⏹ Tout arrêter"
+                            Style="{StaticResource DangerButton}"
+                            Margin="0,0,10,0"
+                            Click="StopAll_Click"/>
+                    <Button x:Name="LaunchButton"
+                            Content="▶ Lancer l'environnement"
+                            Style="{StaticResource SuccessButton}"
+                            IsEnabled="False"
+                            Click="Launch_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════════════ ZONE CENTRALE (contenu + splitter + logs) ═══════════════════ -->
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" MinHeight="200"/>
+                <!-- Contenu -->
+                <RowDefinition Height="6"/>
+                <!-- Splitter -->
+                <RowDefinition Height="150" MinHeight="60" MaxHeight="400"/>
+                <!-- Logs -->
+            </Grid.RowDefinitions>
+
+            <!-- ── Contenu principal ── -->
+            <Grid Grid.Row="0" Margin="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="280"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- ── Colonne gauche : liste projets ── -->
+                <Border Grid.Column="0"
+                        Background="{StaticResource CardBgBrush}"
+                        CornerRadius="12" Padding="16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Titre + bouton refresh -->
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="📁 Projets XAMPP"
+                                       FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <Button Grid.Column="1" Content="↻ Rafraîchir"
+                                    Style="{StaticResource PrimaryButton}"
+                                    FontSize="11" Padding="10,5"
+                                    Click="RefreshProjects_Click"/>
+                        </Grid>
+
+                        <!-- Barre de recherche -->
+                        <Border Grid.Row="1"
+                                Background="#1A1A2E" CornerRadius="6"
+                                Margin="0,0,0,10" Padding="8,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="🔍" VerticalAlignment="Center"
+                                           Margin="0,0,8,0" FontSize="13"/>
+                                <TextBox x:Name="SearchBox"
+                                         Grid.Column="1"
+                                         Background="Transparent"
+                                         BorderThickness="0"
+                                         Foreground="{StaticResource TextPrimaryBrush}"
+                                         CaretBrush="{StaticResource AccentBlueBrush}"
+                                         FontSize="13" Padding="0,8"
+                                         TextChanged="SearchBox_TextChanged">
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox">
+                                            <Style.Resources>
+                                                <VisualBrush x:Key="HintBrush" TileMode="None"
+                                                             Opacity="0.4" Stretch="None"
+                                                             AlignmentX="Left">
+                                                    <VisualBrush.Visual>
+                                                        <TextBlock Text="Rechercher un projet..."
+                                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                                   FontSize="13"/>
+                                                    </VisualBrush.Visual>
+                                                </VisualBrush>
+                                            </Style.Resources>
+                                            <Style.Triggers>
+                                                <Trigger Property="Text" Value="">
+                                                    <Setter Property="Background" Value="{StaticResource HintBrush}"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
+                            </Grid>
+                        </Border>
+
+                        <!-- Liste des projets -->
+                        <ListBox x:Name="ProjectListBox"
+                                 Grid.Row="2"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ItemContainerStyle="{StaticResource ProjectListItem}"
+                                 SelectionChanged="ProjectListBox_SelectionChanged"/>
+
+                        <!-- Chemin du projet sélectionné -->
+                        <Border Grid.Row="3"
+                                Background="#1A1A2E" CornerRadius="6"
+                                Padding="10,6" Margin="0,10,0,0">
+                            <TextBlock x:Name="SelectedPathText"
+                                       Text="Aucun projet sélectionné"
+                                       FontSize="11" FontFamily="Consolas"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- ── Colonne droite : options ── -->
+                <ScrollViewer Grid.Column="2"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+
+                        <!-- Carte : Type de projet -->
+                        <Border Background="{StaticResource CardBgBrush}"
+                                CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="🏗️ Type de projet"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Margin="0,0,0,12"/>
+                                <RadioButton x:Name="RadioSymfony"
+                                             Content="⚡ Symfony"
+                                             GroupName="ProjectType"
+                                             Foreground="{StaticResource TextPrimaryBrush}"
+                                             FontSize="13" Cursor="Hand"
+                                             Checked="ProjectType_Changed"
+                                             Margin="0,4"/>
+                                <RadioButton x:Name="RadioOther"
+                                             Content="📦 Autre (PHP / HTML…)"
+                                             GroupName="ProjectType"
+                                             IsChecked="True"
+                                             Foreground="{StaticResource TextPrimaryBrush}"
+                                             FontSize="13" Cursor="Hand"
+                                             Checked="ProjectType_Changed"
+                                             Margin="0,4"/>
+                                <Border x:Name="AutoDetectBadge"
+                                        Background="#2A4A2A" CornerRadius="6"
+                                        Padding="8,5" Margin="0,8,0,0"
+                                        Visibility="Collapsed">
+                                    <TextBlock x:Name="AutoDetectText"
+                                               Text="✅ Symfony détecté automatiquement"
+                                               FontSize="11"
+                                               Foreground="{StaticResource AccentGreenBrush}"
+                                               TextWrapping="Wrap"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Carte : Services Symfony -->
+                        <Border x:Name="SymfonyOptionsCard"
+                                Background="{StaticResource CardBgBrush}"
+                                CornerRadius="12" Padding="16" Margin="0,0,0,12"
+                                Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="🔧 Services Symfony"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Margin="0,0,0,12"/>
+                                <CheckBox x:Name="ChkSymfonyServer"
+                                          Content="🚀 Symfony Server"
+                                          Style="{StaticResource ModernCheckBox}"
+                                          IsChecked="True"/>
+                                <CheckBox x:Name="ChkTailwind"
+                                          Content="🎨 Tailwind Watch"
+                                          Style="{StaticResource ModernCheckBox}"
+                                          IsChecked="True"/>
+                                <CheckBox x:Name="ChkMercure"
+                                          Content="📡 Mercure"
+                                          Style="{StaticResource ModernCheckBox}"/>
+                                <Border x:Name="MercurePanel"
+                                        Background="#1A1A2E" CornerRadius="6"
+                                        Padding="10,8" Margin="16,4,0,4"
+                                        Visibility="Collapsed">
+                                    <StackPanel>
+                                        <TextBlock Text="Script Mercure :"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Margin="0,0,0,6"/>
+                                        <ComboBox x:Name="MercureScriptCombo"
+                                                  Background="#2A2A3E"
+                                                  Foreground="{StaticResource TextPrimaryBrush}"
+                                                  BorderBrush="#444466"
+                                                  FontSize="12"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Carte : Services XAMPP -->
+                        <Border Background="{StaticResource CardBgBrush}"
+                                CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="🗄️ Services XAMPP"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Margin="0,0,0,12"/>
+                                <CheckBox x:Name="ChkXamppPanel"
+                                          Content="🖥️ Panneau XAMPP"
+                                          Style="{StaticResource ModernCheckBox}"
+                                          IsChecked="True"/>
+                                <StackPanel Margin="16,0,0,0">
+                                    <CheckBox x:Name="ChkApache"
+                                          Content="🌐 Apache"
+                                          Style="{StaticResource ModernCheckBox}"
+                                          IsChecked="True"/>
+                                    <CheckBox x:Name="ChkMySQL"
+                                          Content="🗃️ MySQL"
+                                          Style="{StaticResource ModernCheckBox}"
+                                          IsChecked="True"/>
+                                    <CheckBox x:Name="ChkFileZilla"
+                                          Content="📂 FileZilla FTP"
+                                          Style="{StaticResource ModernCheckBox}"
+                                          IsChecked="True"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Carte : Outils -->
+                        <Border Background="{StaticResource CardBgBrush}"
+                                CornerRadius="12" Padding="16">
+                            <StackPanel>
+                                <TextBlock Text="🛠️ Outils"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Margin="0,0,0,12"/>
+                                <TextBlock Text="Éditeur de code"
+                                           FontSize="11"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Margin="0,4,0,2"/>
+                                <RadioButton x:Name="RadioNoEditor"
+                                             Content="🚫 Aucun éditeur"
+                                             GroupName="Editor"
+                                             IsChecked="True"
+                                             Foreground="{StaticResource TextPrimaryBrush}"
+                                             FontSize="13" Cursor="Hand"
+                                             Margin="0,2"/>
+                                <RadioButton x:Name="RadioVSCode"
+                                             Content="💻 VSCode"
+                                             GroupName="Editor"
+                                             Foreground="{StaticResource TextPrimaryBrush}"
+                                             FontSize="13" Cursor="Hand"
+                                             Margin="0,2"/>
+                                <RadioButton x:Name="RadioVisualStudio"
+                                             Content="💻 Visual Studio"
+                                             GroupName="Editor"
+                                             Foreground="{StaticResource TextPrimaryBrush}"
+                                             FontSize="13" Cursor="Hand"
+                                             Margin="0,2"/>
+
+                                <CheckBox x:Name="ChkBrowser"
+                                          Content="🌍 Ouvrir le navigateur"
+                                          Style="{StaticResource ModernCheckBox}"
+                                          Checked="ChkBrowser_Checked"
+                                          Unchecked="ChkBrowser_Checked"/>
+
+                                <!-- Choix du navigateur (visible si coché) -->
+                                <Border x:Name="BrowserPanel"
+                                        Margin="16,0,0,0"
+                                        Visibility="Collapsed">
+                                    <StackPanel>
+                                        <CheckBox x:Name="ChkBrowserDefault"
+                                                  Content="🌐 Défaut"
+                                                  Style="{StaticResource ModernCheckBox}"
+                                                  IsChecked="True"/>
+                                        <CheckBox x:Name="ChkBrowserChrome"
+                                                  Content="🟡 Google Chrome"
+                                                  Style="{StaticResource ModernCheckBox}"/>
+                                        <CheckBox x:Name="ChkBrowserFirefox"
+                                                  Content="🦊 Firefox"
+                                                  Style="{StaticResource ModernCheckBox}"/>
+                                    </StackPanel>
+                                </Border>
+                                <CheckBox x:Name="ChkTerminal"
+                                          Content="🖥️ Ouvrir un terminal"
+                                          Style="{StaticResource ModernCheckBox}"/>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- ── Splitter ── -->
+            <GridSplitter Grid.Row="1"
+                          Height="6"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Background="#333355"
+                          Margin="16,0,16,0"
+                          ResizeDirection="Rows"
+                          ResizeBehavior="PreviousAndNext"
+                          Cursor="SizeNS"/>
+
+            <!-- ── Zone de logs ── -->
+            <Border Grid.Row="2" Margin="16,0,16,8"
+                    Background="{StaticResource CardBgBrush}"
+                    CornerRadius="12" Padding="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="📋 Journal de lancement"
+                                   FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <Button Grid.Column="1" Content="Effacer"
+                                Style="{StaticResource PrimaryButton}"
+                                FontSize="10" Padding="8,3"
+                                Click="ClearLog_Click"/>
+                    </Grid>
+                    <ScrollViewer Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto"
+                                  x:Name="LogScrollViewer">
+                        <TextBlock x:Name="LogTextBlock"
+                                   FontFamily="Consolas" FontSize="11"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+        </Grid>
+        <!-- fin Grid central -->
+
+    </DockPanel>
+</Window>
