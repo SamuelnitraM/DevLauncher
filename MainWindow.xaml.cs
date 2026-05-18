@@ -28,6 +28,7 @@ public partial class MainWindow : Window
 
         // Écoute des logs du service de lancement
         _launcher.LogMessage += OnLogMessage;
+        _launcher.LogError += OnLogError;
 
         // Surveillance des services (Apache / MySQL) toutes les 3s
         _monitor.StatusChanged += OnServiceStatusChanged;
@@ -116,9 +117,6 @@ public partial class MainWindow : Window
         SymfonyOptionsCard.Visibility = symfony ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void ClearLog_Click(object sender, RoutedEventArgs e)
-        => LogTextBlock.Text = string.Empty;
-
     // ════════════════════════════════════════════════════════════
     //  LANCEMENT
     // ════════════════════════════════════════════════════════════
@@ -151,11 +149,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private void StopAll_Click(object sender, RoutedEventArgs e)
+    private async void StopAll_Click(object sender, RoutedEventArgs e)
     {
-        Log("⏹ Arrêt des services XAMPP…");
-        _launcher.StopAll();
-        Log("✅ Services arrêtés.");
+        Log("⏹ Arrêt de l'environnement…");
+        await _launcher.StopAllAsync();
     }
 
     // ════════════════════════════════════════════════════════════
@@ -197,19 +194,31 @@ public partial class MainWindow : Window
     // ════════════════════════════════════════════════════════════
 
     private void OnLogMessage(string message)
+        => Dispatcher.Invoke(() => AppendLog(message, (SolidColorBrush)FindResource("TextSecondaryBrush")));
+
+    private void OnLogError(string message)
+        => Dispatcher.Invoke(() => AppendLog(message, (SolidColorBrush)FindResource("AccentRedBrush")));
+
+    private void AppendLog(string message, SolidColorBrush color)
     {
-        // Peut être appelé depuis un thread de fond
-        Dispatcher.Invoke(() => Log(message));
+        var timestamp = DateTime.Now.ToString("HH:mm:ss");
+        var para = new System.Windows.Documents.Paragraph(
+            new System.Windows.Documents.Run($"[{timestamp}] {message}"))
+        {
+            Foreground = color,
+            Margin = new Thickness(0),
+            FontFamily = new FontFamily("Consolas"),
+            FontSize = 11
+        };
+        LogRichText.Document.Blocks.Add(para);
+        LogRichText.ScrollToEnd();
     }
 
     private void Log(string message)
-    {
-        var timestamp = DateTime.Now.ToString("HH:mm:ss");
-        LogTextBlock.Text += $"[{timestamp}] {message}\n";
+        => Dispatcher.Invoke(() => AppendLog(message, (SolidColorBrush)FindResource("TextSecondaryBrush")));
 
-        // Auto-scroll
-        LogScrollViewer.ScrollToBottom();
-    }
+    private void ClearLog_Click(object sender, RoutedEventArgs e)
+        => LogRichText.Document.Blocks.Clear();
 
     private void OnServiceStatusChanged(string service, bool isRunning)
     {

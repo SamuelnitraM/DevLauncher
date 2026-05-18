@@ -330,22 +330,22 @@
                                 <RadioButton x:Name="RadioNoEditor"
                                              Content="🚫 Aucun éditeur"
                                              GroupName="Editor"
-                                             IsChecked="True"
                                              Foreground="{StaticResource TextPrimaryBrush}"
                                              FontSize="13" Cursor="Hand"
-                                             Margin="0,2"/>
+                                             Margin="16,2"/>
                                 <RadioButton x:Name="RadioVSCode"
                                              Content="💻 VSCode"
                                              GroupName="Editor"
+                                             IsChecked="True"
                                              Foreground="{StaticResource TextPrimaryBrush}"
                                              FontSize="13" Cursor="Hand"
-                                             Margin="0,2"/>
+                                             Margin="16,2"/>
                                 <RadioButton x:Name="RadioVisualStudio"
                                              Content="💻 Visual Studio"
                                              GroupName="Editor"
                                              Foreground="{StaticResource TextPrimaryBrush}"
                                              FontSize="13" Cursor="Hand"
-                                             Margin="0,2"/>
+                                             Margin="16,2"/>
 
                                 <CheckBox x:Name="ChkBrowser"
                                           Content="🌍 Ouvrir le navigateur"
@@ -395,33 +395,32 @@
             <Border Grid.Row="2" Margin="16,0,16,8"
                     Background="{StaticResource CardBgBrush}"
                     CornerRadius="12" Padding="12">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Margin="0,0,0,6">
+                <DockPanel>
+                    <!-- En-tête fixe avec le bouton Effacer -->
+                    <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="📋 Journal de lancement"
-                                   FontSize="12" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                       FontSize="12" FontWeight="SemiBold"
+                       Foreground="{StaticResource TextSecondaryBrush}"/>
                         <Button Grid.Column="1" Content="Effacer"
-                                Style="{StaticResource PrimaryButton}"
-                                FontSize="10" Padding="8,3"
-                                Click="ClearLog_Click"/>
+                    Style="{StaticResource PrimaryButton}"
+                    FontSize="10" Padding="8,3"
+                    Click="ClearLog_Click"/>
                     </Grid>
-                    <ScrollViewer Grid.Row="1"
-                                  VerticalScrollBarVisibility="Auto"
-                                  x:Name="LogScrollViewer">
-                        <TextBlock x:Name="LogTextBlock"
-                                   FontFamily="Consolas" FontSize="11"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                   TextWrapping="Wrap"/>
-                    </ScrollViewer>
-                </Grid>
+
+                    <!-- Zone de logs scrollable -->
+                    <RichTextBox x:Name="LogRichText"
+                     FontFamily="Consolas" FontSize="11"
+                     Foreground="{StaticResource TextSecondaryBrush}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     IsReadOnly="True"
+                     VerticalScrollBarVisibility="Auto"
+                     Padding="0"/>
+                </DockPanel>
             </Border>
 
         </Grid>
