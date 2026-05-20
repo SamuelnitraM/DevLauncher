@@ -34,7 +34,7 @@ public class LaunchService
         if (opts.OpenVSCode)
         {
             Log("💻 Ouverture de VSCode…");
-            StartSilent(AppSettings.VSCodeExecutable, $"\"{projectPath}\"");
+            StartVSCode(projectPath);
             _vscodeStarted = true;
         }
 
@@ -144,11 +144,25 @@ public class LaunchService
         }
 
         // 4. Terminal optionnel
-        if (!opts.IsSymfony && opts.OpenTerminal)
+        if (opts.OpenTerminal)
         {
             Log("🖥️ Ouverture d'un terminal…");
             var projectName = Path.GetFileName(projectPath);
-            StartSilent("wt", $"-w 0 new-tab --title \"{projectName}\" -d \"{projectPath}\"");
+            try
+            {
+                var psi = new ProcessStartInfo("cmd.exe")
+                {
+                    Arguments = $"/c wt -w 0 new-tab --title \"{projectName}\" -d \"{projectPath}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                Process.Start(psi);
+                Log("   ✅ Terminal ouvert");
+            }
+            catch (Exception ex)
+            {
+                Log($"⚠️ Terminal : {ex.Message}");
+            }
         }
 
         // 5. Onglets Symfony
@@ -159,56 +173,82 @@ public class LaunchService
         }
 
         // 6. Navigateur
-        if (opts.OpenBrowser)
+        if (opts.OpenBrowser && opts.IsSymfony)
         {
-            var url = opts.IsSymfony
-                ? $"http://localhost:{AppSettings.SymfonyPort}"
-                : $"http://localhost/{Path.GetFileName(projectPath)}";
+            var url = $"http://localhost:{AppSettings.SymfonyPort}";
 
-            // ── Vérification des prérequis pour Symfony ──
-            if (opts.IsSymfony)
+            // ── Étape 1 : vérifier que les 4 services ont bien été cochés ──
+            var notSelected = new List<string>();
+
+            if (!opts.StartSymfonyServer) notSelected.Add("Symfony Server");
+            if (!opts.StartApache) notSelected.Add("Apache");
+            if (!opts.StartMySQL) notSelected.Add("MySQL");
+            if (!opts.StartFileZilla) notSelected.Add("FileZilla");
+
+            if (notSelected.Count > 0)
             {
-                var missing = new List<string>();
+                foreach (var service in notSelected)
+                    LogErr($"❌ {service} n'a pas été sélectionné. La page du navigateur ne peut pas s'ouvrir.");
+                return;
+            }
 
-                if (opts.StartSymfonyServer && !IsProcessRunning("symfony"))
-                    missing.Add("Symfony Server");
+            // ── Étape 2 : tous cochés → attendre qu'ils démarrent ──
+            Log("⏳ Attente du démarrage des services…");
 
-                if (opts.StartApache && !IsProcessRunning("httpd"))
-                    missing.Add("Apache");
+            var maxWait = 30;
+            var elapsed = 0;
 
-                if (opts.StartMySQL && !IsProcessRunning("mysqld"))
-                    missing.Add("MySQL");
+            var requiredServices = new Dictionary<string, string>
+    {
+        { "symfony",         "Symfony Server" },
+        { "httpd",           "Apache"         },
+        { "mysqld",          "MySQL"          },
+        { "FileZillaServer", "FileZilla"      },
+    };
 
-                if (opts.StartFileZilla && !IsProcessRunning("FileZillaServer"))
-                    missing.Add("FileZilla");
+            while (elapsed < maxWait)
+            {
+                await Task.Delay(1000);
+                elapsed++;
 
-                if (missing.Count > 0)
+                var notReady = requiredServices
+                    .Where(s => !IsProcessRunning(s.Key))
+                    .Select(s => s.Value)
+                    .ToList();
+
+                if (notReady.Count == 0)
                 {
-                    foreach (var service in missing)
-                        LogErr($"❌ {service} n'a pas été lancé. La page du navigateur ne peut pas fonctionner.");
-                    return;
+                    Log($"✅ Tous les services sont prêts ({elapsed}s)");
+                    Log($"🌍 Ouverture du navigateur : {url}");
+
+                    if (opts.BrowserDefault) StartSilent(url);
+                    if (opts.BrowserChrome)
+                    {
+                        if (File.Exists(AppSettings.ChromeExe))
+                            StartSilent(AppSettings.ChromeExe, url);
+                        else
+                            LogErr("❌ Chrome introuvable");
+                    }
+                    if (opts.BrowserFirefox)
+                    {
+                        if (File.Exists(AppSettings.FirefoxExe))
+                            StartSilent(AppSettings.FirefoxExe, url);
+                        else
+                            LogErr("❌ Firefox introuvable");
+                    }
+                    break;
                 }
-            }
-
-            Log($"🌍 Ouverture du navigateur : {url}");
-            await Task.Delay(1000);
-
-            if (opts.BrowserDefault) StartSilent(url);
-
-            if (opts.BrowserChrome)
-            {
-                if (File.Exists(AppSettings.ChromeExe))
-                    StartSilent(AppSettings.ChromeExe, url);
                 else
-                    LogErr("❌ Chrome introuvable");
-            }
+                {
+                    var missing = string.Join(", ", notReady);
+                    Log($"   [{elapsed}s] En attente : {missing}…");
 
-            if (opts.BrowserFirefox)
-            {
-                if (File.Exists(AppSettings.FirefoxExe))
-                    StartSilent(AppSettings.FirefoxExe, url);
-                else
-                    LogErr("❌ Firefox introuvable");
+                    if (elapsed >= maxWait)
+                    {
+                        foreach (var service in notReady)
+                            LogErr($"❌ {service} n'a pas démarré après {maxWait}s. La page du navigateur ne peut pas s'ouvrir.");
+                    }
+                }
             }
         }
     }
@@ -286,25 +326,33 @@ public class LaunchService
     public async Task StopAllAsync()
     {
         // ── Services Symfony en premier ─────────────────
-        if (_symfonyStarted)
+        if (_symfonyStarted || _tailwindStarted || _mercureStarted)
         {
-            Log("⏹ Arrêt du serveur Symfony…");
-            KillProcess("symfony");
-            _symfonyStarted = false;
-        }
+            // Tuer les processus qui tournent dans les onglets
+            if (_symfonyStarted)
+            {
+                Log("⏹ Arrêt du serveur Symfony…");
+                KillProcess("symfony");
+                _symfonyStarted = false;
+            }
 
-        if (_tailwindStarted)
-        {
-            Log("⏹ Arrêt de Tailwind…");
-            KillProcess("node");
-            _tailwindStarted = false;
-        }
+            if (_tailwindStarted)
+            {
+                Log("⏹ Arrêt de Tailwind…");
+                KillProcess("node");
+                _tailwindStarted = false;
+            }
 
-        if (_mercureStarted)
-        {
-            Log("⏹ Arrêt de Mercure…");
-            KillProcess("mercure");
-            _mercureStarted = false;
+            if (_mercureStarted)
+            {
+                Log("⏹ Arrêt de Mercure…");
+                KillProcess("mercure");
+                _mercureStarted = false;
+            }
+
+            // Fermer la fenêtre Windows Terminal
+            Log("⏹ Fermeture de Windows Terminal…");
+            KillProcess("WindowsTerminal");
         }
 
         // Attendre que les services soient bien arrêtés avant de fermer l'éditeur
@@ -445,7 +493,7 @@ public class LaunchService
         }
     }
 
-    // ── Lance un .exe normalement (VSCode, panneau XAMPP…) ──
+    /// <summary>Lance un .exe sans fenêtre parasite (VSCode, URLs, exécutables)</summary>
     private void StartSilent(string fileName, string? args = null)
     {
         try
@@ -454,6 +502,7 @@ public class LaunchService
             {
                 UseShellExecute = true,
                 WindowStyle = ProcessWindowStyle.Normal,
+                CreateNoWindow = true,
             };
             if (args is not null) psi.Arguments = args;
             Process.Start(psi);
@@ -464,12 +513,61 @@ public class LaunchService
         }
     }
 
+    /// <summary>Lance VSCode sans fenêtre console parasite</summary>
+    private void StartVSCode(string projectPath)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo("cmd.exe")
+            {
+                Arguments = $"/c code \"{projectPath}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            Process.Start(psi);
+        }
+        catch (Exception ex)
+        {
+            Log($"⚠️ VSCode : {ex.Message}");
+        }
+    }
+
+    /// <summary>Lance une commande qui doit ouvrir une vraie fenêtre (wt, navigateur)</summary>
+    private void StartVisible(string fileName, string? args = null)
+{
+    try
+    {
+        var fullCmd = args is not null ? $"\"{fileName}\" {args}" : $"\"{fileName}\"";
+        var psi = new ProcessStartInfo("cmd.exe")
+        {
+            Arguments      = $"/c start \"\" {fullCmd}",
+            UseShellExecute = false,
+            CreateNoWindow  = true,  // cache la fenêtre cmd
+        };
+        Process.Start(psi);
+    }
+    catch (Exception ex)
+    {
+        Log($"⚠️ {fileName} : {ex.Message}");
+    }
+}
+
     // ── Tue un processus par nom ────────────────────────────
     private void KillProcess(string processName)
     {
         try
         {
-            foreach (var p in Process.GetProcessesByName(processName))
+            var processes = Process.GetProcesses()
+                .Where(p => p.ProcessName.Equals(processName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (processes.Count == 0)
+            {
+                Log($"   ℹ️ {processName} n'était pas en cours");
+                return;
+            }
+
+            foreach (var p in processes)
             {
                 p.Kill();
                 Log($"   ✅ {processName} arrêté");
