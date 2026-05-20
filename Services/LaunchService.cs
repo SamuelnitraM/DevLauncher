@@ -159,42 +159,78 @@ public class LaunchService
         }
 
         // 6. Navigateur
-        if (opts.OpenBrowser)
+        if (opts.OpenBrowser && opts.IsSymfony)
         {
-            var url = opts.IsSymfony
-                ? $"http://localhost:{AppSettings.SymfonyPort}"
-                : $"http://localhost/{Path.GetFileName(projectPath)}";
+            var url = $"http://localhost:{AppSettings.SymfonyPort}";
+            Log("⏳ Vérification des services avant ouverture du navigateur…");
 
-            // ── Vérification des prérequis pour Symfony ──
-            if (opts.IsSymfony)
+            var maxWait = 30; // secondes maximum d'attente
+            var elapsed = 0;
+            var interval = 1000; // vérification chaque seconde
+
+            var requiredServices = new Dictionary<string, string>
+    {
+        { "symfony",         "Symfony Server" },
+        { "httpd",           "Apache"         },
+        { "mysqld",          "MySQL"          },
+        { "FileZillaServer", "FileZilla"      },
+    };
+
+            while (elapsed < maxWait)
             {
-                var missing = new List<string>();
+                await Task.Delay(interval);
+                elapsed++;
 
-                if (opts.StartSymfonyServer && !IsProcessRunning("symfony"))
-                    missing.Add("Symfony Server");
+                var notReady = requiredServices
+                    .Where(s => !IsProcessRunning(s.Key))
+                    .Select(s => s.Value)
+                    .ToList();
 
-                if (opts.StartApache && !IsProcessRunning("httpd"))
-                    missing.Add("Apache");
-
-                if (opts.StartMySQL && !IsProcessRunning("mysqld"))
-                    missing.Add("MySQL");
-
-                if (opts.StartFileZilla && !IsProcessRunning("FileZillaServer"))
-                    missing.Add("FileZilla");
-
-                if (missing.Count > 0)
+                if (notReady.Count == 0)
                 {
-                    foreach (var service in missing)
-                        LogErr($"❌ {service} n'a pas été lancé. La page du navigateur ne peut pas fonctionner.");
-                    return;
+                    // Tous les services sont prêts
+                    Log($"✅ Tous les services sont prêts ({elapsed}s)");
+                    Log($"🌍 Ouverture du navigateur : {url}");
+
+                    if (opts.BrowserDefault) StartSilent(url);
+                    if (opts.BrowserChrome)
+                    {
+                        if (File.Exists(AppSettings.ChromeExe))
+                            StartSilent(AppSettings.ChromeExe, url);
+                        else
+                            LogErr("❌ Chrome introuvable");
+                    }
+                    if (opts.BrowserFirefox)
+                    {
+                        if (File.Exists(AppSettings.FirefoxExe))
+                            StartSilent(AppSettings.FirefoxExe, url);
+                        else
+                            LogErr("❌ Firefox introuvable");
+                    }
+                    break;
+                }
+                else
+                {
+                    // Affiche ce qui manque encore
+                    var missing = string.Join(", ", notReady);
+                    Log($"   [{elapsed}s] En attente : {missing}…");
+
+                    // Si on atteint le timeout
+                    if (elapsed >= maxWait)
+                    {
+                        foreach (var service in notReady)
+                            LogErr($"❌ {service} n'a pas démarré après {maxWait}s. La page du navigateur ne peut pas s'ouvrir.");
+                    }
                 }
             }
-
+        }
+        else if (opts.OpenBrowser && !opts.IsSymfony)
+        {
+            // Projet non-Symfony : on ouvre directement sans vérification
+            var url = $"http://localhost/{Path.GetFileName(projectPath)}";
             Log($"🌍 Ouverture du navigateur : {url}");
-            await Task.Delay(1000);
 
             if (opts.BrowserDefault) StartSilent(url);
-
             if (opts.BrowserChrome)
             {
                 if (File.Exists(AppSettings.ChromeExe))
@@ -202,7 +238,6 @@ public class LaunchService
                 else
                     LogErr("❌ Chrome introuvable");
             }
-
             if (opts.BrowserFirefox)
             {
                 if (File.Exists(AppSettings.FirefoxExe))
@@ -286,25 +321,33 @@ public class LaunchService
     public async Task StopAllAsync()
     {
         // ── Services Symfony en premier ─────────────────
-        if (_symfonyStarted)
+        if (_symfonyStarted || _tailwindStarted || _mercureStarted)
         {
-            Log("⏹ Arrêt du serveur Symfony…");
-            KillProcess("symfony");
-            _symfonyStarted = false;
-        }
+            // Tuer les processus qui tournent dans les onglets
+            if (_symfonyStarted)
+            {
+                Log("⏹ Arrêt du serveur Symfony…");
+                KillProcess("symfony");
+                _symfonyStarted = false;
+            }
 
-        if (_tailwindStarted)
-        {
-            Log("⏹ Arrêt de Tailwind…");
-            KillProcess("node");
-            _tailwindStarted = false;
-        }
+            if (_tailwindStarted)
+            {
+                Log("⏹ Arrêt de Tailwind…");
+                KillProcess("node");
+                _tailwindStarted = false;
+            }
 
-        if (_mercureStarted)
-        {
-            Log("⏹ Arrêt de Mercure…");
-            KillProcess("mercure");
-            _mercureStarted = false;
+            if (_mercureStarted)
+            {
+                Log("⏹ Arrêt de Mercure…");
+                KillProcess("mercure");
+                _mercureStarted = false;
+            }
+
+            // Fermer la fenêtre Windows Terminal
+            Log("⏹ Fermeture de Windows Terminal…");
+            KillProcess("WindowsTerminal");
         }
 
         // Attendre que les services soient bien arrêtés avant de fermer l'éditeur
