@@ -75,6 +75,38 @@
             </Style.Triggers>
         </Style>
 
+        <!-- Style bouton dropup-->
+        <Style x:Key="PopupProfileButton" TargetType="Button">
+            <Setter Property="Background"   Value="Transparent"/>
+            <Setter Property="Foreground"   Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize"     Value="13"/>
+            <Setter Property="Padding"      Value="12,8"/>
+            <Setter Property="Cursor"       Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="6"
+                        Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Left"
+                                      VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#4F9EFF33"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#4F9EFF55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Style CheckBox -->
         <Style x:Key="ModernCheckBox" TargetType="CheckBox">
             <Setter Property="Foreground"  Value="{StaticResource TextPrimaryBrush}"/>
