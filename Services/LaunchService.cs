@@ -11,7 +11,7 @@ public class LaunchService
     public event Action<string>? LogMessage;
     public event Action<string>? LogError;
 
-    // ── État : ce qui a été lancé ──────────────────────
+    // ── État : services lancés ─────────────────────────────
     private bool _apacheStarted;
     private bool _mysqlStarted;
     private bool _filezillaStarted;
@@ -28,6 +28,10 @@ public class LaunchService
         _mercureDir = mercureDir;
     }
 
+    // ════════════════════════════════════════════════════════
+    //  LANCEMENT
+    // ════════════════════════════════════════════════════════
+
     public async Task LaunchAsync(string projectPath, LaunchOptions opts)
     {
         // 1. Éditeur
@@ -38,54 +42,19 @@ public class LaunchService
             _vscodeStarted = true;
         }
 
-        if (opts.IsSymfony)
+        if (opts.OpenVisualStudio)
         {
-            _ = Task.Run(async () =>
-            {
-                // Attendre que symfony server:start soit bien lancé
-                var maxWait = 30; // 30 secondes maximum
-                var elapsed = 0;
-
-                while (elapsed < maxWait)
-                {
-                    await Task.Delay(1000);
-                    elapsed++;
-
-                    // Dès que le processus symfony tourne, on peut supprimer
-                    if (IsProcessRunning("symfony"))
-                    {
-                        await Task.Delay(3000); // 3 secondes de sécurité supplémentaires
-                        var tasksFile = Path.Combine(projectPath, ".vscode", "tasks.json");
-                        var vscodeDir = Path.Combine(projectPath, ".vscode");
-
-                        try
-                        {
-                            if (File.Exists(tasksFile))
-                            {
-                                File.Delete(tasksFile);
-                                Log("🗑️ tasks.json supprimé");
-                            }
-
-                            // Supprimer le dossier .vscode s'il est vide
-                            if (Directory.Exists(vscodeDir) &&
-                                Directory.GetFiles(vscodeDir).Length == 0 &&
-                                Directory.GetDirectories(vscodeDir).Length == 0)
-                            {
-                                Directory.Delete(vscodeDir);
-                                Log("🗑️ Dossier .vscode supprimé");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Log($"⚠️ Suppression tasks.json : {ex.Message}");
-                        }
-                        break;
-                    }
-                }
-            });
+            Log("🟣 Ouverture de Visual Studio…");
+            var slnFiles = Directory.GetFiles(projectPath, "*.sln");
+            var target = slnFiles.Length > 0 ? slnFiles[0] : projectPath;
+            Log(slnFiles.Length > 0
+                ? $"   → Solution : {Path.GetFileName(slnFiles[0])}"
+                : "   → Pas de .sln, ouverture du dossier…");
+            StartSilent(AppSettings.VisualStudioExecutable, $"\"{target}\"");
+            _visualStudioStarted = true;
         }
 
-        // 2. Panneau XAMPP (optionnel, juste pour surveiller)
+        // 2. Panneau XAMPP
         if (opts.ShowXamppPanel)
         {
             if (IsProcessRunning("xampp-control"))
@@ -98,7 +67,7 @@ public class LaunchService
             }
         }
 
-        // 3. Services XAMPP — lancement direct des .exe, aucune fenêtre
+        // 3. Services XAMPP
         if (opts.StartApache)
         {
             if (IsProcessRunning("httpd"))
@@ -118,8 +87,7 @@ public class LaunchService
             else
             {
                 Log("🗃️ Démarrage de MySQL…");
-                StartBackground(AppSettings.MySQLExe,
-                    $"--defaults-file=\"{AppSettings.MySQLConfig}\"");
+                StartBackground(AppSettings.MySQLExe, $"--defaults-file=\"{AppSettings.MySQLConfig}\"");
                 _mysqlStarted = true;
             }
         }
@@ -136,7 +104,6 @@ public class LaunchService
             }
         }
 
-        // Pause pour laisser le temps aux services de démarrer
         if (opts.StartApache || opts.StartMySQL || opts.StartFileZilla)
         {
             Log("⏳ Attente démarrage des services (2s)…");
@@ -165,91 +132,101 @@ public class LaunchService
             }
         }
 
-        // 5. Onglets Symfony
+        // 5. Services Symfony
         if (opts.IsSymfony)
         {
             Log("⚡ Lancement des services Symfony…");
-            LaunchWindowsTerminalSymfony(projectPath, opts);
+            LaunchSymfonyServices(projectPath, opts);
+            ScheduleTasksJsonCleanup(projectPath);
         }
 
         // 6. Navigateur
-        if (opts.OpenBrowser && opts.IsSymfony)
-        {
-            var url = $"http://localhost:{AppSettings.SymfonyPort}";
+        if (opts.OpenBrowser)
+            await OpenBrowserAsync(projectPath, opts);
+    }
 
-            // ── Étape 1 : vérifier que les 4 services ont bien été cochés ──
-            var notSelected = new List<string>();
+    // ════════════════════════════════════════════════════════
+    //  ARRÊT
+    // ════════════════════════════════════════════════════════
 
-            if (!opts.StartSymfonyServer) notSelected.Add("Symfony Server");
-            if (!opts.StartApache) notSelected.Add("Apache");
-            if (!opts.StartMySQL) notSelected.Add("MySQL");
-            if (!opts.StartFileZilla) notSelected.Add("FileZilla");
-
-            if (notSelected.Count > 0)
-            {
-                foreach (var service in notSelected)
-                    LogErr($"❌ {service} n'a pas été sélectionné. La page du navigateur ne peut pas s'ouvrir.");
-                return;
-            }
-
-            // ── Étape 2 : tous cochés → attendre qu'ils démarrent ──
-            Log("⏳ Attente du démarrage des services…");
-
-            var maxWait = 30;
-            var elapsed = 0;
-
-            var requiredServices = new Dictionary<string, string>
+    public async Task StopAllAsync()
     {
-        { "symfony",         "Symfony Server" },
-        { "httpd",           "Apache"         },
-        { "mysqld",          "MySQL"          },
-        { "FileZillaServer", "FileZilla"      },
-    };
+        // Services Symfony + Windows Terminal
+        if (_symfonyStarted || _tailwindStarted || _mercureStarted)
+        {
+            if (_symfonyStarted) { Log("⏹ Arrêt du serveur Symfony…"); KillProcess("symfony"); _symfonyStarted = false; }
+            if (_tailwindStarted) { Log("⏹ Arrêt de Tailwind…"); KillProcess("node"); _tailwindStarted = false; }
+            if (_mercureStarted) { Log("⏹ Arrêt de Mercure…"); KillProcess("mercure"); _mercureStarted = false; }
 
-            while (elapsed < maxWait)
-            {
-                await Task.Delay(1000);
-                elapsed++;
+            Log("⏹ Fermeture de Windows Terminal…");
+            KillProcess("WindowsTerminal");
+        }
 
-                var notReady = requiredServices
-                    .Where(s => !IsProcessRunning(s.Key))
-                    .Select(s => s.Value)
-                    .ToList();
+        // Attendre avant de fermer l'éditeur (tâches VSCode en cours)
+        if (_vscodeStarted || _visualStudioStarted)
+        {
+            Log("⏳ Attente fermeture des services…");
+            await Task.Delay(2000);
+        }
 
-                if (notReady.Count == 0)
-                {
-                    Log($"✅ Tous les services sont prêts ({elapsed}s)");
-                    Log($"🌍 Ouverture du navigateur : {url}");
+        // Éditeurs
+        if (_vscodeStarted) { Log("⏹ Fermeture de VSCode…"); KillProcess("Code"); _vscodeStarted = false; }
+        if (_visualStudioStarted) { Log("⏹ Fermeture de Visual Studio…"); KillProcess("devenv"); _visualStudioStarted = false; }
 
-                    if (opts.BrowserDefault) StartSilent(url);
-                    if (opts.BrowserChrome)
-                    {
-                        if (File.Exists(AppSettings.ChromeExe))
-                            StartSilent(AppSettings.ChromeExe, url);
-                        else
-                            LogErr("❌ Chrome introuvable");
-                    }
-                    if (opts.BrowserFirefox)
-                    {
-                        if (File.Exists(AppSettings.FirefoxExe))
-                            StartSilent(AppSettings.FirefoxExe, url);
-                        else
-                            LogErr("❌ Firefox introuvable");
-                    }
-                    break;
-                }
-                else
-                {
-                    var missing = string.Join(", ", notReady);
-                    Log($"   [{elapsed}s] En attente : {missing}…");
+        // Services XAMPP
+        if (_apacheStarted) { Log("⏹ Arrêt d'Apache…"); KillProcess("httpd"); _apacheStarted = false; }
+        if (_mysqlStarted) { Log("⏹ Arrêt de MySQL…"); KillProcess("mysqld"); _mysqlStarted = false; }
+        if (_filezillaStarted) { Log("⏹ Arrêt de FileZilla…"); KillProcess("FileZillaServer"); _filezillaStarted = false; }
+        if (_xamppPanelStarted) { Log("⏹ Fermeture du panneau XAMPP…"); KillProcess("xampp-control"); _xamppPanelStarted = false; }
 
-                    if (elapsed >= maxWait)
-                    {
-                        foreach (var service in notReady)
-                            LogErr($"❌ {service} n'a pas démarré après {maxWait}s. La page du navigateur ne peut pas s'ouvrir.");
-                    }
-                }
-            }
+        Log("✅ Tout est arrêté !");
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  SYMFONY — TERMINAUX
+    // ════════════════════════════════════════════════════════
+
+    private void LaunchSymfonyServices(string projectPath, LaunchOptions opts)
+    {
+        // VSCode sélectionné → tâches intégrées
+        if (opts.OpenVSCode)
+        {
+            GenerateVSCodeTasks(projectPath, opts);
+            Log("   → Les terminaux s'ouvriront automatiquement dans VSCode");
+            Log("   → Si demandé, accepte 'Exécuter les tâches automatiques'");
+            return;
+        }
+
+        // Sinon → Windows Terminal
+        var args = new List<string> { "-w", "0" };
+        bool firstTab = true;
+
+        void AddTab(string title, string command)
+        {
+            if (!firstTab) args.Add(";");
+            args.AddRange(new[] { "new-tab", "--title", title, "-d", projectPath, "powershell", "-NoExit", "-Command", command });
+            firstTab = false;
+            Log($"   → onglet {title}");
+        }
+
+        if (opts.StartSymfonyServer) { AddTab("Symfony Server", "symfony server:start"); _symfonyStarted = true; }
+        if (opts.StartTailwind) { AddTab("Tailwind Watch", "symfony console tailwind:build --watch"); _tailwindStarted = true; }
+
+        if (opts.StartMercure && !string.IsNullOrEmpty(opts.MercureScript))
+        {
+            if (!firstTab) args.Add(";");
+            var scriptPath = Path.Combine(_mercureDir, opts.MercureScript!);
+            args.AddRange(new[] { "new-tab", "--title", "Mercure", "-d", _mercureDir, "powershell", "-NoExit", "-File", $"\"{scriptPath}\"" });
+            Log($"   → onglet Mercure ({opts.MercureScript})");
+            _mercureStarted = true;
+            firstTab = false;
+        }
+
+        if (!firstTab)
+        {
+            var psi = new ProcessStartInfo("wt.exe") { UseShellExecute = false };
+            foreach (var arg in args) psi.ArgumentList.Add(arg);
+            Process.Start(psi);
         }
     }
 
@@ -258,51 +235,48 @@ public class LaunchService
         var tasks = new List<string>();
 
         if (opts.StartSymfonyServer)
-            tasks.Add("""
         {
-            "label": "Symfony Server",
-            "type": "shell",
-            "command": "symfony server:start",
-            "presentation": {
-                "panel": "new",
-                "reveal": "always"
-            },
-            "runOptions": { "runOn": "folderOpen" }
+            tasks.Add("""
+            {
+                "label": "Symfony Server",
+                "type": "shell",
+                "command": "symfony server:start",
+                "presentation": { "panel": "new", "reveal": "always" },
+                "runOptions": { "runOn": "folderOpen" }
+            }
+            """);
+            _symfonyStarted = true;
         }
-        """);
 
         if (opts.StartTailwind)
-            tasks.Add("""
         {
-            "label": "Tailwind Watch",
-            "type": "shell",
-            "command": "symfony console tailwind:build --watch",
-            "presentation": {
-                "panel": "new",
-                "reveal": "always"
-            },
-            "runOptions": { "runOn": "folderOpen" }
+            tasks.Add("""
+            {
+                "label": "Tailwind Watch",
+                "type": "shell",
+                "command": "symfony console tailwind:build --watch",
+                "presentation": { "panel": "new", "reveal": "always" },
+                "runOptions": { "runOn": "folderOpen" }
+            }
+            """);
+            _tailwindStarted = true;
         }
-        """);
 
         if (opts.StartMercure && !string.IsNullOrEmpty(opts.MercureScript))
         {
             var scriptPath = Path.Combine(_mercureDir, opts.MercureScript!).Replace("\\", "\\\\");
+            var mercureDir = _mercureDir.Replace("\\", "\\\\");
             tasks.Add($$$"""
-        {
-            "label": "Mercure",
-            "type": "shell",
-            "command": "powershell -NoExit -File \"{{{scriptPath}}}\"",
-            "options": {
-                "cwd": "{{{_mercureDir.Replace("\\", "\\\\")}}}"
-            },
-            "presentation": {
-                "panel": "new",
-                "reveal": "always"
-            },
-            "runOptions": { "runOn": "folderOpen" }
-        }
-        """);
+            {
+                "label": "Mercure",
+                "type": "shell",
+                "command": "powershell -NoExit -File \"{{{scriptPath}}}\"",
+                "options": { "cwd": "{{{mercureDir}}}" },
+                "presentation": { "panel": "new", "reveal": "always" },
+                "runOptions": { "runOn": "folderOpen" }
+            }
+            """);
+            _mercureStarted = true;
         }
 
         if (tasks.Count == 0) return;
@@ -311,170 +285,142 @@ public class LaunchService
         Directory.CreateDirectory(vscodePath);
 
         var json = $$"""
-    {
-        "version": "2.0.0",
-        "tasks": [
-            {{string.Join(",\n        ", tasks)}}
-        ]
-    }
-    """;
+        {
+            "version": "2.0.0",
+            "tasks": [
+                {{string.Join(",\n        ", tasks)}}
+            ]
+        }
+        """;
 
         File.WriteAllText(Path.Combine(vscodePath, "tasks.json"), json);
         Log("   → .vscode/tasks.json généré");
     }
 
-    public async Task StopAllAsync()
+    /// <summary>Supprime tasks.json dès que symfony est détecté comme actif.</summary>
+    private void ScheduleTasksJsonCleanup(string projectPath)
     {
-        // ── Services Symfony en premier ─────────────────
-        if (_symfonyStarted || _tailwindStarted || _mercureStarted)
+        _ = Task.Run(async () =>
         {
-            // Tuer les processus qui tournent dans les onglets
-            if (_symfonyStarted)
+            for (int i = 0; i < 30; i++)
             {
-                Log("⏹ Arrêt du serveur Symfony…");
-                KillProcess("symfony");
-                _symfonyStarted = false;
+                await Task.Delay(1000);
+                if (!IsProcessRunning("symfony")) continue;
+
+                await Task.Delay(3000);
+                try
+                {
+                    var tasksFile = Path.Combine(projectPath, ".vscode", "tasks.json");
+                    var vscodeDir = Path.Combine(projectPath, ".vscode");
+
+                    if (File.Exists(tasksFile)) { File.Delete(tasksFile); Log("🗑️ tasks.json supprimé"); }
+
+                    if (Directory.Exists(vscodeDir)
+                        && Directory.GetFiles(vscodeDir).Length == 0
+                        && Directory.GetDirectories(vscodeDir).Length == 0)
+                    {
+                        Directory.Delete(vscodeDir);
+                        Log("🗑️ Dossier .vscode supprimé");
+                    }
+                }
+                catch (Exception ex) { Log($"⚠️ Suppression tasks.json : {ex.Message}"); }
+                break;
             }
-
-            if (_tailwindStarted)
-            {
-                Log("⏹ Arrêt de Tailwind…");
-                KillProcess("node");
-                _tailwindStarted = false;
-            }
-
-            if (_mercureStarted)
-            {
-                Log("⏹ Arrêt de Mercure…");
-                KillProcess("mercure");
-                _mercureStarted = false;
-            }
-
-            // Fermer la fenêtre Windows Terminal
-            Log("⏹ Fermeture de Windows Terminal…");
-            KillProcess("WindowsTerminal");
-        }
-
-        // Attendre que les services soient bien arrêtés avant de fermer l'éditeur
-        if (_vscodeStarted || _visualStudioStarted)
-        {
-            Log("⏳ Attente fermeture des services…");
-            await Task.Delay(2000);
-        }
-
-        // ── Éditeurs ────────────────────────────────────
-        if (_vscodeStarted)
-        {
-            Log("⏹ Fermeture de VSCode…");
-            KillProcess("Code");
-            _vscodeStarted = false;
-        }
-
-        if (_visualStudioStarted)
-        {
-            Log("⏹ Fermeture de Visual Studio…");
-            KillProcess("devenv");
-            _visualStudioStarted = false;
-        }
-
-        // ── Services XAMPP ──────────────────────────────
-        if (_apacheStarted)
-        {
-            Log("⏹ Arrêt d'Apache…");
-            KillProcess("httpd");
-            _apacheStarted = false;
-        }
-
-        if (_mysqlStarted)
-        {
-            Log("⏹ Arrêt de MySQL…");
-            KillProcess("mysqld");
-            _mysqlStarted = false;
-        }
-
-        if (_filezillaStarted)
-        {
-            Log("⏹ Arrêt de FileZilla…");
-            KillProcess("FileZillaServer");
-            _filezillaStarted = false;
-        }
-
-        if (_xamppPanelStarted)
-        {
-            Log("⏹ Fermeture du panneau XAMPP…");
-            KillProcess("xampp-control");
-            _xamppPanelStarted = false;
-        }
-
-        Log("✅ Tout est arrêté !");
+        });
     }
 
-    private void LaunchWindowsTerminalSymfony(string projectPath, LaunchOptions opts)
+    // ════════════════════════════════════════════════════════
+    //  NAVIGATEUR
+    // ════════════════════════════════════════════════════════
+
+    private async Task OpenBrowserAsync(string projectPath, LaunchOptions opts)
     {
-        // Si VSCode est sélectionné → on génère tasks.json et VSCode gère les terminaux
-        if (opts.OpenVSCode)
+        var url = opts.IsSymfony
+            ? $"http://localhost:{AppSettings.SymfonyPort}"
+            : $"http://localhost/{Path.GetFileName(projectPath)}";
+
+        // Projet non-Symfony → ouverture directe
+        if (!opts.IsSymfony)
         {
-            Log("💻 Génération des tâches VSCode…");
-            GenerateVSCodeTasks(projectPath, opts);
-            Log("   → Les terminaux s'ouvriront automatiquement dans VSCode");
-            Log("   → Si demandé, accepte 'Exécuter les tâches automatiques'");
-            return; // VSCode ouvert plus haut dans LaunchAsync, on s'arrête ici
+            Log($"🌍 Ouverture du navigateur : {url}");
+            OpenInBrowsers(opts, url);
+            return;
         }
 
-        // Sinon → Windows Terminal classique
-        var args = new List<string> { "-w", "0" };
-        bool firstTab = true;
+        // Symfony → vérifier que les 4 services sont cochés
+        var notSelected = new List<string>();
+        if (!opts.StartSymfonyServer) notSelected.Add("Symfony Server");
+        if (!opts.StartApache) notSelected.Add("Apache");
+        if (!opts.StartMySQL) notSelected.Add("MySQL");
+        if (!opts.StartFileZilla) notSelected.Add("FileZilla");
 
-        void AddTab(string title, string command)
+        if (notSelected.Count > 0)
         {
-            if (!firstTab) args.Add(";");
-            args.AddRange(new[]
+            foreach (var s in notSelected)
+                LogErr($"❌ {s} n'a pas été sélectionné. La page du navigateur ne peut pas s'ouvrir.");
+            return;
+        }
+
+        // Attendre que les 4 services soient actifs
+        Log("⏳ Attente du démarrage des services…");
+        var required = new Dictionary<string, string>
+        {
+            { "symfony",         "Symfony Server" },
+            { "httpd",           "Apache"         },
+            { "mysqld",          "MySQL"          },
+            { "FileZillaServer", "FileZilla"      },
+        };
+
+        for (int elapsed = 1; elapsed <= 30; elapsed++)
+        {
+            await Task.Delay(1000);
+
+            var notReady = required
+                .Where(s => !IsProcessRunning(s.Key))
+                .Select(s => s.Value)
+                .ToList();
+
+            if (notReady.Count == 0)
             {
-            "new-tab", "--title", title,
-            "-d", projectPath,
-            "powershell", "-NoExit", "-Command", command
-        });
-            firstTab = false;
-            Log($"   → onglet {title}");
-        }
+                Log($"✅ Tous les services sont prêts ({elapsed}s)");
+                Log($"🌍 Ouverture du navigateur : {url}");
+                OpenInBrowsers(opts, url);
+                return;
+            }
 
-        if (opts.StartSymfonyServer) AddTab("Symfony Server", "symfony server:start"); _symfonyStarted = true;
-        if (opts.StartTailwind) AddTab("Tailwind Watch", "symfony console tailwind:build --watch"); _tailwindStarted = true;
+            Log($"   [{elapsed}s] En attente : {string.Join(", ", notReady)}…");
 
-        if (opts.StartMercure && !string.IsNullOrEmpty(opts.MercureScript))
-        {
-            if (!firstTab) args.Add(";");
-            var scriptPath = Path.Combine(_mercureDir, opts.MercureScript!);
-            args.AddRange(new[]
-            {
-            "new-tab", "--title", "Mercure",
-            "-d", _mercureDir,
-            "powershell", "-NoExit", "-File", $"\"{scriptPath}\""
-        });
-            _mercureStarted = true;
-            Log($"   → onglet Mercure ({opts.MercureScript})");
-            firstTab = false;
-        }
-
-        if (!firstTab)
-        {
-            var psi = new ProcessStartInfo("wt.exe") { UseShellExecute = false };
-            foreach (var arg in args)
-                psi.ArgumentList.Add(arg);
-            Process.Start(psi);
+            if (elapsed == 30)
+                foreach (var s in notReady)
+                    LogErr($"❌ {s} n'a pas démarré après 30s. La page du navigateur ne peut pas s'ouvrir.");
         }
     }
 
-    // ── Lance un .exe sans aucune fenêtre ──────────────────
+    private void OpenInBrowsers(LaunchOptions opts, string url)
+    {
+        if (opts.BrowserDefault) StartSilent(url);
+        if (opts.BrowserChrome)
+        {
+            if (File.Exists(AppSettings.ChromeExe)) StartSilent(AppSettings.ChromeExe, url);
+            else LogErr("❌ Chrome introuvable");
+        }
+        if (opts.BrowserFirefox)
+        {
+            if (File.Exists(AppSettings.FirefoxExe)) StartSilent(AppSettings.FirefoxExe, url);
+            else LogErr("❌ Firefox introuvable");
+        }
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  HELPERS — PROCESSUS
+    // ════════════════════════════════════════════════════════
+
+    /// <summary>Lance un .exe en arrière-plan total, aucune fenêtre.</summary>
     private void StartBackground(string fileName, string? args = null)
     {
         try
         {
-            if (!File.Exists(fileName))
-            {
-                Log($"⚠️ Introuvable : {fileName}");
-                return;
-            }
+            if (!File.Exists(fileName)) { Log($"⚠️ Introuvable : {fileName}"); return; }
 
             var psi = new ProcessStartInfo(fileName)
             {
@@ -483,17 +429,13 @@ public class LaunchService
                 WindowStyle = ProcessWindowStyle.Hidden,
             };
             if (args is not null) psi.Arguments = args;
-
             Process.Start(psi);
             Log($"   ✅ {Path.GetFileName(fileName)} lancé");
         }
-        catch (Exception ex)
-        {
-            Log($"⚠️ {Path.GetFileName(fileName)} : {ex.Message}");
-        }
+        catch (Exception ex) { Log($"⚠️ {Path.GetFileName(fileName)} : {ex.Message}"); }
     }
 
-    /// <summary>Lance un .exe sans fenêtre parasite (VSCode, URLs, exécutables)</summary>
+    /// <summary>Lance un .exe normalement (panneau XAMPP, navigateur, Visual Studio…).</summary>
     private void StartSilent(string fileName, string? args = null)
     {
         try
@@ -507,92 +449,47 @@ public class LaunchService
             if (args is not null) psi.Arguments = args;
             Process.Start(psi);
         }
-        catch (Exception ex)
-        {
-            Log($"⚠️ {fileName} : {ex.Message}");
-        }
+        catch (Exception ex) { Log($"⚠️ {fileName} : {ex.Message}"); }
     }
 
-    /// <summary>Lance VSCode sans fenêtre console parasite</summary>
+    /// <summary>Lance VSCode via cmd pour éviter la fenêtre console parasite.</summary>
     private void StartVSCode(string projectPath)
     {
         try
         {
-            var psi = new ProcessStartInfo("cmd.exe")
+            Process.Start(new ProcessStartInfo("cmd.exe")
             {
                 Arguments = $"/c code \"{projectPath}\"",
                 UseShellExecute = false,
                 CreateNoWindow = true,
-            };
-            Process.Start(psi);
+            });
         }
-        catch (Exception ex)
-        {
-            Log($"⚠️ VSCode : {ex.Message}");
-        }
+        catch (Exception ex) { Log($"⚠️ VSCode : {ex.Message}"); }
     }
 
-    /// <summary>Lance une commande qui doit ouvrir une vraie fenêtre (wt, navigateur)</summary>
-    private void StartVisible(string fileName, string? args = null)
-{
-    try
-    {
-        var fullCmd = args is not null ? $"\"{fileName}\" {args}" : $"\"{fileName}\"";
-        var psi = new ProcessStartInfo("cmd.exe")
-        {
-            Arguments      = $"/c start \"\" {fullCmd}",
-            UseShellExecute = false,
-            CreateNoWindow  = true,  // cache la fenêtre cmd
-        };
-        Process.Start(psi);
-    }
-    catch (Exception ex)
-    {
-        Log($"⚠️ {fileName} : {ex.Message}");
-    }
-}
-
-    // ── Tue un processus par nom ────────────────────────────
+    /// <summary>Tue tous les processus portant ce nom (insensible à la casse).</summary>
     private void KillProcess(string processName)
     {
         try
         {
-            var processes = Process.GetProcesses()
+            var list = Process.GetProcesses()
                 .Where(p => p.ProcessName.Equals(processName, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
-            if (processes.Count == 0)
-            {
-                Log($"   ℹ️ {processName} n'était pas en cours");
-                return;
-            }
+            if (list.Count == 0) { Log($"   ℹ️ {processName} n'était pas en cours"); return; }
 
-            foreach (var p in processes)
-            {
-                p.Kill();
-                Log($"   ✅ {processName} arrêté");
-            }
+            foreach (var p in list) { p.Kill(); Log($"   ✅ {processName} arrêté"); }
         }
-        catch (Exception ex)
-        {
-            Log($"⚠️ Arrêt {processName} : {ex.Message}");
-        }
+        catch (Exception ex) { Log($"⚠️ Arrêt {processName} : {ex.Message}"); }
     }
 
-    // ── Vérifie si un processus tourne déjà ────────────────
+    /// <summary>Vérifie si un processus est actif.</summary>
     private static bool IsProcessRunning(string processName)
     {
-        try
-        {
-            return Process.GetProcessesByName(processName).Length > 0;
-        }
-        catch
-        {
-            return false;
-        }
+        try { return Process.GetProcessesByName(processName).Length > 0; }
+        catch { return false; }
     }
 
     private void Log(string msg) => LogMessage?.Invoke(msg);
     private void LogErr(string msg) => LogError?.Invoke(msg);
-
 }
