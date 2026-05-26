@@ -155,11 +155,19 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void StopAll_Click(object sender, RoutedEventArgs e)
-    {
-        Log("⏹ Arrêt de l'environnement…");
-        await _launcher.StopAllAsync();
-    }
+private async void StopAll_Click(object sender, RoutedEventArgs e)
+{
+    var result = MessageBox.Show(
+        "Arrêter tous les services et fermer les éditeurs ?",
+        "⏹ Tout arrêter",
+        MessageBoxButton.YesNo,
+        MessageBoxImage.Question);
+
+    if (result != MessageBoxResult.Yes) return;
+
+    Log("⏹ Arrêt de l'environnement…");
+    await _launcher.StopAllAsync();
+}
 
     // ════════════════════════════════════════════════════════════
     //  CONSTRUCTION DES OPTIONS
@@ -257,6 +265,9 @@ public partial class MainWindow : Window
         ApplyProfile(profile);
         DeleteProfileButton.IsEnabled = ProfileComboBox.Items.Count > 2;
         UpdateLaunchButton();
+
+        // Mémoriser le profil sélectionné
+        _profileService.SaveLastUsedProfile(projectName, profileName);
     }
 
     private void SaveProfile_Click(object sender, RoutedEventArgs e)
@@ -271,6 +282,44 @@ public partial class MainWindow : Window
 
         Log($"💾 Profil « {profileName} » sauvegardé");
         StatusText.Text = $"✅ Profil « {profileName} » sauvegardé";
+    }
+
+    private void RenameProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedProject is null) return;
+        if (ProfileComboBox.SelectedItem is not string oldName) return;
+        if (oldName == "+ Nouveau profil...") return;
+
+        var dialog = new ProfileNameDialog { Owner = this };
+        if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.ProfileName))
+            return;
+
+        var newName = dialog.ProfileName.Trim();
+        var projectName = Path.GetFileName(_selectedProject);
+
+        // Vérifier que le nom n'existe pas déjà
+        if (ProfileComboBox.Items.Cast<string>().Any(p => p == newName))
+        {
+            MessageBox.Show($"Un profil « {newName} » existe déjà.", "Nom existant",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Charger l'ancien profil, changer son nom, sauvegarder
+        var profile = _profileService.GetProfile(projectName, oldName);
+        if (profile is null) return;
+
+        profile.Name = newName;
+        _profileService.SaveProfile(projectName, profile);
+        _profileService.DeleteProfile(projectName, oldName);
+
+        // Mettre à jour le ComboBox
+        var index = ProfileComboBox.Items.IndexOf(oldName);
+        ProfileComboBox.Items[index] = newName;
+        ProfileComboBox.SelectedIndex = index;
+
+        Log($"✏️ Profil « {oldName} » renommé en « {newName} »");
+        UpdateLaunchButton();
     }
 
     private void DeleteProfile_Click(object sender, RoutedEventArgs e)
@@ -414,10 +463,17 @@ public partial class MainWindow : Window
             ProfileComboBox.Items.Add(p.Name);
 
         ProfileComboBox.Items.Add("+ Nouveau profil...");
-        ProfileComboBox.SelectedIndex = 0;
-        ProfileComboBox.IsEnabled = true;
-        SaveProfileButton.IsEnabled = true;
-        DeleteProfileButton.IsEnabled = profiles.Count > 1;
+        // Restaurer le dernier profil utilisé
+        var lastUsed = _profileService.GetLastUsedProfile(projectName);
+        var lastIndex = lastUsed != null
+            ? ProfileComboBox.Items.Cast<string>()
+                .ToList().IndexOf(lastUsed)
+            : 0;
+        ProfileComboBox.SelectedIndex   = lastIndex >= 0 ? lastIndex : 0;
+        ProfileComboBox.IsEnabled       = true;
+        SaveProfileButton.IsEnabled     = true;
+        RenameProfileButton.IsEnabled   = true;
+        DeleteProfileButton.IsEnabled   = profiles.Count > 1;
 
         // Charger le premier profil dans l'UI
         ApplyProfile(profiles[0]);

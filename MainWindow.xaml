@@ -76,18 +76,13 @@
                 <!-- ── Ligne 1 : Profils ── -->
                 <Grid Grid.Row="0" Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <!-- Label -->
-                        <ColumnDefinition Width="200"/>
-                        <!-- Dropdown -->
-                        <ColumnDefinition Width="Auto"/>
-                        <!-- Sauvegarder -->
-                        <ColumnDefinition Width="Auto"/>
-                        <!-- Supprimer -->
-                        <ColumnDefinition Width="*"/>
-                        <!-- Espace -->
-                        <ColumnDefinition Width="Auto"/>
-                        <!-- Statut -->
+                        <ColumnDefinition Width="Auto"/>    <!-- Label -->
+                        <ColumnDefinition Width="200"/>     <!-- Dropdown -->
+                        <ColumnDefinition Width="Auto"/>    <!-- Sauvegarder -->
+                        <ColumnDefinition Width="Auto"/>    <!-- Renommer -->
+                        <ColumnDefinition Width="Auto"/>    <!-- Supprimer -->
+                        <ColumnDefinition Width="*"/>       <!-- Espace -->
+                        <ColumnDefinition Width="Auto"/>    <!-- Statut -->
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Grid.Column="0"
@@ -126,8 +121,18 @@
                     IsEnabled="False"
                     Click="SaveProfile_Click"/>
 
-                    <!-- Bouton Supprimer -->
+                    <!-- Bouton Renommer -->
                     <Button Grid.Column="3"
+                    x:Name="RenameProfileButton"
+                    Content="✏️"
+                    Style="{StaticResource PrimaryButton}"
+                    FontSize="11" Padding="8,5"
+                    Margin="6,0,0,0"
+                    IsEnabled="False"
+                    Click="RenameProfile_Click"/>
+
+                    <!-- Bouton Supprimer -->
+                    <Button Grid.Column="4"
                     x:Name="DeleteProfileButton"
                     Content="🗑️"
                     Style="{StaticResource DangerButton}"

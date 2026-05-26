@@ -101,4 +101,39 @@ public class ProfileService
         var invalid = Path.GetInvalidFileNameChars();
         return string.Concat(name.Select(c => invalid.Contains(c) ? '_' : c));
     }
+
+    /// <summary>Mémorise le dernier profil utilisé pour un projet.</summary>
+    public void SaveLastUsedProfile(string projectName, string profileName)
+    {
+        var path = Path.Combine(_profilesDir, "last-used.json");
+        Dictionary<string, string> lastUsed;
+
+        try
+        {
+            lastUsed = File.Exists(path)
+                ? JsonSerializer.Deserialize<Dictionary<string, string>>(
+                    File.ReadAllText(path), _jsonOptions)
+                  ?? new Dictionary<string, string>()
+                : new Dictionary<string, string>();
+        }
+        catch { lastUsed = new Dictionary<string, string>(); }
+
+        lastUsed[projectName] = profileName;
+        File.WriteAllText(path, JsonSerializer.Serialize(lastUsed, _jsonOptions));
+    }
+
+    /// <summary>Retourne le dernier profil utilisé pour un projet.</summary>
+    public string? GetLastUsedProfile(string projectName)
+    {
+        var path = Path.Combine(_profilesDir, "last-used.json");
+        if (!File.Exists(path)) return null;
+
+        try
+        {
+            var lastUsed = JsonSerializer.Deserialize<Dictionary<string, string>>(
+                File.ReadAllText(path), _jsonOptions);
+            return lastUsed?.GetValueOrDefault(projectName);
+        }
+        catch { return null; }
+    }
 }
