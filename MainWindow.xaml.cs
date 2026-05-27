@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     // ── État ──────────────────────────────────────────────────
     private List<string> _allProjects = new();
     private string?      _selectedProject;
+    private bool _isLoadingProfiles;
 
     public MainWindow()
     {
@@ -44,6 +45,12 @@ public partial class MainWindow : Window
         // Réagit à la case Mercure
         ChkMercure.Checked += (_, _) => { if (MercurePanel != null) MercurePanel.Visibility = Visibility.Visible; };
         ChkMercure.Unchecked += (_, _) => { if (MercurePanel != null) MercurePanel.Visibility = Visibility.Collapsed; };
+        Loaded += MainWindow_Loaded;
+    }
+
+    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        // Rien ici pour l'instant, le chargement se fera à la sélection du projet
     }
 
     // ════════════════════════════════════════════════════════════
@@ -478,6 +485,27 @@ private async void StopAll_Click(object sender, RoutedEventArgs e)
         // Charger le premier profil dans l'UI
         ApplyProfile(profiles[0]);
         UpdateLaunchButton();
+
+        _isLoadingProfiles = false;
+
+        // Appliquer le profil après que l'UI soit stable
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            var profiles = _profileService.GetProfiles(projectName);
+            if (profiles.Count == 0) return;
+
+            var lastUsed = _profileService.GetLastUsedProfile(projectName);
+            var toApply = profiles.FirstOrDefault(p => p.Name == lastUsed)
+                           ?? profiles[0];
+
+            ApplyProfile(toApply);
+
+            // Sélectionner le bon item dans le ComboBox
+            var index = ProfileComboBox.Items.Cast<string>()
+                .ToList().IndexOf(toApply.Name);
+            if (index >= 0) ProfileComboBox.SelectedIndex = index;
+
+        }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     /// <summary>Applique un profil sauvegardé dans l'UI.</summary>
