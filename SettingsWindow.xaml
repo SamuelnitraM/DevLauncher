@@ -1,0 +1,344 @@
+﻿<Window x:Class="DevLauncher.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="⚙️ Paramètres"
+        Height="620" Width="680"
+        MinHeight="500" MinWidth="600"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource DarkBgBrush}"
+        FontFamily="Segoe UI"
+        ResizeMode="CanResize">
+
+    <Window.Resources>
+        <!-- Style réutilisable pour chaque ligne de paramètre -->
+        <Style x:Key="SettingsLabel" TargetType="TextBlock">
+            <Setter Property="FontSize"      Value="13"/>
+            <Setter Property="Foreground"    Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Width"         Value="160"/>
+            <Setter Property="TextWrapping"  Value="Wrap"/>
+        </Style>
+        <Style x:Key="SettingsTextBox" TargetType="TextBox">
+            <Setter Property="Background"    Value="#1A1A2E"/>
+            <Setter Property="Foreground"    Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush"   Value="#444466"/>
+            <Setter Property="FontSize"      Value="12"/>
+            <Setter Property="FontFamily"    Value="Consolas"/>
+            <Setter Property="Padding"       Value="8,6"/>
+        </Style>
+        <Style x:Key="BrowseButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Content"   Value="📂"/>
+            <Setter Property="FontSize"  Value="11"/>
+            <Setter Property="Padding"   Value="8,6"/>
+            <Setter Property="Margin"    Value="6,0,0,0"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+
+        <!-- Header -->
+        <Border DockPanel.Dock="Top"
+                Background="{StaticResource CardBgBrush}"
+                Padding="24,16">
+            <StackPanel>
+                <TextBlock Text="⚙️ Paramètres"
+                           FontSize="20" FontWeight="Bold"
+                           Foreground="{StaticResource AccentBlueBrush}"/>
+                <TextBlock Text="Configure les chemins et options de DevLauncher"
+                           FontSize="12"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           Margin="0,2,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Footer -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{StaticResource CardBgBrush}"
+                Padding="24,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="StatusText"
+                           Grid.Column="0"
+                           FontSize="12"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="Annuler"
+                            Style="{StaticResource PrimaryButton}"
+                            Padding="16,8" Margin="0,0,8,0"
+                            Click="Cancel_Click"/>
+                    <Button Content="💾 Sauvegarder"
+                            Style="{StaticResource SuccessButton}"
+                            Padding="16,8"
+                            Click="Save_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Contenu scrollable -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+            <StackPanel>
+
+                <!-- ── XAMPP ── -->
+                <Border Background="{StaticResource CardBgBrush}"
+                        CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="🗄️ XAMPP"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="0,0,0,12"/>
+
+                        <!-- Htdocs -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Dossier htdocs"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <TextBox Grid.Column="1" x:Name="HtdocsBox"
+                                     Style="{StaticResource SettingsTextBox}"/>
+                            <Button Grid.Column="2" Tag="Folder" x:Name="HtdocsBtn"
+                                    Style="{StaticResource BrowseButton}"
+                                    Click="Browse_Click"/>
+                        </Grid>
+
+                        <!-- XamppDir -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Dossier XAMPP"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <TextBox Grid.Column="1" x:Name="XamppDirBox"
+                                     Style="{StaticResource SettingsTextBox}"/>
+                            <Button Grid.Column="2" Tag="Folder" x:Name="XamppDirBtn"
+                                    Style="{StaticResource BrowseButton}"
+                                    Click="Browse_Click"/>
+                        </Grid>
+
+                        <!-- Apache -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Apache (httpd.exe)"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <TextBox Grid.Column="1" x:Name="ApacheExeBox"
+                                     Style="{StaticResource SettingsTextBox}"/>
+                            <Button Grid.Column="2" Tag="File" x:Name="ApacheExeBtn"
+                                    Style="{StaticResource BrowseButton}"
+                                    Click="Browse_Click"/>
+                        </Grid>
+
+                        <!-- MySQL exe -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="MySQL (mysqld.exe)"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <TextBox Grid.Column="1" x:Name="MySQLExeBox"
+                                     Style="{StaticResource SettingsTextBox}"/>
+                            <Button Grid.Column="2" Tag="File" x:Name="MySQLExeBtn"
+                                    Style="{StaticResource BrowseButton}"
+                                    Click="Browse_Click"/>
+                        </Grid>
+
+                        <!-- MySQL config -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="MySQL config (my.ini)"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <TextBox Grid.Column="1" x:Name="MySQLConfigBox"
+                                     Style="{StaticResource SettingsTextBox}"/>
+                            <Button Grid.Column="2" Tag="File" x:Name="MySQLConfigBtn"
+                                    Style="{StaticResource BrowseButton}"
+                                    Click="Browse_Click"/>
+                        </Grid>
+
+                        <!-- FileZilla -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="FileZilla (exe)"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <TextBox Grid.Column="1" x:Name="FileZillaExeBox"
+                                     Style="{StaticResource SettingsTextBox}"/>
+                            <Button Grid.Column="2" Tag="File" x:Name="FileZillaExeBtn"
+                                    Style="{StaticResource BrowseButton}"
+                                    Click="Browse_Click"/>
+                        </Grid>
+
+                        <!-- Panneau XAMPP -->
+                        <Grid Margin="0,0,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Panneau XAMPP (exe)"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <TextBox Grid.Column="1" x:Name="XamppPanelBox"
+                                     Style="{StaticResource SettingsTextBox}"/>
+                            <Button Grid.Column="2" Tag="File" x:Name="XamppPanelBtn"
+                                    Style="{StaticResource BrowseButton}"
+                                    Click="Browse_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Mercure ── -->
+                <Border Background="{StaticResource CardBgBrush}"
+                        CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="📡 Mercure"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="0,0,0,12"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Dossier Mercure"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <TextBox Grid.Column="1" x:Name="MercureDirBox"
+                                     Style="{StaticResource SettingsTextBox}"/>
+                            <Button Grid.Column="2" Tag="Folder" x:Name="MercureDirBtn"
+                                    Style="{StaticResource BrowseButton}"
+                                    Click="Browse_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Éditeurs ── -->
+                <Border Background="{StaticResource CardBgBrush}"
+                        CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="💻 Éditeurs de code"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="0,0,0,12"/>
+
+                        <!-- VSCode -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="VSCode"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <TextBox Grid.Column="1" x:Name="VSCodeBox"
+                                     Style="{StaticResource SettingsTextBox}"/>
+                            <Button Grid.Column="2" Tag="File" x:Name="VSCodeBtn"
+                                    Style="{StaticResource BrowseButton}"
+                                    Click="Browse_Click"/>
+                        </Grid>
+
+                        <!-- Visual Studio -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Visual Studio"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <TextBox Grid.Column="1" x:Name="VisualStudioBox"
+                                     Style="{StaticResource SettingsTextBox}"/>
+                            <Button Grid.Column="2" Tag="File" x:Name="VisualStudioBtn"
+                                    Style="{StaticResource BrowseButton}"
+                                    Click="Browse_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Navigateurs ── -->
+                <Border Background="{StaticResource CardBgBrush}"
+                        CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="🌍 Navigateurs"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="0,0,0,12"/>
+
+                        <!-- Chrome -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Google Chrome"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <TextBox Grid.Column="1" x:Name="ChromeBox"
+                                     Style="{StaticResource SettingsTextBox}"/>
+                            <Button Grid.Column="2" Tag="File" x:Name="ChromeBtn"
+                                    Style="{StaticResource BrowseButton}"
+                                    Click="Browse_Click"/>
+                        </Grid>
+
+                        <!-- Firefox -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Firefox"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <TextBox Grid.Column="1" x:Name="FirefoxBox"
+                                     Style="{StaticResource SettingsTextBox}"/>
+                            <Button Grid.Column="2" Tag="File" x:Name="FirefoxBtn"
+                                    Style="{StaticResource BrowseButton}"
+                                    Click="Browse_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Symfony ── -->
+                <Border Background="{StaticResource CardBgBrush}"
+                        CornerRadius="12" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="⚡ Symfony"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="0,0,0,12"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="120"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Port Symfony"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <TextBox Grid.Column="1" x:Name="SymfonyPortBox"
+                                     Style="{StaticResource SettingsTextBox}"
+                                     MaxLength="5"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

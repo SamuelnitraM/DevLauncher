@@ -18,45 +18,56 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
+                <!-- Titre -->
                 <StackPanel Grid.Column="0">
                     <TextBlock Text="⚡ Dev Launcher"
-                               FontSize="22" FontWeight="Bold"
-                               Foreground="{StaticResource AccentBlueBrush}"/>
+                       FontSize="22" FontWeight="Bold"
+                       Foreground="{StaticResource AccentBlueBrush}"/>
                     <TextBlock Text="Lance ton environnement de développement en un clic"
-                               FontSize="12"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               Margin="0,2,0,0"/>
+                       FontSize="12"
+                       Foreground="{StaticResource TextSecondaryBrush}"
+                       Margin="0,2,0,0"/>
                 </StackPanel>
 
-                <!-- Indicateurs de statut services -->
+                <!-- Indicateurs + bouton paramètres -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Border CornerRadius="12" Padding="10,5" Margin="4,0" Background="#1A3A1A">
                         <StackPanel Orientation="Horizontal">
                             <Ellipse x:Name="ApacheIndicator" Width="8" Height="8"
-                                     Fill="{StaticResource AccentRedBrush}"
-                                     VerticalAlignment="Center" Margin="0,0,6,0"/>
+                             Fill="{StaticResource AccentRedBrush}"
+                             VerticalAlignment="Center" Margin="0,0,6,0"/>
                             <TextBlock Text="Apache" FontSize="11"
-                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                               Foreground="{StaticResource TextSecondaryBrush}"/>
                         </StackPanel>
                     </Border>
                     <Border CornerRadius="12" Padding="10,5" Margin="4,0" Background="#1A3A1A">
                         <StackPanel Orientation="Horizontal">
                             <Ellipse x:Name="MySqlIndicator" Width="8" Height="8"
-                                     Fill="{StaticResource AccentRedBrush}"
-                                     VerticalAlignment="Center" Margin="0,0,6,0"/>
+                             Fill="{StaticResource AccentRedBrush}"
+                             VerticalAlignment="Center" Margin="0,0,6,0"/>
                             <TextBlock Text="MySQL" FontSize="11"
-                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                               Foreground="{StaticResource TextSecondaryBrush}"/>
                         </StackPanel>
                     </Border>
                     <Border CornerRadius="12" Padding="10,5" Margin="4,0" Background="#1A3A1A">
                         <StackPanel Orientation="Horizontal">
                             <Ellipse x:Name="FileZillaIndicator" Width="8" Height="8"
-                                     Fill="{StaticResource AccentRedBrush}"
-                                     VerticalAlignment="Center" Margin="0,0,6,0"/>
+                             Fill="{StaticResource AccentRedBrush}"
+                             VerticalAlignment="Center" Margin="0,0,6,0"/>
                             <TextBlock Text="FileZilla" FontSize="11"
-                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                               Foreground="{StaticResource TextSecondaryBrush}"/>
                         </StackPanel>
                     </Border>
+
+                    <!-- Séparateur -->
+                    <Border Width="1" Background="#444466" Margin="8,0"/>
+
+                    <!-- Bouton paramètres -->
+                    <Button Content="⚙️"
+                    Style="{StaticResource PrimaryButton}"
+                    FontSize="14" Padding="8,5"
+                    ToolTip="Paramètres"
+                    Click="Settings_Click"/>
                 </StackPanel>
             </Grid>
         </Border>

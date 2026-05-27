@@ -46,11 +46,23 @@ public partial class MainWindow : Window
         ChkMercure.Checked += (_, _) => { if (MercurePanel != null) MercurePanel.Visibility = Visibility.Visible; };
         ChkMercure.Unchecked += (_, _) => { if (MercurePanel != null) MercurePanel.Visibility = Visibility.Collapsed; };
         Loaded += MainWindow_Loaded;
+        SettingsService.Load();
     }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         // Rien ici pour l'instant, le chargement se fera à la sélection du projet
+    }
+
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        var window = new SettingsWindow { Owner = this };
+        if (window.ShowDialog() == true)
+        {
+            // Recharger la liste des projets si htdocs a changé
+            RefreshProjectList();
+            Log("⚙️ Paramètres mis à jour");
+        }
     }
 
     // ════════════════════════════════════════════════════════════
