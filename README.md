@@ -10,33 +10,30 @@ par une interface graphique moderne.
 ```
 DevLauncher/
 │
-├── DevLauncher.csproj       ← Fichier projet .NET (comme un package.json)
-├── App.xaml                 ← Point d'entrée WPF + thème global (couleurs, styles)
-├── App.xaml.cs              ← Code C# lié à App.xaml (quasi vide)
-├── AppSettings.cs           ← Tous les chemins configurables (htdocs, xampp, mercure)
-├── MainWindow.xaml          ← Interface graphique (XML/XAML)
-├── MainWindow.xaml.cs       ← Logique de l'interface (clics, événements)
+├── DevLauncher.csproj          ← Fichier projet .NET (WPF, .NET 8, System.Management)
+├── app.manifest                ← Demande des droits administrateur (traces WMI des processus)
+├── App.xaml / App.xaml.cs      ← Point d'entrée : thème global + chargement de settings.json
+├── AppSettings.cs              ← Valeurs par défaut des chemins et ports
+├── MainWindow.xaml / .cs       ← Fenêtre principale (projets, options, profils, journal)
+│
+├── Views/
+│   ├── SettingsWindow          ← Fenêtre des paramètres (chemins, ports)
+│   └── ProfileNameDialog       ← Saisie du nom d'un profil (création / renommage)
+│
+├── Models/
+│   ├── ProjectProfile.cs       ← Profil de lancement d'un projet (= requête de lancement)
+│   └── ProjectDetection.cs     ← Technologies détectées dans un projet
 │
 └── Services/
-    ├── LaunchOptions.cs     ← Modèle de données : quelles options sont cochées ?
-    ├── LaunchService.cs     ← Lance les processus (wt, code, apache_start.bat…)
-    ├── ProjectScanner.cs    ← Lit htdocs, détecte si c'est un projet Symfony
-    └── ServiceMonitor.cs    ← Surveille Apache/MySQL toutes les 3 secondes
+    ├── LaunchService.cs        ← Lance / arrête éditeurs, XAMPP, Symfony, terminal, navigateur
+    ├── ProjectScanner.cs       ← Liste les projets et détecte Symfony / Tailwind
+    ├── ProfileService.cs       ← Persistance des profils par projet (JSON)
+    ├── SettingsService.cs      ← Persistance des paramètres (settings.json)
+    ├── ProcessEventWatcher.cs  ← Événements WMI de démarrage / arrêt des processus
+    ├── ServiceMonitor.cs       ← État Apache / MySQL / FileZilla en temps réel (événementiel)
+    ├── ProcessHelper.cs        ← Utilitaires communs sur les processus
+    └── NativeWindowService.cs  ← Fermeture propre (WM_CLOSE) des fenêtres d'un projet
 ```
-
-### Rôle de chaque fichier en détail
-
-| Fichier | Rôle |
-|---|---|
-| `DevLauncher.csproj` | Déclare : c'est une app WPF, .NET 8, sortie en .exe. Équivalent du `package.json` |
-| `App.xaml` | Définit le thème visuel global : couleurs, styles des boutons, CheckBox… |
-| `AppSettings.cs` | **Modifie ce fichier** si tes chemins sont différents de `C:\xampp\htdocs` |
-| `MainWindow.xaml` | Le layout de la fenêtre. XAML = HTML pour WPF |
-| `MainWindow.xaml.cs` | Les actions (clic sur "Lancer", sélection d'un projet, etc.) |
-| `LaunchOptions.cs` | Un simple objet qui transporte les cases cochées vers le service |
-| `LaunchService.cs` | Le "cerveau" : démarre VSCode, les .bat XAMPP, Windows Terminal |
-| `ProjectScanner.cs` | Lit le dossier htdocs et vérifie si un projet a `symfony.lock` ou `bin/console` |
-| `ServiceMonitor.cs` | Timer qui vérifie si `httpd.exe` et `mysqld.exe` tournent → met à jour les indicateurs |
 
 ---
 
@@ -86,33 +83,27 @@ Tu peux le copier où tu veux et créer un raccourci sur le Bureau.
 
 ## ⚙️ Personnaliser les chemins
 
-Ouvre `AppSettings.cs` et modifie :
-
-```csharp
-public static string HtdocsPath { get; set; } = @"C:\xampp\htdocs";
-public static string XamppDir   { get; set; } = @"C:\xampp";
-public static string MercureDir { get; set; } = @"C:\mercure";
-```
+Tout se règle depuis le bouton **⚙️ Paramètres** : dossier des projets, exécutables XAMPP,
+dossier Mercure, éditeurs, navigateurs, ports Symfony et Apache.
+Les valeurs sont enregistrées dans `settings.json`, à côté de l'exécutable.
 
 ---
 
 ## ✨ Fonctionnalités
 
-- 📁 Liste automatique de tous les projets dans `htdocs`
-- 🔍 Barre de recherche pour filtrer les projets
-- ✅ Détection automatique Symfony (`symfony.lock`, `bin/console`, `composer.json`)
-- ⚡ Onglets Windows Terminal séparés : Symfony Server / Tailwind / Mercure
-- 📡 Liste dynamique des scripts `start*.ps1` dans le dossier Mercure
-- 🌐 Indicateurs Apache / MySQL en temps réel (vert = actif, rouge = inactif)
-- ⏹ Bouton "Tout arrêter" pour stopper Apache et MySQL
+- 📁 Liste automatique des projets du dossier `htdocs`, avec recherche
+- ✅ Détection automatique Symfony (`symfony.lock`, `bin/console`, `composer.json`) et Tailwind bundle
+- 💾 Profils de lancement par projet (création, renommage, suppression, mémorisation du dernier utilisé)
+- 💻 VSCode / Visual Studio, avec services Symfony dans les terminaux intégrés de VSCode
+  (le `tasks.json` du projet est préservé et restauré)
+- ⚡ Sinon, onglets Windows Terminal dédiés (fenêtre « DevLauncher ») : Symfony Server / Tailwind / Mercure
+- 🌍 Ouverture du navigateur dès que le serveur répond réellement sur son port
+- 🌐 Indicateurs Apache / MySQL / FileZilla en temps réel, sans polling
+- ⏹ « Tout arrêter » : n'arrête que ce que DevLauncher a lancé, ferme proprement les fenêtres d'éditeur du projet
 - 📋 Journal de lancement horodaté
 
 ---
 
-## 🔧 Idées d'améliorations futures
+## 🗺️ Évolutions
 
-- [ ] Sauvegarder les préférences par projet dans un fichier JSON
-- [ ] Ajouter d'autres types de projets (Laravel, Node.js, etc.)
-- [ ] Lancer depuis le menu contextuel de l'Explorateur Windows
-- [ ] Icône dans la barre des tâches (System Tray) pour accès rapide
-- [ ] Historique des projets récemment ouverts
+Voir [Roadmap.md](Roadmap.md).

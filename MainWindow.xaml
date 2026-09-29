@@ -18,7 +18,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Titre -->
+                <!-- Title -->
                 <StackPanel Grid.Column="0">
                     <TextBlock Text="⚡ Dev Launcher"
                        FontSize="22" FontWeight="Bold"
@@ -29,7 +29,7 @@
                        Margin="0,2,0,0"/>
                 </StackPanel>
 
-                <!-- Indicateurs + bouton paramètres -->
+                <!-- Service indicators + settings button -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Border CornerRadius="12" Padding="10,5" Margin="4,0" Background="#1A3A1A">
                         <StackPanel Orientation="Horizontal">
@@ -59,10 +59,10 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Séparateur -->
+                    <!-- Separator -->
                     <Border Width="1" Background="#444466" Margin="8,0"/>
 
-                    <!-- Bouton paramètres -->
+                    <!-- Settings button -->
                     <Button Content="⚙️"
                     Style="{StaticResource PrimaryButton}"
                     FontSize="14" Padding="8,5"
@@ -72,28 +72,27 @@
             </Grid>
         </Border>
 
-        <!-- ═══════════════════ FOOTER / BOUTONS ═══════════════════ -->
+        <!-- ═══════════════════ FOOTER / BUTTONS ═══════════════════ -->
         <Border DockPanel.Dock="Bottom"
         Background="{StaticResource CardBgBrush}"
         Padding="24,14" Margin="0,4,0,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <!-- Barre profils -->
+                    <!-- Profiles bar -->
                     <RowDefinition Height="Auto"/>
-                    <!-- Boutons -->
+                    <!-- Buttons -->
                 </Grid.RowDefinitions>
 
-                <!-- ── Ligne 1 : Profils ── -->
+                <!-- ── Row 1 : Profiles ── -->
                 <Grid Grid.Row="0" Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>    <!-- Label -->
                         <ColumnDefinition Width="200"/>     <!-- Dropdown -->
-                        <ColumnDefinition Width="Auto"/>    <!-- Sauvegarder -->
-                        <ColumnDefinition Width="Auto"/>    <!-- Renommer -->
-                        <ColumnDefinition Width="Auto"/>    <!-- Supprimer -->
-                        <ColumnDefinition Width="*"/>       <!-- Espace -->
-                        <ColumnDefinition Width="Auto"/>    <!-- Statut -->
+                        <ColumnDefinition Width="Auto"/>    <!-- Save -->
+                        <ColumnDefinition Width="Auto"/>    <!-- Rename -->
+                        <ColumnDefinition Width="Auto"/>    <!-- Delete -->
+                        <ColumnDefinition Width="*"/>       <!-- Status -->
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Grid.Column="0"
@@ -103,26 +102,14 @@
                        VerticalAlignment="Center"
                        Margin="0,0,10,0"/>
 
-                    <!-- Dropdown profils -->
+                    <!-- Profiles dropdown -->
                     <ComboBox x:Name="ProfileComboBox"
                       Grid.Column="1"
-                      FontSize="12"
-                      Foreground="#1A1A2E"
-                      Background="#2A2A3E"
-                      BorderBrush="#444466"
+                      Style="{StaticResource DarkComboBox}"
                       IsEnabled="False"
-                      SelectionChanged="ProfileComboBox_SelectionChanged">
-                        <ComboBox.ItemContainerStyle>
-                            <Style TargetType="ComboBoxItem">
-                                <Setter Property="Foreground" Value="#1A1A2E"/>
-                                <Setter Property="Background" Value="#E8E8F0"/>
-                                <Setter Property="FontSize"   Value="12"/>
-                                <Setter Property="Padding"    Value="8,5"/>
-                            </Style>
-                        </ComboBox.ItemContainerStyle>
-                    </ComboBox>
+                      SelectionChanged="ProfileComboBox_SelectionChanged"/>
 
-                    <!-- Bouton Sauvegarder -->
+                    <!-- Save button -->
                     <Button Grid.Column="2"
                     x:Name="SaveProfileButton"
                     Content="💾 Sauvegarder"
@@ -132,7 +119,7 @@
                     IsEnabled="False"
                     Click="SaveProfile_Click"/>
 
-                    <!-- Bouton Renommer -->
+                    <!-- Rename button -->
                     <Button Grid.Column="3"
                     x:Name="RenameProfileButton"
                     Content="✏️"
@@ -142,7 +129,7 @@
                     IsEnabled="False"
                     Click="RenameProfile_Click"/>
 
-                    <!-- Bouton Supprimer -->
+                    <!-- Delete button -->
                     <Button Grid.Column="4"
                     x:Name="DeleteProfileButton"
                     Content="🗑️"
@@ -152,106 +139,60 @@
                     IsEnabled="False"
                     Click="DeleteProfile_Click"/>
 
-                    <!-- Statut -->
+                    <!-- Status -->
                     <TextBlock Grid.Column="5"
                        x:Name="StatusText"
                        Text="Sélectionne un projet pour commencer"
                        FontSize="12"
                        Foreground="{StaticResource TextSecondaryBrush}"
+                       TextTrimming="CharacterEllipsis"
+                       Margin="12,0,0,0"
                        VerticalAlignment="Center"/>
                 </Grid>
 
-                <!-- ── Ligne 2 : Boutons d'action ── -->
+                <!-- ── Row 2 : Action buttons ── -->
                 <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Bouton Tout arrêter -->
+                    <!-- Stop all button -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal">
-                        <Button Content="⏹ Tout arrêter"
+                        <Button x:Name="StopAllButton"
+                        Content="⏹ Tout arrêter"
                         Style="{StaticResource DangerButton}"
                         Click="StopAll_Click"/>
                     </StackPanel>
 
-                    <!-- Bouton Lancer splitté -->
+                    <!-- Split launch button -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
 
-                        <!-- Bouton principal Lancer -->
-                        <Border CornerRadius="8,0,0,8" ClipToBounds="True">
-                            <Button x:Name="LaunchButton"
-                            Content="▶ Lancer l'environnement"
-                            Style="{StaticResource SuccessButton}"
-                            IsEnabled="False"
-                            Padding="20,10"
-                            Click="Launch_Click">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="Bd"
-                                        Background="{TemplateBinding Background}"
-                                        Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter HorizontalAlignment="Center"
-                                                      VerticalAlignment="Center"/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="Bd" Property="Background" Value="#55EE99"/>
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="Bd" Property="Background" Value="#2ABB77"/>
-                                            </Trigger>
-                                            <Trigger Property="IsEnabled" Value="False">
-                                                <Setter TargetName="Bd" Property="Background" Value="#444466"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </Border>
+                        <!-- Main launch button -->
+                        <Button x:Name="LaunchButton"
+                        Content="▶ Lancer l'environnement"
+                        Style="{StaticResource SplitSuccessButton}"
+                        IsEnabled="False"
+                        Click="Launch_Click"/>
 
-                        <!-- Séparateur vertical -->
+                        <!-- Vertical separator -->
                         <Border x:Name="LaunchSplitSeparator"
                         Width="1"
                         Background="#2ABB77"
                         Visibility="Collapsed"/>
 
-                        <!-- Bouton dropdown préréglages -->
-                        <Border x:Name="LaunchDropdownBorder"
-                        CornerRadius="0,8,8,0"
-                        ClipToBounds="True"
-                        Visibility="Collapsed">
-                            <Button x:Name="LaunchDropdownButton"
-                            Content="▾"
-                            Style="{StaticResource SuccessButton}"
-                            Padding="8,10"
-                            Click="LaunchDropdown_Click">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="Bd"
-                                        Background="{TemplateBinding Background}"
-                                        Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter HorizontalAlignment="Center"
-                                                      VerticalAlignment="Center"/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="Bd" Property="Background" Value="#55EE99"/>
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="Bd" Property="Background" Value="#2ABB77"/>
-                                            </Trigger>
-                                            <Trigger Property="IsEnabled" Value="False">
-                                                <Setter TargetName="Bd" Property="Background" Value="#444466"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </Border>
+                        <!-- Profiles dropdown button -->
+                        <Button x:Name="LaunchDropdownButton"
+                        Content="▾"
+                        Style="{StaticResource SplitSuccessButton}"
+                        Tag="0,8,8,0"
+                        Padding="10,10"
+                        Visibility="Collapsed"
+                        Click="LaunchDropdown_Click"/>
 
-                        <!-- Popup préréglages -->
+                        <!-- Profiles popup -->
                         <Popup x:Name="LaunchProfilesPopup"
+                       PlacementTarget="{Binding ElementName=LaunchButton}"
                        Placement="Top"
                        StaysOpen="False"
                        AllowsTransparency="True">
@@ -270,18 +211,18 @@
             </Grid>
         </Border>
 
-        <!-- ═══════════════════ ZONE CENTRALE (contenu + splitter + logs) ═══════════════════ -->
+        <!-- ═══════════════════ CENTRAL AREA (content + splitter + logs) ═══════════════════ -->
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" MinHeight="200"/>
-                <!-- Contenu -->
+                <!-- Content -->
                 <RowDefinition Height="6"/>
                 <!-- Splitter -->
                 <RowDefinition Height="150" MinHeight="60" MaxHeight="400"/>
                 <!-- Logs -->
             </Grid.RowDefinitions>
 
-            <!-- ── Contenu principal ── -->
+            <!-- ── Main content ── -->
             <Grid Grid.Row="0" Margin="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -289,7 +230,7 @@
                     <ColumnDefinition Width="280"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- ── Colonne gauche : liste projets ── -->
+                <!-- ── Left column : projects list ── -->
                 <Border Grid.Column="0"
                         Background="{StaticResource CardBgBrush}"
                         CornerRadius="12" Padding="16">
@@ -301,7 +242,7 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Titre + bouton refresh -->
+                        <!-- Title + refresh button -->
                         <Grid Grid.Row="0" Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -316,7 +257,7 @@
                                     Click="RefreshProjects_Click"/>
                         </Grid>
 
-                        <!-- Barre de recherche -->
+                        <!-- Search bar -->
                         <Border Grid.Row="1"
                                 Background="#1A1A2E" CornerRadius="6"
                                 Margin="0,0,0,10" Padding="8,0">
@@ -329,7 +270,6 @@
                                            Margin="0,0,8,0" FontSize="13"/>
                                 <TextBox x:Name="SearchBox"
                                          Grid.Column="1"
-                                         Background="Transparent"
                                          BorderThickness="0"
                                          Foreground="{StaticResource TextPrimaryBrush}"
                                          CaretBrush="{StaticResource AccentBlueBrush}"
@@ -337,6 +277,7 @@
                                          TextChanged="SearchBox_TextChanged">
                                     <TextBox.Style>
                                         <Style TargetType="TextBox">
+                                            <Setter Property="Background" Value="Transparent"/>
                                             <Style.Resources>
                                                 <VisualBrush x:Key="HintBrush" TileMode="None"
                                                              Opacity="0.4" Stretch="None"
@@ -359,7 +300,7 @@
                             </Grid>
                         </Border>
 
-                        <!-- Liste des projets -->
+                        <!-- Projects list -->
                         <ListBox x:Name="ProjectListBox"
                                  Grid.Row="2"
                                  Background="Transparent"
@@ -368,7 +309,7 @@
                                  ItemContainerStyle="{StaticResource ProjectListItem}"
                                  SelectionChanged="ProjectListBox_SelectionChanged"/>
 
-                        <!-- Chemin du projet sélectionné -->
+                        <!-- Selected project path -->
                         <Border Grid.Row="3"
                                 Background="#1A1A2E" CornerRadius="6"
                                 Padding="10,6" Margin="0,10,0,0">
@@ -381,13 +322,13 @@
                     </Grid>
                 </Border>
 
-                <!-- ── Colonne droite : options ── -->
+                <!-- ── Right column : options ── -->
                 <ScrollViewer Grid.Column="2"
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel>
 
-                        <!-- Carte : Type de projet -->
+                        <!-- Card : Project type -->
                         <Border Background="{StaticResource CardBgBrush}"
                                 CornerRadius="12" Padding="16" Margin="0,0,0,12">
                             <StackPanel>
@@ -423,7 +364,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Carte : Services Symfony -->
+                        <!-- Card : Symfony services -->
                         <Border x:Name="SymfonyOptionsCard"
                                 Background="{StaticResource CardBgBrush}"
                                 CornerRadius="12" Padding="16" Margin="0,0,0,12"
@@ -443,7 +384,9 @@
                                           IsChecked="True"/>
                                 <CheckBox x:Name="ChkMercure"
                                           Content="📡 Mercure"
-                                          Style="{StaticResource ModernCheckBox}"/>
+                                          Style="{StaticResource ModernCheckBox}"
+                                          Checked="ChkMercure_Changed"
+                                          Unchecked="ChkMercure_Changed"/>
                                 <Border x:Name="MercurePanel"
                                         Background="#1A1A2E" CornerRadius="6"
                                         Padding="10,8" Margin="16,4,0,4"
@@ -454,16 +397,13 @@
                                                    Foreground="{StaticResource TextSecondaryBrush}"
                                                    Margin="0,0,0,6"/>
                                         <ComboBox x:Name="MercureScriptCombo"
-                                                  Background="#2A2A3E"
-                                                  Foreground="#1A1A2E"
-                                                  BorderBrush="#444466"
-                                                  FontSize="12"/>
+                                                  Style="{StaticResource DarkComboBox}"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
                         </Border>
 
-                        <!-- Carte : Services XAMPP -->
+                        <!-- Card : XAMPP services -->
                         <Border Background="{StaticResource CardBgBrush}"
                                 CornerRadius="12" Padding="16" Margin="0,0,0,12">
                             <StackPanel>
@@ -492,7 +432,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Carte : Outils -->
+                        <!-- Card : Tools -->
                         <Border Background="{StaticResource CardBgBrush}"
                                 CornerRadius="12" Padding="16">
                             <StackPanel>
@@ -527,10 +467,10 @@
                                 <CheckBox x:Name="ChkBrowser"
                                           Content="🌍 Ouvrir le navigateur"
                                           Style="{StaticResource ModernCheckBox}"
-                                          Checked="ChkBrowser_Checked"
-                                          Unchecked="ChkBrowser_Checked"/>
+                                          Checked="ChkBrowser_Changed"
+                                          Unchecked="ChkBrowser_Changed"/>
 
-                                <!-- Choix du navigateur (visible si coché) -->
+                                <!-- Browser choice (visible when checked) -->
                                 <Border x:Name="BrowserPanel"
                                         Margin="16,0,0,0"
                                         Visibility="Collapsed">
@@ -568,12 +508,12 @@
                           ResizeBehavior="PreviousAndNext"
                           Cursor="SizeNS"/>
 
-            <!-- ── Zone de logs ── -->
+            <!-- ── Log area ── -->
             <Border Grid.Row="2" Margin="16,0,16,8"
                     Background="{StaticResource CardBgBrush}"
                     CornerRadius="12" Padding="12">
                 <DockPanel>
-                    <!-- En-tête fixe avec le bouton Effacer -->
+                    <!-- Fixed header with the clear button -->
                     <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -588,7 +528,7 @@
                     Click="ClearLog_Click"/>
                     </Grid>
 
-                    <!-- Zone de logs scrollable -->
+                    <!-- Scrollable log area -->
                     <RichTextBox x:Name="LogRichText"
                      FontFamily="Consolas" FontSize="11"
                      Foreground="{StaticResource TextSecondaryBrush}"
@@ -601,7 +541,7 @@
             </Border>
 
         </Grid>
-        <!-- fin Grid central -->
+        <!-- end of central Grid -->
 
     </DockPanel>
 </Window>

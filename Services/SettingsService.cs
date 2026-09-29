@@ -1,11 +1,10 @@
-﻿using System.IO;
+using System.IO;
 using System.Text.Json;
 
 namespace DevLauncher.Services;
 
 /// <summary>
-/// Sauvegarde et charge les paramètres de l'application dans un fichier JSON.
-/// Stocké dans : C:\Users\sam\DevLauncher\bin\...\settings.json
+/// Saves and loads the application settings in settings.json, next to the executable.
 /// </summary>
 public static class SettingsService
 {
@@ -19,12 +18,12 @@ public static class SettingsService
     };
 
     // ════════════════════════════════════════════════════════
-    //  SAUVEGARDE
+    //  SAVE
     // ════════════════════════════════════════════════════════
 
     public static void Save()
     {
-        var data = new SettingsData
+        var settingsData = new SettingsData
         {
             HtdocsPath = AppSettings.HtdocsPath,
             XamppDir = AppSettings.XamppDir,
@@ -39,61 +38,70 @@ public static class SettingsService
             ChromeExe = AppSettings.ChromeExe,
             FirefoxExe = AppSettings.FirefoxExe,
             SymfonyPort = AppSettings.SymfonyPort,
+            LocalWebPort = AppSettings.LocalWebPort,
         };
-
-        var json = JsonSerializer.Serialize(data, _jsonOptions);
-        File.WriteAllText(_settingsPath, json);
+        File.WriteAllText(_settingsPath, JsonSerializer.Serialize(settingsData, _jsonOptions));
     }
 
     // ════════════════════════════════════════════════════════
-    //  CHARGEMENT
+    //  LOAD
     // ════════════════════════════════════════════════════════
 
+    /// <summary>Applies settings.json to AppSettings. Missing, empty or invalid values keep their defaults.</summary>
     public static void Load()
     {
         if (!File.Exists(_settingsPath)) return;
-
+        SettingsData? settingsData;
         try
         {
-            var json = File.ReadAllText(_settingsPath);
-            var data = JsonSerializer.Deserialize<SettingsData>(json, _jsonOptions);
-            if (data is null) return;
-
-            AppSettings.HtdocsPath = data.HtdocsPath;
-            AppSettings.XamppDir = data.XamppDir;
-            AppSettings.ApacheExe = data.ApacheExe;
-            AppSettings.MySQLExe = data.MySQLExe;
-            AppSettings.MySQLConfig = data.MySQLConfig;
-            AppSettings.FileZillaExe = data.FileZillaExe;
-            AppSettings.XamppPanel = data.XamppPanel;
-            AppSettings.MercureDir = data.MercureDir;
-            AppSettings.VSCodeExecutable = data.VSCodeExecutable;
-            AppSettings.VisualStudioExecutable = data.VisualStudioExecutable;
-            AppSettings.ChromeExe = data.ChromeExe;
-            AppSettings.FirefoxExe = data.FirefoxExe;
-            AppSettings.SymfonyPort = data.SymfonyPort;
+            settingsData = JsonSerializer.Deserialize<SettingsData>(File.ReadAllText(_settingsPath), _jsonOptions);
         }
-        catch { /* Paramètres par défaut si le fichier est corrompu */ }
+        catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
+        {
+            return;
+        }
+        if (settingsData is null) return;
+        AppSettings.HtdocsPath = ValueOrDefault(settingsData.HtdocsPath, AppSettings.HtdocsPath);
+        AppSettings.XamppDir = ValueOrDefault(settingsData.XamppDir, AppSettings.XamppDir);
+        AppSettings.ApacheExe = ValueOrDefault(settingsData.ApacheExe, AppSettings.ApacheExe);
+        AppSettings.MySQLExe = ValueOrDefault(settingsData.MySQLExe, AppSettings.MySQLExe);
+        AppSettings.MySQLConfig = ValueOrDefault(settingsData.MySQLConfig, AppSettings.MySQLConfig);
+        AppSettings.FileZillaExe = ValueOrDefault(settingsData.FileZillaExe, AppSettings.FileZillaExe);
+        AppSettings.XamppPanel = ValueOrDefault(settingsData.XamppPanel, AppSettings.XamppPanel);
+        AppSettings.MercureDir = ValueOrDefault(settingsData.MercureDir, AppSettings.MercureDir);
+        AppSettings.VSCodeExecutable = ValueOrDefault(settingsData.VSCodeExecutable, AppSettings.VSCodeExecutable);
+        AppSettings.VisualStudioExecutable = ValueOrDefault(settingsData.VisualStudioExecutable, AppSettings.VisualStudioExecutable);
+        AppSettings.ChromeExe = ValueOrDefault(settingsData.ChromeExe, AppSettings.ChromeExe);
+        AppSettings.FirefoxExe = ValueOrDefault(settingsData.FirefoxExe, AppSettings.FirefoxExe);
+        AppSettings.SymfonyPort = IsValidPort(settingsData.SymfonyPort) ? settingsData.SymfonyPort : AppSettings.SymfonyPort;
+        AppSettings.LocalWebPort = IsValidPort(settingsData.LocalWebPort) ? settingsData.LocalWebPort : AppSettings.LocalWebPort;
     }
 
+    /// <summary>Returns true when the value is a usable TCP port.</summary>
+    public static bool IsValidPort(int port) => port is >= 1 and <= 65535;
+
+    private static string ValueOrDefault(string? value, string defaultValue)
+        => string.IsNullOrWhiteSpace(value) ? defaultValue : value;
+
     // ════════════════════════════════════════════════════════
-    //  MODÈLE DE DONNÉES
+    //  DATA MODEL
     // ════════════════════════════════════════════════════════
 
     private class SettingsData
     {
-        public string HtdocsPath { get; set; } = AppSettings.HtdocsPath;
-        public string XamppDir { get; set; } = AppSettings.XamppDir;
-        public string ApacheExe { get; set; } = AppSettings.ApacheExe;
-        public string MySQLExe { get; set; } = AppSettings.MySQLExe;
-        public string MySQLConfig { get; set; } = AppSettings.MySQLConfig;
-        public string FileZillaExe { get; set; } = AppSettings.FileZillaExe;
-        public string XamppPanel { get; set; } = AppSettings.XamppPanel;
-        public string MercureDir { get; set; } = AppSettings.MercureDir;
-        public string VSCodeExecutable { get; set; } = AppSettings.VSCodeExecutable;
-        public string VisualStudioExecutable { get; set; } = AppSettings.VisualStudioExecutable;
-        public string ChromeExe { get; set; } = AppSettings.ChromeExe;
-        public string FirefoxExe { get; set; } = AppSettings.FirefoxExe;
-        public int SymfonyPort { get; set; } = AppSettings.SymfonyPort;
+        public string? HtdocsPath { get; set; }
+        public string? XamppDir { get; set; }
+        public string? ApacheExe { get; set; }
+        public string? MySQLExe { get; set; }
+        public string? MySQLConfig { get; set; }
+        public string? FileZillaExe { get; set; }
+        public string? XamppPanel { get; set; }
+        public string? MercureDir { get; set; }
+        public string? VSCodeExecutable { get; set; }
+        public string? VisualStudioExecutable { get; set; }
+        public string? ChromeExe { get; set; }
+        public string? FirefoxExe { get; set; }
+        public int SymfonyPort { get; set; }
+        public int LocalWebPort { get; set; }
     }
 }

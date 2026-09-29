@@ -1,10 +1,11 @@
-﻿using Microsoft.Win32;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using DevLauncher.Services;
+using Microsoft.Win32;
 
-namespace DevLauncher;
+namespace DevLauncher.Views;
 
 public partial class SettingsWindow : Window
 {
@@ -15,12 +16,11 @@ public partial class SettingsWindow : Window
     }
 
     // ════════════════════════════════════════════════════════
-    //  CHARGEMENT
+    //  LOAD
     // ════════════════════════════════════════════════════════
 
     private void LoadSettings()
     {
-        // XAMPP
         HtdocsBox.Text = AppSettings.HtdocsPath;
         XamppDirBox.Text = AppSettings.XamppDir;
         ApacheExeBox.Text = AppSettings.ApacheExe;
@@ -28,37 +28,27 @@ public partial class SettingsWindow : Window
         MySQLConfigBox.Text = AppSettings.MySQLConfig;
         FileZillaExeBox.Text = AppSettings.FileZillaExe;
         XamppPanelBox.Text = AppSettings.XamppPanel;
-
-        // Mercure
         MercureDirBox.Text = AppSettings.MercureDir;
-
-        // Éditeurs
         VSCodeBox.Text = AppSettings.VSCodeExecutable;
         VisualStudioBox.Text = AppSettings.VisualStudioExecutable;
-
-        // Navigateurs
         ChromeBox.Text = AppSettings.ChromeExe;
         FirefoxBox.Text = AppSettings.FirefoxExe;
-
-        // Symfony
         SymfonyPortBox.Text = AppSettings.SymfonyPort.ToString();
+        LocalWebPortBox.Text = AppSettings.LocalWebPort.ToString();
     }
 
     // ════════════════════════════════════════════════════════
-    //  SAUVEGARDE
+    //  SAVE
     // ════════════════════════════════════════════════════════
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
-        // Valider le port Symfony
-        if (!int.TryParse(SymfonyPortBox.Text, out int port) || port < 1 || port > 65535)
+        if (!TryReadPort(SymfonyPortBox, "Symfony", out var symfonyPort) || !TryReadPort(LocalWebPortBox, "Apache", out var localWebPort)) return;
+        if (string.IsNullOrWhiteSpace(HtdocsBox.Text))
         {
-            StatusText.Text = "❌ Port Symfony invalide (1-65535)";
-            StatusText.Foreground = System.Windows.Media.Brushes.Red;
+            ShowValidationError("❌ Le dossier des projets est obligatoire");
             return;
         }
-
-        // Appliquer dans AppSettings
         AppSettings.HtdocsPath = HtdocsBox.Text.Trim();
         AppSettings.XamppDir = XamppDirBox.Text.Trim();
         AppSettings.ApacheExe = ApacheExeBox.Text.Trim();
@@ -71,56 +61,72 @@ public partial class SettingsWindow : Window
         AppSettings.VisualStudioExecutable = VisualStudioBox.Text.Trim();
         AppSettings.ChromeExe = ChromeBox.Text.Trim();
         AppSettings.FirefoxExe = FirefoxBox.Text.Trim();
-        AppSettings.SymfonyPort = port;
-
-        // Sauvegarder dans un fichier JSON
-        SettingsService.Save();
-
-        StatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
-        StatusText.Text = "✅ Paramètres sauvegardés";
-
+        AppSettings.SymfonyPort = symfonyPort;
+        AppSettings.LocalWebPort = localWebPort;
+        try
+        {
+            SettingsService.Save();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            ShowValidationError($"❌ Sauvegarde impossible : {exception.Message}");
+            return;
+        }
         DialogResult = true;
     }
 
-    private void Cancel_Click(object sender, RoutedEventArgs e)
-        => DialogResult = false;
+    private bool TryReadPort(TextBox portBox, string serverName, out int port)
+    {
+        if (int.TryParse(portBox.Text, out port) && SettingsService.IsValidPort(port)) return true;
+        ShowValidationError($"❌ Port {serverName} invalide (1-65535)");
+        return false;
+    }
+
+    private void ShowValidationError(string message)
+    {
+        StatusText.Foreground = (Brush)FindResource("AccentRedBrush");
+        StatusText.Text = message;
+    }
 
     // ════════════════════════════════════════════════════════
-    //  PARCOURIR
+    //  BROWSE
     // ════════════════════════════════════════════════════════
 
+    /// <summary>Opens a folder or file picker (button Tag "Folder" or "File") and fills the TextBox of the same row.</summary>
     private void Browse_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button btn) return;
-
-        // Trouver le TextBox associé dans le même Grid
-        var grid = btn.Parent as System.Windows.Controls.Grid;
-        var textBox = grid?.Children.OfType<System.Windows.Controls.TextBox>()
-                          .FirstOrDefault();
-        if (textBox is null) return;
-
-        var isFolder = btn.Tag as string == "Folder";
-
-        if (isFolder)
+        if (sender is not Button browseButton || browseButton.Parent is not Grid settingRow) return;
+        var pathBox = settingRow.Children.OfType<TextBox>().FirstOrDefault();
+        if (pathBox is null) return;
+        var currentPath = pathBox.Text.Trim();
+        if (browseButton.Tag as string == "Folder")
         {
-            var dialog = new OpenFolderDialog
-            {
-                Title = "Sélectionne un dossier",
-                InitialDirectory = textBox.Text,
-            };
-            if (dialog.ShowDialog() == true)
-                textBox.Text = dialog.FolderName;
+            var folderDialog = new OpenFolderDialog { Title = "Sélectionne un dossier" };
+            if (Directory.Exists(currentPath)) folderDialog.InitialDirectory = currentPath;
+            if (folderDialog.ShowDialog(this) == true) pathBox.Text = folderDialog.FolderName;
+            return;
         }
-        else
+        var fileDialog = new OpenFileDialog
         {
-            var dialog = new OpenFileDialog
-            {
-                Title = "Sélectionne un fichier",
-                Filter = "Exécutables (*.exe)|*.exe|Tous les fichiers (*.*)|*.*",
-                InitialDirectory = Path.GetDirectoryName(textBox.Text),
-            };
-            if (dialog.ShowDialog() == true)
-                textBox.Text = dialog.FileName;
+            Title = "Sélectionne un fichier",
+            Filter = "Exécutables (*.exe)|*.exe|Tous les fichiers (*.*)|*.*",
+        };
+        var currentDirectory = GetExistingDirectory(currentPath);
+        if (currentDirectory is not null) fileDialog.InitialDirectory = currentDirectory;
+        if (fileDialog.ShowDialog(this) == true) pathBox.Text = fileDialog.FileName;
+    }
+
+    /// <summary>Returns the folder of a file path when it exists, or null for a bare command or an invalid path.</summary>
+    private static string? GetExistingDirectory(string filePath)
+    {
+        try
+        {
+            var directoryPath = Path.GetDirectoryName(filePath);
+            return !string.IsNullOrEmpty(directoryPath) && Directory.Exists(directoryPath) ? directoryPath : null;
+        }
+        catch (ArgumentException)
+        {
+            return null;
         }
     }
 }

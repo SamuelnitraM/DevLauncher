@@ -1,562 +1,179 @@
-using DevLauncher.Models;
-using DevLauncher.Services;
-using DevLauncher.Models;
-using DevLauncher.Services;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
+using DevLauncher.Models;
+using DevLauncher.Services;
+using DevLauncher.Views;
 
 namespace DevLauncher;
 
 public partial class MainWindow : Window
 {
-    // ── Services ──────────────────────────────────────────────
-    private readonly ProjectScanner  _scanner;
-    private readonly LaunchService   _launcher;
-    private readonly ServiceMonitor  _monitor;
-    private readonly ProfileService _profileService;
+    private const string NewProfileEntry = "+ Nouveau profil...";
+    private const string DefaultLaunchButtonLabel = "▶ Lancer l'environnement";
 
-    // ── État ──────────────────────────────────────────────────
-    private List<string> _allProjects = new();
-    private string?      _selectedProject;
-    private bool _isLoadingProfiles;
+    // ── Services ──────────────────────────────────────────────
+    private readonly ProjectScanner _projectScanner = new();
+    private readonly ProfileService _profileService = new();
+    private readonly ProcessEventWatcher _processEventWatcher = new();
+    private readonly ServiceMonitor _serviceMonitor;
+    private readonly LaunchService _launchService;
+
+    // ── State ─────────────────────────────────────────────────
+    private List<string> _allProjectPaths = new();
+    private string? _selectedProjectPath;
+    private string? _activeProfileName;
+    private bool _isUpdatingProfileList;
+    private bool _isLaunchInProgress;
+
+    private string? SelectedProjectName => _selectedProjectPath is null ? null : Path.GetFileName(_selectedProjectPath);
 
     public MainWindow()
     {
         InitializeComponent();
-
-        _scanner  = new ProjectScanner(AppSettings.HtdocsPath);
-        _launcher = new LaunchService(AppSettings.XamppDir, AppSettings.MercureDir);
-        _monitor  = new ServiceMonitor();
-        _profileService = new ProfileService();
-
-        // Écoute des logs du service de lancement
-        _launcher.LogMessage += OnLogMessage;
-        _launcher.LogError += OnLogError;
-
-        // Surveillance des services (Apache / MySQL) toutes les 3s
-        _monitor.StatusChanged += OnServiceStatusChanged;
-        _monitor.Start(TimeSpan.FromSeconds(3));
-
+        LogRichText.Document.Blocks.Clear();
+        _serviceMonitor = new ServiceMonitor(_processEventWatcher);
+        _launchService = new LaunchService(_processEventWatcher);
+        _launchService.LogMessage += message => AppendLog(message, isError: false);
+        _launchService.LogError += message => AppendLog(message, isError: true);
+        _serviceMonitor.StatusChanged += OnServiceStatusChanged;
+        if (!_processEventWatcher.Start())
+            AppendLog("⚠️ Surveillance des processus indisponible (droits administrateur requis) : indicateurs mis à jour uniquement au lancement et à l'arrêt", isError: true);
+        _serviceMonitor.RefreshStatus();
         LoadMercureScripts();
         RefreshProjectList();
-
-        // Réagit à la case Mercure
-        ChkMercure.Checked += (_, _) => { if (MercurePanel != null) MercurePanel.Visibility = Visibility.Visible; };
-        ChkMercure.Unchecked += (_, _) => { if (MercurePanel != null) MercurePanel.Visibility = Visibility.Collapsed; };
-        Loaded += MainWindow_Loaded;
-        SettingsService.Load();
-    }
-
-    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
-    {
-        // Rien ici pour l'instant, le chargement se fera à la sélection du projet
-    }
-
-    private void Settings_Click(object sender, RoutedEventArgs e)
-    {
-        var window = new SettingsWindow { Owner = this };
-        if (window.ShowDialog() == true)
-        {
-            // Recharger la liste des projets si htdocs a changé
-            RefreshProjectList();
-            Log("⚙️ Paramètres mis à jour");
-        }
     }
 
     // ════════════════════════════════════════════════════════════
-    //  CHARGEMENT / RAFRAÎCHISSEMENT
+    //  PROJECTS
     // ════════════════════════════════════════════════════════════
 
     private void RefreshProjectList()
     {
-        _allProjects = _scanner.GetProjects();
-        ApplyFilter(SearchBox.Text);
-        Log($"📁 {_allProjects.Count} projet(s) trouvé(s) dans {AppSettings.HtdocsPath}");
+        _allProjectPaths = _projectScanner.GetProjects();
+        if (_selectedProjectPath is not null && !_allProjectPaths.Contains(_selectedProjectPath, StringComparer.OrdinalIgnoreCase))
+            ClearProjectSelection();
+        ApplyProjectFilter();
+        if (Directory.Exists(AppSettings.HtdocsPath))
+            Log($"📁 {_allProjectPaths.Count} projet(s) trouvé(s) dans {AppSettings.HtdocsPath}");
+        else
+            AppendLog($"❌ Dossier des projets introuvable : {AppSettings.HtdocsPath}", isError: true);
     }
 
-    private void ApplyFilter(string filter)
+    /// <summary>Filters the projects list by the search text and keeps the selected project highlighted.</summary>
+    private void ApplyProjectFilter()
     {
-        var filtered = string.IsNullOrWhiteSpace(filter)
-            ? _allProjects
-            : _allProjects.Where(p =>
-                Path.GetFileName(p).Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
-
-        ProjectListBox.ItemsSource = filtered.Select(p => Path.GetFileName(p)).ToList();
+        var searchText = SearchBox.Text;
+        var visibleProjectNames = _allProjectPaths
+            .Select(Path.GetFileName)
+            .Where(projectName => string.IsNullOrWhiteSpace(searchText) || projectName!.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        ProjectListBox.ItemsSource = visibleProjectNames;
+        ProjectListBox.SelectedItem = visibleProjectNames.FirstOrDefault(projectName => projectName == SelectedProjectName);
     }
 
     private void LoadMercureScripts()
     {
-        if (!Directory.Exists(AppSettings.MercureDir)) return;
-
-        var scripts = Directory.GetFiles(AppSettings.MercureDir, "start*.ps1")
-                               .Select(Path.GetFileName)
-                               .ToList();
-
-        MercureScriptCombo.ItemsSource   = scripts;
-        MercureScriptCombo.SelectedIndex = scripts.Count > 0 ? 0 : -1;
+        var mercureScriptNames = Directory.Exists(AppSettings.MercureDir)
+            ? Directory.GetFiles(AppSettings.MercureDir, "start*.ps1").Select(Path.GetFileName).ToList()
+            : new List<string?>();
+        MercureScriptCombo.ItemsSource = mercureScriptNames;
+        MercureScriptCombo.SelectedIndex = mercureScriptNames.Count > 0 ? 0 : -1;
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  ÉVÉNEMENTS UI
-    // ════════════════════════════════════════════════════════════
+    private void RefreshProjects_Click(object sender, RoutedEventArgs e) => RefreshProjectList();
 
-    private void RefreshProjects_Click(object sender, RoutedEventArgs e)
-        => RefreshProjectList();
-
-    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
-        => ApplyFilter(SearchBox.Text);
+    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyProjectFilter();
 
     private void ProjectListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (ProjectListBox.SelectedItem is not string name) return;
-
-        _selectedProject        = Path.Combine(AppSettings.HtdocsPath, name);
-        SelectedPathText.Text   = _selectedProject;
-        LaunchButton.IsEnabled  = true;
-        StatusText.Text         = $"Prêt à lancer : {name}";
-        // Charger les profils du projet
-        LoadProfilesForProject(name);
-
-        // Détection automatique Symfony
-        bool isSymfony = _scanner.IsSymfonyProject(_selectedProject);
-        AutoDetectBadge.Visibility    = isSymfony ? Visibility.Visible : Visibility.Collapsed;
-        SymfonyOptionsCard.Visibility = isSymfony ? Visibility.Visible : Visibility.Collapsed;
-
-        if (isSymfony)
-        {
-            RadioSymfony.IsChecked = true;
-            Log($"✅ Symfony détecté automatiquement dans « {name} »");
-        }
-        else
-        {
-            RadioOther.IsChecked = true;
-        }
+        // A filtered-out project stays selected : only an explicit choice of another project changes it.
+        if (ProjectListBox.SelectedItem is not string projectName || projectName == SelectedProjectName) return;
+        SelectProject(Path.Combine(AppSettings.HtdocsPath, projectName));
     }
+
+    private void SelectProject(string projectPath)
+    {
+        var projectName = Path.GetFileName(projectPath);
+        var projectDetection = _projectScanner.DetectProject(projectPath);
+        _selectedProjectPath = projectPath;
+        SelectedPathText.Text = projectPath;
+        AutoDetectBadge.Visibility = projectDetection.IsSymfony ? Visibility.Visible : Visibility.Collapsed;
+        if (projectDetection.IsSymfony) Log($"✅ Symfony détecté automatiquement dans « {projectName} »");
+        LoadProfilesForProject(projectName, projectDetection);
+        StatusText.Text = $"Prêt à lancer : {projectName}";
+        RefreshActionButtons();
+    }
+
+    private void ClearProjectSelection()
+    {
+        _selectedProjectPath = null;
+        _activeProfileName = null;
+        SelectedPathText.Text = "Aucun projet sélectionné";
+        AutoDetectBadge.Visibility = Visibility.Collapsed;
+        StatusText.Text = "Sélectionne un projet pour commencer";
+        UpdateProfileList(Array.Empty<string>(), null);
+        RefreshActionButtons();
+    }
+
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        var settingsWindow = new SettingsWindow { Owner = this };
+        if (settingsWindow.ShowDialog() != true) return;
+        Log("⚙️ Paramètres mis à jour");
+        LoadMercureScripts();
+        RefreshProjectList();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  OPTIONS PANEL
+    // ════════════════════════════════════════════════════════════
 
     private void ProjectType_Changed(object sender, RoutedEventArgs e)
     {
-        if (SymfonyOptionsCard == null) return;
-        bool symfony = RadioSymfony.IsChecked == true;
-        SymfonyOptionsCard.Visibility = symfony ? Visibility.Visible : Visibility.Collapsed;
+        if (SymfonyOptionsCard is null) return;
+        SymfonyOptionsCard.Visibility = RadioSymfony.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  LANCEMENT
-    // ════════════════════════════════════════════════════════════
-
-    private async void Launch_Click(object sender, RoutedEventArgs e)
+    private void ChkBrowser_Changed(object sender, RoutedEventArgs e)
     {
-        if (_selectedProject is null) return;
-
-        LaunchButton.IsEnabled = false;
-        StatusText.Text        = "⏳ Lancement en cours…";
-
-        var options = BuildOptions();
-        Log("═══════════════════════════════");
-        Log($"🚀 Lancement de « {Path.GetFileName(_selectedProject)} »");
-
-        try
-        {
-            await _launcher.LaunchAsync(_selectedProject, options);
-            StatusText.Text = $"✅ Environnement lancé — {Path.GetFileName(_selectedProject)}";
-            Log("✅ Tout est lancé !");
-        }
-        catch (Exception ex)
-        {
-            StatusText.Text = "❌ Erreur lors du lancement";
-            Log($"❌ Erreur : {ex.Message}");
-        }
-        finally
-        {
-            LaunchButton.IsEnabled = true;
-        }
+        if (BrowserPanel is null) return;
+        BrowserPanel.Visibility = ChkBrowser.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
     }
 
-private async void StopAll_Click(object sender, RoutedEventArgs e)
-{
-    var result = MessageBox.Show(
-        "Arrêter tous les services et fermer les éditeurs ?",
-        "⏹ Tout arrêter",
-        MessageBoxButton.YesNo,
-        MessageBoxImage.Question);
-
-    if (result != MessageBoxResult.Yes) return;
-
-    Log("⏹ Arrêt de l'environnement…");
-    await _launcher.StopAllAsync();
-}
-
-    // ════════════════════════════════════════════════════════════
-    //  CONSTRUCTION DES OPTIONS
-    // ════════════════════════════════════════════════════════════
-
-    private LaunchOptions BuildOptions() => new()
+    private void ChkMercure_Changed(object sender, RoutedEventArgs e)
     {
-        IsSymfony      = RadioSymfony.IsChecked         == true,
-        OpenVSCode = RadioVSCode.IsChecked              == true,
-        OpenVisualStudio = RadioVisualStudio.IsChecked  == true,
-        OpenTerminal   = ChkTerminal.IsChecked          == true,
-        OpenBrowser = ChkBrowser.IsChecked              == true,
-        BrowserDefault = ChkBrowserDefault.IsChecked    == true,
-        BrowserChrome = ChkBrowserChrome.IsChecked      == true,
-        BrowserFirefox = ChkBrowserFirefox.IsChecked    == true,
-        StartApache    = ChkApache.IsChecked            == true,
-        StartMySQL     = ChkMySQL.IsChecked             == true,
-        StartFileZilla = ChkFileZilla.IsChecked         == true,
-        ShowXamppPanel = ChkXamppPanel.IsChecked        == true,
-
-        // Symfony
-        StartSymfonyServer = ChkSymfonyServer.IsChecked == true,
-        StartTailwind      = ChkTailwind.IsChecked      == true,
-        StartMercure       = ChkMercure.IsChecked       == true,
-        MercureScript      = MercureScriptCombo.SelectedItem as string,
-    };
-
-    private void ChkBrowser_Checked(object sender, RoutedEventArgs e)
-    {
-        if (BrowserPanel == null) return;
-        BrowserPanel.Visibility = ChkBrowser.IsChecked == true
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        if (MercurePanel is null) return;
+        MercurePanel.Visibility = ChkMercure.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    // ════════════════════════════════════════════════════════════
-    //  LOGS ET STATUTS
-    // ════════════════════════════════════════════════════════════
-
-    private void OnLogMessage(string message)
-        => Dispatcher.Invoke(() => AppendLog(message, (SolidColorBrush)FindResource("TextSecondaryBrush")));
-
-    private void OnLogError(string message)
-        => Dispatcher.Invoke(() => AppendLog(message, (SolidColorBrush)FindResource("AccentRedBrush")));
-
-    private void AppendLog(string message, SolidColorBrush color)
+    /// <summary>Displays a profile in the options panel.</summary>
+    private void ApplyProfile(ProjectProfile profile)
     {
-        var timestamp = DateTime.Now.ToString("HH:mm:ss");
-        var para = new System.Windows.Documents.Paragraph(
-            new System.Windows.Documents.Run($"[{timestamp}] {message}"))
-        {
-            Foreground = color,
-            Margin = new Thickness(0),
-            FontFamily = new FontFamily("Consolas"),
-            FontSize = 11
-        };
-        LogRichText.Document.Blocks.Add(para);
-        LogRichText.ScrollToEnd();
+        RadioSymfony.IsChecked = profile.IsSymfony;
+        RadioOther.IsChecked = !profile.IsSymfony;
+        RadioVSCode.IsChecked = profile.OpenVSCode;
+        RadioVisualStudio.IsChecked = profile.OpenVisualStudio;
+        RadioNoEditor.IsChecked = !profile.OpenVSCode && !profile.OpenVisualStudio;
+        ChkXamppPanel.IsChecked = profile.ShowXamppPanel;
+        ChkApache.IsChecked = profile.StartApache;
+        ChkMySQL.IsChecked = profile.StartMySQL;
+        ChkFileZilla.IsChecked = profile.StartFileZilla;
+        ChkSymfonyServer.IsChecked = profile.StartSymfonyServer;
+        ChkTailwind.IsChecked = profile.StartTailwind;
+        ChkMercure.IsChecked = profile.StartMercure;
+        if (profile.MercureScript is not null && MercureScriptCombo.Items.Contains(profile.MercureScript))
+            MercureScriptCombo.SelectedItem = profile.MercureScript;
+        ChkTerminal.IsChecked = profile.OpenTerminal;
+        ChkBrowser.IsChecked = profile.OpenBrowser;
+        ChkBrowserDefault.IsChecked = profile.BrowserDefault;
+        ChkBrowserChrome.IsChecked = profile.BrowserChrome;
+        ChkBrowserFirefox.IsChecked = profile.BrowserFirefox;
     }
 
-    private void Log(string message)
-        => Dispatcher.Invoke(() => AppendLog(message, (SolidColorBrush)FindResource("TextSecondaryBrush")));
-
-    private void ClearLog_Click(object sender, RoutedEventArgs e)
-        => LogRichText.Document.Blocks.Clear();
-
-    private void OnServiceStatusChanged(string service, bool isRunning)
-    {
-        Dispatcher.Invoke(() =>
-        {
-            var color = isRunning
-                ? (SolidColorBrush)FindResource("AccentGreenBrush")
-                : (SolidColorBrush)FindResource("AccentRedBrush");
-
-            if (service == "Apache") ApacheIndicator.Fill = color;
-            if (service == "MySQL")  MySqlIndicator.Fill  = color;
-            if (service == "FileZilla") FileZillaIndicator.Fill = color;
-        });
-    }
-
-    // ════════════════════════════════════════════════════════
-    //  PROFILS
-    // ════════════════════════════════════════════════════════
-
-    private void ProfileComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (ProfileComboBox.SelectedItem is not string profileName) return;
-        if (profileName == "+ Nouveau profil...") { AskNewProfileName(); return; }
-        if (_selectedProject is null) return;
-
-        var projectName = Path.GetFileName(_selectedProject);
-        var profile = _profileService.GetProfile(projectName, profileName);
-        if (profile is null) return;
-
-        ApplyProfile(profile);
-        DeleteProfileButton.IsEnabled = ProfileComboBox.Items.Count > 2;
-        UpdateLaunchButton();
-
-        // Mémoriser le profil sélectionné
-        _profileService.SaveLastUsedProfile(projectName, profileName);
-    }
-
-    private void SaveProfile_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedProject is null) return;
-        if (ProfileComboBox.SelectedItem is not string profileName) return;
-        if (profileName == "+ Nouveau profil...") { AskNewProfileName(); return; }
-
-        var projectName = Path.GetFileName(_selectedProject);
-        var profile = CaptureCurrentOptions(profileName);
-        _profileService.SaveProfile(projectName, profile);
-
-        Log($"💾 Profil « {profileName} » sauvegardé");
-        StatusText.Text = $"✅ Profil « {profileName} » sauvegardé";
-    }
-
-    private void RenameProfile_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedProject is null) return;
-        if (ProfileComboBox.SelectedItem is not string oldName) return;
-        if (oldName == "+ Nouveau profil...") return;
-
-        var dialog = new ProfileNameDialog { Owner = this };
-        if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.ProfileName))
-            return;
-
-        var newName = dialog.ProfileName.Trim();
-        var projectName = Path.GetFileName(_selectedProject);
-
-        // Vérifier que le nom n'existe pas déjà
-        if (ProfileComboBox.Items.Cast<string>().Any(p => p == newName))
-        {
-            MessageBox.Show($"Un profil « {newName} » existe déjà.", "Nom existant",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        // Charger l'ancien profil, changer son nom, sauvegarder
-        var profile = _profileService.GetProfile(projectName, oldName);
-        if (profile is null) return;
-
-        profile.Name = newName;
-        _profileService.SaveProfile(projectName, profile);
-        _profileService.DeleteProfile(projectName, oldName);
-
-        // Mettre à jour le ComboBox
-        var index = ProfileComboBox.Items.IndexOf(oldName);
-        ProfileComboBox.Items[index] = newName;
-        ProfileComboBox.SelectedIndex = index;
-
-        Log($"✏️ Profil « {oldName} » renommé en « {newName} »");
-        UpdateLaunchButton();
-    }
-
-    private void DeleteProfile_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedProject is null) return;
-        if (ProfileComboBox.SelectedItem is not string profileName) return;
-        if (profileName == "+ Nouveau profil...") return;
-
-        var result = MessageBox.Show(
-            $"Supprimer le profil « {profileName} » ?",
-            "Confirmation",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
-
-        if (result != MessageBoxResult.Yes) return;
-
-        var projectName = Path.GetFileName(_selectedProject);
-        _profileService.DeleteProfile(projectName, profileName);
-        ProfileComboBox.Items.Remove(profileName);
-        ProfileComboBox.SelectedIndex = 0;
-        DeleteProfileButton.IsEnabled = ProfileComboBox.Items.Count > 2;
-        Log($"🗑️ Profil « {profileName} » supprimé");
-        UpdateLaunchButton();
-    }
-
-    private void LaunchDropdown_Click(object sender, RoutedEventArgs e)
-    {
-        LaunchProfilesPopup.PlacementTarget = LaunchDropdownButton;
-        LaunchProfilesPopup.IsOpen = true;
-    }
-
-    private void AskNewProfileName()
-    {
-        var dialog = new ProfileNameDialog();
-        dialog.Owner = this;
-
-        if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.ProfileName))
-        {
-            if (ProfileComboBox.Items.Count > 1)
-                ProfileComboBox.SelectedIndex = 0;
-            return;
-        }
-
-        var name = dialog.ProfileName.Trim();
-
-        // Vérifier que le nom n'existe pas déjà
-        if (ProfileComboBox.Items.Cast<string>().Any(p => p == name))
-        {
-            MessageBox.Show($"Un profil « {name} » existe déjà.", "Nom existant",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        // Sauvegarder immédiatement en JSON avec les options actuelles
-        if (_selectedProject is not null)
-        {
-            var projectName = Path.GetFileName(_selectedProject);
-            var profile = CaptureCurrentOptions(name);
-            _profileService.SaveProfile(projectName, profile);
-        }
-
-        // Insérer avant "+ Nouveau profil..."
-        var insertIndex = ProfileComboBox.Items.Count - 1;
-        ProfileComboBox.Items.Insert(insertIndex, name);
-        ProfileComboBox.SelectedIndex = insertIndex;
-
-        DeleteProfileButton.IsEnabled = ProfileComboBox.Items.Count > 2;
-        Log($"✨ Nouveau profil « {name} » créé");
-        UpdateLaunchButton();
-    }
-
-    private void UpdateLaunchButton()
-    {
-        if (_selectedProject is null) return;
-
-        // Compter les vrais profils (sans "+ Nouveau profil...")
-        var profileCount = ProfileComboBox.Items.Cast<string>()
-            .Count(p => p != "+ Nouveau profil...");
-
-        if (profileCount > 1)
-        {
-            // Afficher le bouton splitté
-            LaunchSplitSeparator.Visibility = Visibility.Visible;
-            LaunchDropdownBorder.Visibility = Visibility.Visible;
-
-            // Mettre à jour le texte du bouton avec le profil sélectionné
-            var selected = ProfileComboBox.SelectedItem as string;
-            LaunchButton.Content = $"▶ {selected}";
-
-            // Mettre à jour le popup
-            RefreshLaunchPopup();
-        }
-        else
-        {
-            // Bouton simple
-            LaunchSplitSeparator.Visibility = Visibility.Collapsed;
-            LaunchDropdownBorder.Visibility = Visibility.Collapsed;
-            LaunchButton.Content = "▶ Lancer l'environnement";
-        }
-    }
-
-    private void RefreshLaunchPopup()
-    {
-        LaunchProfilesPanel.Children.Clear();
-
-        foreach (var item in ProfileComboBox.Items.Cast<string>()
-                 .Where(p => p != "+ Nouveau profil..."))
-        {
-            var profileName = item; // capture pour le lambda
-            var btn = new Button
-            {
-                Content = profileName,
-                Style = (Style)FindResource("PopupProfileButton"),
-            };
-            btn.Click += (_, _) =>
-            {
-                ProfileComboBox.SelectedItem = profileName;
-                LaunchProfilesPopup.IsOpen = false;
-                LaunchButton.Content = $"▶ {profileName}";
-                Launch_Click(btn, new RoutedEventArgs());
-            };
-            LaunchProfilesPanel.Children.Add(btn);
-        }
-    }
-
-    private void LoadProfilesForProject(string projectName)
-    {
-        ProfileComboBox.Items.Clear();
-
-        var profiles = _profileService.GetProfiles(projectName);
-
-        // Si aucun profil → créer un profil Défaut automatiquement
-        if (profiles.Count == 0)
-        {
-            var defaultProfile = new ProjectProfile { Name = "Défaut" };
-            _profileService.SaveProfile(projectName, defaultProfile);
-            profiles.Add(defaultProfile);
-        }
-
-        foreach (var p in profiles)
-            ProfileComboBox.Items.Add(p.Name);
-
-        ProfileComboBox.Items.Add("+ Nouveau profil...");
-        // Restaurer le dernier profil utilisé
-        var lastUsed = _profileService.GetLastUsedProfile(projectName);
-        var lastIndex = lastUsed != null
-            ? ProfileComboBox.Items.Cast<string>()
-                .ToList().IndexOf(lastUsed)
-            : 0;
-        ProfileComboBox.SelectedIndex   = lastIndex >= 0 ? lastIndex : 0;
-        ProfileComboBox.IsEnabled       = true;
-        SaveProfileButton.IsEnabled     = true;
-        RenameProfileButton.IsEnabled   = true;
-        DeleteProfileButton.IsEnabled   = profiles.Count > 1;
-
-        // Charger le premier profil dans l'UI
-        ApplyProfile(profiles[0]);
-        UpdateLaunchButton();
-
-        _isLoadingProfiles = false;
-
-        // Appliquer le profil après que l'UI soit stable
-        Dispatcher.BeginInvoke(new Action(() =>
-        {
-            var profiles = _profileService.GetProfiles(projectName);
-            if (profiles.Count == 0) return;
-
-            var lastUsed = _profileService.GetLastUsedProfile(projectName);
-            var toApply = profiles.FirstOrDefault(p => p.Name == lastUsed)
-                           ?? profiles[0];
-
-            ApplyProfile(toApply);
-
-            // Sélectionner le bon item dans le ComboBox
-            var index = ProfileComboBox.Items.Cast<string>()
-                .ToList().IndexOf(toApply.Name);
-            if (index >= 0) ProfileComboBox.SelectedIndex = index;
-
-        }), System.Windows.Threading.DispatcherPriority.Loaded);
-    }
-
-    /// <summary>Applique un profil sauvegardé dans l'UI.</summary>
-    private void ApplyProfile(ProjectProfile p)
-    {
-        // Type de projet
-        RadioSymfony.IsChecked = p.IsSymfony;
-        RadioOther.IsChecked = !p.IsSymfony;
-
-        // Éditeur
-        RadioVSCode.IsChecked = p.OpenVSCode;
-        RadioVisualStudio.IsChecked = p.OpenVisualStudio;
-        RadioNoEditor.IsChecked = !p.OpenVSCode && !p.OpenVisualStudio;
-
-        // XAMPP
-        ChkXamppPanel.IsChecked = p.ShowXamppPanel;
-        ChkApache.IsChecked = p.StartApache;
-        ChkMySQL.IsChecked = p.StartMySQL;
-        ChkFileZilla.IsChecked = p.StartFileZilla;
-
-        // Symfony
-        ChkSymfonyServer.IsChecked = p.StartSymfonyServer;
-        ChkTailwind.IsChecked = p.StartTailwind;
-        ChkMercure.IsChecked = p.StartMercure;
-
-        if (p.MercureScript != null)
-            MercureScriptCombo.SelectedItem = p.MercureScript;
-
-        // Outils
-        ChkTerminal.IsChecked = p.OpenTerminal;
-        ChkBrowser.IsChecked = p.OpenBrowser;
-        ChkBrowserDefault.IsChecked = p.BrowserDefault;
-        ChkBrowserChrome.IsChecked = p.BrowserChrome;
-        ChkBrowserFirefox.IsChecked = p.BrowserFirefox;
-
-        Log($"📂 Profil « {p.Name} » chargé");
-    }
-
-    /// <summary>Capture les options actuelles de l'UI dans un profil.</summary>
+    /// <summary>Captures the options panel as a profile. This profile is also the launch request.</summary>
     private ProjectProfile CaptureCurrentOptions(string profileName) => new()
     {
         Name = profileName,
@@ -578,9 +195,288 @@ private async void StopAll_Click(object sender, RoutedEventArgs e)
         BrowserFirefox = ChkBrowserFirefox.IsChecked == true,
     };
 
+    // ════════════════════════════════════════════════════════════
+    //  LAUNCH / STOP
+    // ════════════════════════════════════════════════════════════
+
+    private async void Launch_Click(object sender, RoutedEventArgs e) => await LaunchSelectedProjectAsync();
+
+    private async Task LaunchSelectedProjectAsync()
+    {
+        if (_selectedProjectPath is null || _isLaunchInProgress) return;
+        var projectName = SelectedProjectName;
+        SetLaunchInProgress(true);
+        StatusText.Text = "⏳ Lancement en cours…";
+        Log("═══════════════════════════════");
+        Log($"🚀 Lancement de « {projectName} »");
+        try
+        {
+            await _launchService.LaunchAsync(_selectedProjectPath, CaptureCurrentOptions(_activeProfileName ?? ProjectProfile.DefaultProfileName));
+            StatusText.Text = $"✅ Environnement lancé — {projectName}";
+            Log("✅ Lancement terminé");
+        }
+        catch (Exception exception)
+        {
+            StatusText.Text = "❌ Erreur lors du lancement";
+            AppendLog($"❌ Erreur : {exception.Message}", isError: true);
+        }
+        finally
+        {
+            SetLaunchInProgress(false);
+            _serviceMonitor.RefreshStatus();
+        }
+    }
+
+    private async void StopAll_Click(object sender, RoutedEventArgs e)
+    {
+        var confirmation = MessageBox.Show(
+            "Arrêter les services et fermer les éditeurs lancés par DevLauncher ?",
+            "⏹ Tout arrêter",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (confirmation != MessageBoxResult.Yes) return;
+        StopAllButton.IsEnabled = false;
+        Log("⏹ Arrêt de l'environnement…");
+        try
+        {
+            await _launchService.StopAllAsync();
+            StatusText.Text = "⏹ Environnement arrêté";
+        }
+        catch (Exception exception)
+        {
+            AppendLog($"❌ Erreur lors de l'arrêt : {exception.Message}", isError: true);
+        }
+        finally
+        {
+            StopAllButton.IsEnabled = true;
+            _serviceMonitor.RefreshStatus();
+        }
+    }
+
+    private void SetLaunchInProgress(bool isLaunchInProgress)
+    {
+        _isLaunchInProgress = isLaunchInProgress;
+        LaunchProfilesPopup.IsOpen = false;
+        RefreshActionButtons();
+    }
+
+    private void LaunchDropdown_Click(object sender, RoutedEventArgs e) => LaunchProfilesPopup.IsOpen = true;
+
+    /// <summary>Rebuilds the launch buttons : split button with a profiles menu when the project has several profiles.</summary>
+    private void RefreshLaunchButtons()
+    {
+        var profileNames = GetProfileNames();
+        var hasSeveralProfiles = _selectedProjectPath is not null && profileNames.Count > 1;
+        LaunchButton.IsEnabled = _selectedProjectPath is not null && !_isLaunchInProgress;
+        LaunchDropdownButton.IsEnabled = LaunchButton.IsEnabled;
+        LaunchSplitSeparator.Visibility = hasSeveralProfiles ? Visibility.Visible : Visibility.Collapsed;
+        LaunchDropdownButton.Visibility = hasSeveralProfiles ? Visibility.Visible : Visibility.Collapsed;
+        LaunchButton.Tag = hasSeveralProfiles ? new CornerRadius(8, 0, 0, 8) : new CornerRadius(8);
+        LaunchButton.Content = hasSeveralProfiles ? $"▶ {_activeProfileName}" : DefaultLaunchButtonLabel;
+        LaunchProfilesPanel.Children.Clear();
+        if (!hasSeveralProfiles) return;
+        foreach (var profileName in profileNames)
+        {
+            var profileLaunchButton = new Button { Content = profileName, Style = (Style)FindResource("PopupProfileButton") };
+            profileLaunchButton.Click += async (_, _) =>
+            {
+                LaunchProfilesPopup.IsOpen = false;
+                ProfileComboBox.SelectedItem = profileName;
+                await LaunchSelectedProjectAsync();
+            };
+            LaunchProfilesPanel.Children.Add(profileLaunchButton);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  PROFILES
+    // ════════════════════════════════════════════════════════════
+
+    private void LoadProfilesForProject(string projectName, ProjectDetection projectDetection)
+    {
+        var profiles = _profileService.GetProfiles(projectName);
+        if (profiles.Count == 0)
+        {
+            var defaultProfile = ProjectProfile.CreateDefault(projectDetection);
+            _profileService.SaveProfile(projectName, defaultProfile);
+            profiles.Add(defaultProfile);
+        }
+        var lastUsedProfileName = _profileService.GetLastUsedProfile(projectName);
+        var profileToActivate = profiles.FirstOrDefault(profile => profile.Name == lastUsedProfileName) ?? profiles[0];
+        UpdateProfileList(profiles.Select(profile => profile.Name), profileToActivate.Name);
+        ActivateProfile(profileToActivate);
+    }
+
+    /// <summary>Fills the profiles dropdown without triggering the selection handler.</summary>
+    private void UpdateProfileList(IEnumerable<string> profileNames, string? selectedProfileName)
+    {
+        _isUpdatingProfileList = true;
+        try
+        {
+            ProfileComboBox.Items.Clear();
+            foreach (var profileName in profileNames) ProfileComboBox.Items.Add(profileName);
+            if (_selectedProjectPath is not null) ProfileComboBox.Items.Add(NewProfileEntry);
+            ProfileComboBox.SelectedItem = selectedProfileName;
+        }
+        finally
+        {
+            _isUpdatingProfileList = false;
+        }
+    }
+
+    private void SelectProfileInList(string? profileName)
+    {
+        _isUpdatingProfileList = true;
+        try { ProfileComboBox.SelectedItem = profileName; }
+        finally { _isUpdatingProfileList = false; }
+    }
+
+    private List<string> GetProfileNames()
+        => ProfileComboBox.Items.Cast<string>().Where(profileName => profileName != NewProfileEntry).ToList();
+
+    /// <summary>Displays a profile and makes it the active one.</summary>
+    private void ActivateProfile(ProjectProfile profile)
+    {
+        ApplyProfile(profile);
+        SetActiveProfile(profile.Name);
+        Log($"📂 Profil « {profile.Name} » chargé");
+    }
+
+    /// <summary>Makes a profile the active one of the selected project, without changing the options panel.</summary>
+    private void SetActiveProfile(string profileName)
+    {
+        _activeProfileName = profileName;
+        if (SelectedProjectName is { } projectName) _profileService.SaveLastUsedProfile(projectName, profileName);
+        RefreshActionButtons();
+    }
+
+    private void RefreshActionButtons()
+    {
+        var hasProject = _selectedProjectPath is not null;
+        ProfileComboBox.IsEnabled = hasProject;
+        SaveProfileButton.IsEnabled = hasProject;
+        RenameProfileButton.IsEnabled = hasProject;
+        DeleteProfileButton.IsEnabled = hasProject && GetProfileNames().Count > 1;
+        RefreshLaunchButtons();
+    }
+
+    private void ProfileComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isUpdatingProfileList || ProfileComboBox.SelectedItem is not string profileName || SelectedProjectName is not { } projectName) return;
+        if (profileName == NewProfileEntry)
+        {
+            CreateProfile();
+            return;
+        }
+        var profile = _profileService.GetProfile(projectName, profileName);
+        if (profile is not null) ActivateProfile(profile);
+    }
+
+    private void CreateProfile()
+    {
+        var profileName = AskProfileName("Nouveau profil", "Créer", string.Empty);
+        if (profileName is null || SelectedProjectName is not { } projectName)
+        {
+            SelectProfileInList(_activeProfileName);
+            return;
+        }
+        _profileService.SaveProfile(projectName, CaptureCurrentOptions(profileName));
+        UpdateProfileList(GetProfileNames().Append(profileName), profileName);
+        SetActiveProfile(profileName);
+        Log($"✨ Nouveau profil « {profileName} » créé");
+    }
+
+    private void SaveProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedProjectName is not { } projectName || _activeProfileName is null) return;
+        _profileService.SaveProfile(projectName, CaptureCurrentOptions(_activeProfileName));
+        Log($"💾 Profil « {_activeProfileName} » sauvegardé");
+        StatusText.Text = $"✅ Profil « {_activeProfileName} » sauvegardé";
+    }
+
+    private void RenameProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedProjectName is not { } projectName || _activeProfileName is not { } currentProfileName) return;
+        var newProfileName = AskProfileName("Renommer le profil", "Renommer", currentProfileName);
+        if (newProfileName is null || newProfileName == currentProfileName) return;
+        _profileService.RenameProfile(projectName, currentProfileName, newProfileName);
+        UpdateProfileList(GetProfileNames().Select(profileName => profileName == currentProfileName ? newProfileName : profileName), newProfileName);
+        SetActiveProfile(newProfileName);
+        Log($"✏️ Profil « {currentProfileName} » renommé en « {newProfileName} »");
+    }
+
+    private void DeleteProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedProjectName is not { } projectName || _activeProfileName is not { } profileNameToDelete) return;
+        var confirmation = MessageBox.Show($"Supprimer le profil « {profileNameToDelete} » ?", "Confirmation", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (confirmation != MessageBoxResult.Yes) return;
+        _profileService.DeleteProfile(projectName, profileNameToDelete);
+        Log($"🗑️ Profil « {profileNameToDelete} » supprimé");
+        LoadProfilesForProject(projectName, _projectScanner.DetectProject(_selectedProjectPath!));
+    }
+
+    /// <summary>Asks for a profile name until it is unique. Returns null when cancelled.</summary>
+    private string? AskProfileName(string dialogTitle, string confirmLabel, string initialProfileName)
+    {
+        var existingProfileNames = GetProfileNames();
+        while (true)
+        {
+            var profileNameDialog = new ProfileNameDialog(dialogTitle, confirmLabel, initialProfileName) { Owner = this };
+            if (profileNameDialog.ShowDialog() != true) return null;
+            var profileName = profileNameDialog.ProfileName;
+            var isUnchangedName = profileName == initialProfileName;
+            if (profileName != NewProfileEntry && (isUnchangedName || !existingProfileNames.Contains(profileName))) return profileName;
+            MessageBox.Show($"Un profil « {profileName} » existe déjà.", "Nom existant", MessageBoxButton.OK, MessageBoxImage.Warning);
+            initialProfileName = profileName;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  LOGS AND STATUS
+    // ════════════════════════════════════════════════════════════
+
+    private void Log(string message) => AppendLog(message, isError: false);
+
+    /// <summary>Appends a timestamped line to the log. Can be called from any thread.</summary>
+    private void AppendLog(string message, bool isError)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => AppendLog(message, isError));
+            return;
+        }
+        var logParagraph = new Paragraph(new Run($"[{DateTime.Now:HH:mm:ss}] {message}"))
+        {
+            Foreground = (Brush)FindResource(isError ? "AccentRedBrush" : "TextSecondaryBrush"),
+            Margin = new Thickness(0),
+        };
+        LogRichText.Document.Blocks.Add(logParagraph);
+        LogRichText.ScrollToEnd();
+    }
+
+    private void ClearLog_Click(object sender, RoutedEventArgs e) => LogRichText.Document.Blocks.Clear();
+
+    private void OnServiceStatusChanged(string serviceName, bool isRunning)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => OnServiceStatusChanged(serviceName, isRunning));
+            return;
+        }
+        var indicatorBrush = (Brush)FindResource(isRunning ? "AccentGreenBrush" : "AccentRedBrush");
+        switch (serviceName)
+        {
+            case "Apache": ApacheIndicator.Fill = indicatorBrush; break;
+            case "MySQL": MySqlIndicator.Fill = indicatorBrush; break;
+            case "FileZilla": FileZillaIndicator.Fill = indicatorBrush; break;
+        }
+    }
+
     protected override void OnClosed(EventArgs e)
     {
-        _monitor.Stop();
+        _launchService.RestorePendingVSCodeTasks();
+        _serviceMonitor.Dispose();
+        _processEventWatcher.Dispose();
         base.OnClosed(e);
     }
 }

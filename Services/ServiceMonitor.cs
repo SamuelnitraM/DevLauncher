@@ -1,86 +1,82 @@
-using System.Diagnostics;
-using System.Timers;
-using Timer = System.Timers.Timer;
-
 namespace DevLauncher.Services;
 
 /// <summary>
-/// Vérifie périodiquement si Apache et MySQL tournent,
-/// et émet un événement StatusChanged pour mettre à jour l'UI.
+/// Tracks whether Apache, MySQL and FileZilla are running, from the process start and stop events,
+/// and raises StatusChanged to update the UI.
 /// </summary>
-public class ServiceMonitor : IDisposable
+public sealed class ServiceMonitor : IDisposable
 {
-    private readonly Timer _timer = new();
+    private static readonly Dictionary<string, string> _serviceNamesByProcessName = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["httpd"] = "Apache",
+        ["mysqld"] = "MySQL",
+        ["FileZillaServer"] = "FileZilla",
+    };
+
+    private readonly ProcessEventWatcher _processEventWatcher;
+    private readonly Dictionary<string, HashSet<int>> _runningProcessIdsByService = new();
+    private readonly object _stateLock = new();
 
     /// <summary>
-    /// Émis quand le statut d'un service change.
-    /// Paramètres : nom du service ("Apache" | "MySQL"), est-il actif ?
+    /// Raised when the status of a service is published.
+    /// Parameters : service name ("Apache" | "MySQL" | "FileZilla"), is it running ?
     /// </summary>
     public event Action<string, bool>? StatusChanged;
 
-    private bool _lastApache;
-    private bool _lastMySQL;
-    private bool _lastFileZilla;
-
-    public void Start(TimeSpan interval)
+    public ServiceMonitor(ProcessEventWatcher processEventWatcher)
     {
-        _timer.Interval = interval.TotalMilliseconds;
-        _timer.Elapsed += OnTick;
-        _timer.AutoReset = true;
-        _timer.Start();
-
-        // Vérification immédiate au démarrage
-        CheckAll();
+        _processEventWatcher = processEventWatcher;
+        _processEventWatcher.ProcessStarted += OnProcessStarted;
+        _processEventWatcher.ProcessStopped += OnProcessStopped;
     }
 
-    public void Stop() => _timer.Stop();
-
-    private void OnTick(object? sender, ElapsedEventArgs e) => CheckAll();
-
-    private void CheckAll()
+    /// <summary>Reads the running processes and publishes the status of every service.</summary>
+    public void RefreshStatus()
     {
-        bool apacheRunning = IsProcessRunning("httpd");
-        bool mysqlRunning = IsProcessRunning("mysqld");
-        bool filezillaRunning = IsProcessRunning("FileZillaServer");
-
-        if (apacheRunning != _lastApache)
+        foreach (var (processName, serviceName) in _serviceNamesByProcessName)
         {
-            _lastApache = apacheRunning;
-            StatusChanged?.Invoke("Apache", apacheRunning);
-        }
-
-        if (mysqlRunning != _lastMySQL)
-        {
-            _lastMySQL = mysqlRunning;
-            StatusChanged?.Invoke("MySQL", mysqlRunning);
-        }
-
-        if (filezillaRunning != _lastFileZilla)
-        {
-            _lastFileZilla = filezillaRunning;
-            StatusChanged?.Invoke("FileZilla", filezillaRunning);
+            var runningProcessIds = ProcessHelper.GetProcessIds(processName);
+            lock (_stateLock) _runningProcessIdsByService[serviceName] = runningProcessIds;
+            StatusChanged?.Invoke(serviceName, runningProcessIds.Count > 0);
         }
     }
 
-    /// <summary>
-    /// Vérifie si un processus Windows portant ce nom est actif.
-    /// Apache = "httpd", MySQL = "mysqld"
-    /// </summary>
-    private static bool IsProcessRunning(string processName)
+    private void OnProcessStarted(int processId, string processName)
     {
-        try
+        if (!_serviceNamesByProcessName.TryGetValue(processName, out var serviceName)) return;
+        bool serviceJustStarted;
+        lock (_stateLock)
         {
-            return Process.GetProcessesByName(processName).Length > 0;
+            var runningProcessIds = GetRunningProcessIds(serviceName);
+            serviceJustStarted = runningProcessIds.Add(processId) && runningProcessIds.Count == 1;
         }
-        catch
+        if (serviceJustStarted) StatusChanged?.Invoke(serviceName, true);
+    }
+
+    private void OnProcessStopped(int processId)
+    {
+        var stoppedServiceNames = new List<string>();
+        lock (_stateLock)
         {
-            return false;
+            foreach (var (serviceName, runningProcessIds) in _runningProcessIdsByService)
+                if (runningProcessIds.Remove(processId) && runningProcessIds.Count == 0) stoppedServiceNames.Add(serviceName);
         }
+        foreach (var serviceName in stoppedServiceNames) StatusChanged?.Invoke(serviceName, false);
+    }
+
+    private HashSet<int> GetRunningProcessIds(string serviceName)
+    {
+        if (!_runningProcessIdsByService.TryGetValue(serviceName, out var runningProcessIds))
+        {
+            runningProcessIds = new HashSet<int>();
+            _runningProcessIdsByService[serviceName] = runningProcessIds;
+        }
+        return runningProcessIds;
     }
 
     public void Dispose()
     {
-        _timer.Dispose();
-        GC.SuppressFinalize(this);
+        _processEventWatcher.ProcessStarted -= OnProcessStarted;
+        _processEventWatcher.ProcessStopped -= OnProcessStopped;
     }
 }

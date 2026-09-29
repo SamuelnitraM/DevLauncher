@@ -1,57 +1,61 @@
 using System.IO;
+using DevLauncher.Models;
 
 namespace DevLauncher.Services;
 
 /// <summary>
-/// Lit le contenu de htdocs et détecte si un projet est Symfony.
+/// Lists the projects of the configured projects root folder and detects their technologies.
 /// </summary>
 public class ProjectScanner
 {
-    private readonly string _htdocsPath;
-
-    public ProjectScanner(string htdocsPath)
-    {
-        _htdocsPath = htdocsPath;
-    }
-
     /// <summary>
-    /// Retourne la liste des chemins complets des sous-dossiers de htdocs,
-    /// triés alphabétiquement.
+    /// Returns the full paths of the sub-folders of the projects root folder, sorted alphabetically.
+    /// Hidden folders and dot-folders are ignored.
     /// </summary>
     public List<string> GetProjects()
     {
-        if (!Directory.Exists(_htdocsPath))
+        var projectsRootPath = AppSettings.HtdocsPath;
+        if (!Directory.Exists(projectsRootPath)) return new List<string>();
+        try
+        {
+            return new DirectoryInfo(projectsRootPath)
+                .EnumerateDirectories()
+                .Where(directory => !directory.Name.StartsWith('.') && !directory.Attributes.HasFlag(FileAttributes.Hidden))
+                .Select(directory => directory.FullName)
+                .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
             return new List<string>();
-
-        return Directory
-            .GetDirectories(_htdocsPath)
-            .OrderBy(Path.GetFileName)
-            .ToList();
+        }
     }
 
     /// <summary>
-    /// Détecte si un dossier contient un projet Symfony.
-    /// Critères : présence de symfony.lock OU bin/console OU composer.json mentionnant symfony/framework-bundle.
+    /// Detects the technologies used by a project.
+    /// Symfony criteria : symfony.lock, bin/console, or composer.json requiring symfony/framework-bundle.
     /// </summary>
-    public bool IsSymfonyProject(string projectPath)
+    public ProjectDetection DetectProject(string projectPath)
     {
-        // Critère 1 : fichier symfony.lock
-        if (File.Exists(Path.Combine(projectPath, "symfony.lock")))
-            return true;
+        var composerJsonContent = ReadComposerJson(projectPath);
+        var isSymfony = File.Exists(Path.Combine(projectPath, "symfony.lock"))
+            || File.Exists(Path.Combine(projectPath, "bin", "console"))
+            || composerJsonContent.Contains("symfony/framework-bundle", StringComparison.OrdinalIgnoreCase);
+        var usesTailwindBundle = composerJsonContent.Contains("symfonycasts/tailwind-bundle", StringComparison.OrdinalIgnoreCase);
+        return new ProjectDetection(isSymfony, usesTailwindBundle);
+    }
 
-        // Critère 2 : bin/console (script de commande Symfony)
-        if (File.Exists(Path.Combine(projectPath, "bin", "console")))
-            return true;
-
-        // Critère 3 : composer.json mentionne symfony/framework-bundle
-        var composerJson = Path.Combine(projectPath, "composer.json");
-        if (File.Exists(composerJson))
+    /// <summary>Returns the content of composer.json, or an empty string when it is missing or unreadable.</summary>
+    private static string ReadComposerJson(string projectPath)
+    {
+        var composerJsonPath = Path.Combine(projectPath, "composer.json");
+        try
         {
-            var content = File.ReadAllText(composerJson);
-            if (content.Contains("symfony/framework-bundle", StringComparison.OrdinalIgnoreCase))
-                return true;
+            return File.Exists(composerJsonPath) ? File.ReadAllText(composerJsonPath) : string.Empty;
         }
-
-        return false;
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return string.Empty;
+        }
     }
 }
