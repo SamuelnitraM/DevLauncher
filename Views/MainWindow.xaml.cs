@@ -10,6 +10,7 @@ namespace DevLauncher.Views;
 public partial class MainWindow : Window
 {
     private bool _isExitConfirmed;
+    private bool _isExitQuestionPending;
 
     public MainWindow()
     {
@@ -18,15 +19,28 @@ public partial class MainWindow : Window
         Height = Math.Min(Height, SystemParameters.WorkArea.Height);
     }
 
-    /// <summary>Lets the view model stop the environment before closing. The closing is cancelled until it answers.</summary>
-    protected override async void OnClosing(CancelEventArgs e)
+    /// <summary>
+    /// With a running environment, the closing is cancelled while the view model asks what to do,
+    /// then requested again once the current closing is over.
+    /// </summary>
+    protected override void OnClosing(CancelEventArgs e)
     {
         base.OnClosing(e);
-        if (_isExitConfirmed || DataContext is not MainViewModel mainViewModel) return;
+        if (_isExitConfirmed || DataContext is not MainViewModel mainViewModel || !mainViewModel.HasActiveEnvironment) return;
         e.Cancel = true;
-        if (!await mainViewModel.PrepareExitAsync()) return;
+        if (_isExitQuestionPending) return;
+        _isExitQuestionPending = true;
+        _ = ConfirmExitAsync(mainViewModel);
+    }
+
+    private async Task ConfirmExitAsync(MainViewModel mainViewModel)
+    {
+        var shouldExit = await mainViewModel.PrepareExitAsync();
+        _isExitQuestionPending = false;
+        if (!shouldExit) return;
         _isExitConfirmed = true;
-        Close();
+        // Close cannot be called from inside a closing : it is queued after it.
+        await Dispatcher.BeginInvoke(Close, DispatcherPriority.Normal);
     }
 
     private void ProjectListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

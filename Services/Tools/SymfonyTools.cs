@@ -4,8 +4,8 @@ using DevLauncher.Services.Hosting;
 
 namespace DevLauncher.Services.Tools;
 
-// The Stop methods of the service tools are used when the services run as VSCode tasks :
-// services run by DevLauncher are stopped with their whole process tree by the service process host.
+// The Stop methods of the service tools target the instances DevLauncher does not own : services run as VSCode tasks,
+// or instances left by a previous session. Services run by DevLauncher are stopped with their process tree by their host.
 
 /// <summary>Local Symfony web server, started on the configured port.</summary>
 public sealed class SymfonyServerTool : ServiceTool

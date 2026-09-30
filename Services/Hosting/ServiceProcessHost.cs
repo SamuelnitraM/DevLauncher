@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.IO;
 
 namespace DevLauncher.Services.Hosting;
@@ -8,13 +9,24 @@ namespace DevLauncher.Services.Hosting;
 public sealed class ServiceProcessHost
 {
     private readonly LaunchLog _launchLog;
+    private readonly KillOnCloseJob? _killOnCloseJob;
     private readonly List<HostedService> _hostedServices = new();
     private readonly object _hostedServicesLock = new();
 
     public ServiceProcessHost(LaunchLog launchLog)
     {
         _launchLog = launchLog;
+        try
+        {
+            _killOnCloseJob = new KillOnCloseJob();
+        }
+        catch (Win32Exception exception)
+        {
+            _launchLog.Error($"⚠️ Les services ne pourront pas être arrêtés automatiquement si DevLauncher est tué : {exception.Message}");
+        }
     }
+
+    public bool IsServiceRunning(string projectPath, string toolId) => FindService(projectPath, toolId) is { IsRunning: true };
 
     /// <summary>Raised on the launching thread when a new service is created, before it starts.</summary>
     public event Action<HostedService>? ServiceCreated;
@@ -31,7 +43,7 @@ public sealed class ServiceProcessHost
             }
             if (hostedService is null)
             {
-                hostedService = new HostedService(projectPath, serviceCommand);
+                hostedService = new HostedService(projectPath, serviceCommand, _killOnCloseJob);
                 lock (_hostedServicesLock) _hostedServices.Add(hostedService);
                 ServiceCreated?.Invoke(hostedService);
             }

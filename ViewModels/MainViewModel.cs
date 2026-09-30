@@ -132,6 +132,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private bool _isLaunchMenuOpen;
 
     public bool HasProject => CurrentProjectPath is not null;
+    public bool HasActiveEnvironment => _launchService.HasActiveEnvironment;
     public bool HasRecentProjects => RecentProjects.Count > 0;
     public bool IsIdle => !IsLaunchInProgress;
     public bool HasSeveralProfiles => HasProject && ProfileNames.Count > 1;
@@ -437,7 +438,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     public async Task<bool> PrepareExitAsync()
     {
-        if (!_launchService.HasActiveEnvironment) return true;
+        if (!HasActiveEnvironment) return true;
         var shouldStopEnvironment = _userInteractionService.AskYesNoCancel(
             "Arrêter l'environnement avant de quitter (services, XAMPP, éditeurs) ?\n\n" +
             "Non : XAMPP et les éditeurs restent ouverts, les services lancés par DevLauncher sont arrêtés.",

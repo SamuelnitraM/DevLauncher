@@ -19,10 +19,14 @@ public sealed partial class HostedService
     private TaskCompletionSource? _processExitCompletion;
     private bool _isStopRequested;
 
-    public HostedService(string projectPath, ServiceCommand command)
+    private readonly KillOnCloseJob? _killOnCloseJob;
+
+    /// <param name="killOnCloseJob">Job killing the process when DevLauncher exits, null when unavailable.</param>
+    public HostedService(string projectPath, ServiceCommand command, KillOnCloseJob? killOnCloseJob)
     {
         ProjectPath = projectPath;
         Command = command;
+        _killOnCloseJob = killOnCloseJob;
     }
 
     public string ProjectPath { get; }
@@ -83,6 +87,8 @@ public sealed partial class HostedService
                 OutputReceived?.Invoke($"❌ Impossible de lancer « {Command.Executable} » : {exception.Message}", true);
                 return false;
             }
+            if (_killOnCloseJob is not null && !_killOnCloseJob.TryAssign(serviceProcess))
+                OutputReceived?.Invoke("⚠️ Ce service ne pourra pas être arrêté automatiquement si DevLauncher est tué", true);
             _isStopRequested = false;
             _serviceProcess = serviceProcess;
             _processExitCompletion = processExitCompletion;

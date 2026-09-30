@@ -116,7 +116,7 @@ DevLauncher, sortie capturée. Les **terminaux interactifs** restent dans Window
 | 3.3 | ✅ **Contrôle par service** : démarrer / arrêter / redémarrer individuellement, détection immédiate d'un crash (événement de fin de processus) avec notification | S |
 | 3.4 | **Disponibilité lue dans les journaux** (« Listening on… », « Done in… ») en complément du test de port : ouverture du navigateur au bon moment, port et schéma HTTP/HTTPS réels | S |
 | 3.5 | **Terminal interactif** : bouton « Ouvrir un terminal » conservé dans Windows Terminal (onglet dans le dossier du projet, profil PowerShell / CMD / Git Bash au choix) | S |
-| 3.7 | **Objet Job Windows** : les services meurent avec DevLauncher même en cas de plantage (aujourd'hui : arrêtés à la fermeture normale uniquement) | S |
+| 3.7 | ✅ **Objet Job Windows** : les services meurent avec DevLauncher même en cas de plantage ou d'arrêt du débogage ; les instances laissées par une session précédente sont arrêtées avant un nouveau lancement | S |
 | 3.6 | ✅ **Mode « services dans VSCode »** conservé en option pour ceux qui préfèrent les terminaux intégrés de l'éditeur | S |
 
 ---

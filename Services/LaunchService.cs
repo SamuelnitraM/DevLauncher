@@ -49,7 +49,9 @@ public sealed class LaunchService
         {
             if (launchStage == LaunchStage.Services)
             {
-                if (!areServicesInVSCode && serviceCommands.Count > 0) _serviceProcessHost.StartServices(projectPath, serviceCommands);
+                if (areServicesInVSCode || serviceCommands.Count == 0) continue;
+                await StopStaleServiceInstancesAsync(projectPath, profile, enabledTools, serviceCommands);
+                _serviceProcessHost.StartServices(projectPath, serviceCommands);
                 continue;
             }
             foreach (var tool in enabledTools.Where(tool => tool.Stage == launchStage))
@@ -70,6 +72,23 @@ public sealed class LaunchService
             .Select(serviceTool => serviceTool.BuildServiceCommand(CreateContext(projectPath, profile, serviceTool)))
             .OfType<ServiceCommand>()
             .ToList();
+    }
+
+    /// <summary>
+    /// Stops the instances of the services about to start that DevLauncher does not own (left by a previous session
+    /// or started by hand), so that the new instances can take the port and the files they need.
+    /// </summary>
+    private async Task StopStaleServiceInstancesAsync(string projectPath, ProjectProfile profile, IEnumerable<LaunchTool> enabledTools, IEnumerable<ServiceCommand> serviceCommands)
+    {
+        var serviceToolIdsToStart = serviceCommands
+            .Where(serviceCommand => !_serviceProcessHost.IsServiceRunning(projectPath, serviceCommand.ToolId))
+            .Select(serviceCommand => serviceCommand.ToolId)
+            .ToHashSet();
+        var serviceToolsToClean = enabledTools.OfType<ServiceTool>().Where(serviceTool => serviceToolIdsToStart.Contains(serviceTool.Id)).ToList();
+        if (serviceToolsToClean.Count == 0) return;
+        _launchLog.Info("🧹 Arrêt des instances précédentes non gérées par DevLauncher…");
+        foreach (var serviceTool in serviceToolsToClean)
+            await serviceTool.StopAsync(CreateContext(projectPath, profile, serviceTool));
     }
 
     // ════════════════════════════════════════════════════════
