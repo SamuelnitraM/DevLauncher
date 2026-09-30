@@ -7,6 +7,9 @@ public interface IUserInteractionService
 
     void ShowWarning(string message, string title);
 
+    /// <summary>Returns true for yes, false for no, null when cancelled.</summary>
+    bool? AskYesNoCancel(string message, string title);
+
     /// <summary>Asks for a profile name. Returns null when cancelled.</summary>
     string? AskProfileName(string dialogTitle, string confirmLabel, string initialProfileName);
 

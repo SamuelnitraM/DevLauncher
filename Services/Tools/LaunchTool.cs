@@ -13,7 +13,7 @@ public enum LaunchStage
     Finalization = 5,
 }
 
-/// <summary>A project tool is stopped for each launched project, a machine tool once, only if the launcher started it.</summary>
+/// <summary>A project tool is stopped for each launched project, a machine tool once, when a launched profile requested it.</summary>
 public enum ToolScope
 {
     Project,

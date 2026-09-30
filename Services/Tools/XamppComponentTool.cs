@@ -4,7 +4,7 @@ namespace DevLauncher.Services.Tools;
 
 /// <summary>
 /// XAMPP component shared by every project : started only when not already running,
-/// stopped only when the launcher started it.
+/// stopped by « Tout arrêter » once a launched profile has requested it.
 /// </summary>
 public sealed class XamppComponentTool : LaunchTool
 {
@@ -47,7 +47,7 @@ public sealed class XamppComponentTool : LaunchTool
     {
         if (ProcessHelper.IsProcessRunning(_processName))
         {
-            context.Log.Info($"{Icon} {DisplayName} déjà en cours — ignoré");
+            context.Log.Info($"{Icon} {DisplayName} déjà en cours — pris en charge pour l'arrêt");
             return Task.FromResult(ToolStartResult.AlreadyRunning);
         }
         context.Log.Info($"{Icon} Démarrage de {DisplayName}…");

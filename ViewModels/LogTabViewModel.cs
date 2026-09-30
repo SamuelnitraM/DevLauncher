@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DevLauncher.Models;
@@ -12,9 +13,13 @@ public partial class LogTabViewModel : ObservableObject
 {
     private const int MaximumLineCount = 5000;
 
+    private readonly object _linesLock = new();
+
+    /// <summary>Must be created on the UI thread : the lines are registered for synchronized access by the bindings.</summary>
     public LogTabViewModel(string title)
     {
         Title = title;
+        BindingOperations.EnableCollectionSynchronization(Lines, _linesLock);
     }
 
     public string Title { get; }
@@ -30,11 +35,24 @@ public partial class LogTabViewModel : ObservableObject
     {
     }
 
-    /// <summary>Appends a timestamped line. Must be called on the UI thread.</summary>
+    /// <summary>Appends a timestamped line.</summary>
     public void AppendLine(string text, bool isError)
     {
-        Lines.Add(new LogEntry($"[{DateTime.Now:HH:mm:ss}] {text}", isError));
-        while (Lines.Count > MaximumLineCount) Lines.RemoveAt(0);
+        lock (_linesLock)
+        {
+            Lines.Add(new LogEntry($"[{DateTime.Now:HH:mm:ss}] {text}", isError));
+            while (Lines.Count > MaximumLineCount) Lines.RemoveAt(0);
+        }
+    }
+
+    public void ClearLines()
+    {
+        lock (_linesLock) Lines.Clear();
+    }
+
+    public string GetText()
+    {
+        lock (_linesLock) return string.Join(Environment.NewLine, Lines.Select(logEntry => logEntry.Text));
     }
 }
 

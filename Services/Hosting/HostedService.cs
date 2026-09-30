@@ -16,6 +16,7 @@ public sealed partial class HostedService
 
     private readonly object _processLock = new();
     private Process? _serviceProcess;
+    private TaskCompletionSource? _processExitCompletion;
     private bool _isStopRequested;
 
     public HostedService(string projectPath, ServiceCommand command)
@@ -36,13 +37,13 @@ public sealed partial class HostedService
         }
     }
 
-    /// <summary>Raised on a background thread for each output line. Parameters : line, does it look like an error ?</summary>
+    /// <summary>Raised on any thread for each output line. Parameters : line, does it look like an error ?</summary>
     public event Action<string, bool>? OutputReceived;
 
-    /// <summary>Raised on a background thread when the process has started.</summary>
+    /// <summary>Raised on the starting thread when the process has started.</summary>
     public event Action? Started;
 
-    /// <summary>Raised on a background thread when the process has exited. Parameters : exit code, was the stop requested ?</summary>
+    /// <summary>Raised on any thread when the process has exited. Parameters : exit code, was the stop requested ?</summary>
     public event Action<int, bool>? Exited;
 
     /// <summary>Starts the process. Returns false when it cannot start (the reason is sent as an output line).</summary>
@@ -54,7 +55,9 @@ public sealed partial class HostedService
             var processStartInfo = new ProcessStartInfo(Command.Executable)
             {
                 UseShellExecute = false,
-                CreateNoWindow = true,
+                // A hidden console rather than no console : PHP and other console programs need valid console handles.
+                CreateNoWindow = false,
+                WindowStyle = ProcessWindowStyle.Hidden,
                 WorkingDirectory = Command.WorkingDirectory,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -66,9 +69,10 @@ public sealed partial class HostedService
             foreach (var argument in Command.Arguments) processStartInfo.ArgumentList.Add(argument);
             processStartInfo.Environment["NO_COLOR"] = "1";
             var serviceProcess = new Process { StartInfo = processStartInfo, EnableRaisingEvents = true };
+            var processExitCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             serviceProcess.OutputDataReceived += (_, eventArgs) => PublishOutputLine(eventArgs.Data);
             serviceProcess.ErrorDataReceived += (_, eventArgs) => PublishOutputLine(eventArgs.Data);
-            serviceProcess.Exited += (_, _) => OnProcessExited(serviceProcess);
+            serviceProcess.Exited += (_, _) => OnProcessExited(serviceProcess, processExitCompletion);
             try
             {
                 serviceProcess.Start();
@@ -81,6 +85,7 @@ public sealed partial class HostedService
             }
             _isStopRequested = false;
             _serviceProcess = serviceProcess;
+            _processExitCompletion = processExitCompletion;
             serviceProcess.BeginOutputReadLine();
             serviceProcess.BeginErrorReadLine();
         }
@@ -88,25 +93,24 @@ public sealed partial class HostedService
         return true;
     }
 
-    /// <summary>Kills the process with its children and waits for its exit.</summary>
+    /// <summary>Kills the process with its children and waits for the exit notification.</summary>
     public async Task StopAsync()
     {
-        Process? serviceProcess;
+        Task processExitTask;
         lock (_processLock)
         {
-            serviceProcess = _serviceProcess;
-            if (serviceProcess is null) return;
+            if (_serviceProcess is null || _processExitCompletion is null) return;
             _isStopRequested = true;
+            processExitTask = _processExitCompletion.Task;
+            KillProcessTree(_serviceProcess);
         }
         try
         {
-            serviceProcess.Kill(entireProcessTree: true);
-            using var exitCancellation = new CancellationTokenSource(ProcessExitTimeout);
-            await serviceProcess.WaitForExitAsync(exitCancellation.Token);
+            await processExitTask.WaitAsync(ProcessExitTimeout);
         }
-        catch (Exception exception) when (exception is Win32Exception or InvalidOperationException or OperationCanceledException)
+        catch (TimeoutException)
         {
-            OutputReceived?.Invoke($"⚠️ Arrêt incomplet : {exception.Message}", true);
+            OutputReceived?.Invoke($"⚠️ Le processus ne s'est pas terminé après {ProcessExitTimeout.TotalSeconds:0}s", true);
         }
     }
 
@@ -119,24 +123,29 @@ public sealed partial class HostedService
     /// <summary>Kills the process with its children without waiting. Used when the application closes.</summary>
     public void Kill()
     {
-        Process? serviceProcess;
         lock (_processLock)
         {
-            serviceProcess = _serviceProcess;
-            if (serviceProcess is null) return;
+            if (_serviceProcess is null) return;
             _isStopRequested = true;
+            KillProcessTree(_serviceProcess);
         }
+    }
+
+    /// <summary>Must be called under the process lock, before the exit handler disposes the process.</summary>
+    private static void KillProcessTree(Process serviceProcess)
+    {
         try
         {
             serviceProcess.Kill(entireProcessTree: true);
         }
         catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
         {
-            // The process is already exiting.
+            // The process is already exiting : the exit handler completes the stop.
         }
     }
 
-    private void OnProcessExited(Process serviceProcess)
+    /// <summary>Releases the process only here, once no other method can use it anymore.</summary>
+    private void OnProcessExited(Process serviceProcess, TaskCompletionSource processExitCompletion)
     {
         bool isStopRequested;
         int exitCode;
@@ -144,10 +153,12 @@ public sealed partial class HostedService
         {
             if (_serviceProcess != serviceProcess) return;
             _serviceProcess = null;
+            _processExitCompletion = null;
             isStopRequested = _isStopRequested;
             exitCode = serviceProcess.ExitCode;
+            serviceProcess.Dispose();
         }
-        serviceProcess.Dispose();
+        processExitCompletion.TrySetResult();
         Exited?.Invoke(exitCode, isStopRequested);
     }
 

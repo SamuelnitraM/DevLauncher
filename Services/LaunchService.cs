@@ -6,7 +6,7 @@ namespace DevLauncher.Services;
 
 /// <summary>
 /// Orchestrates the tools of a profile : starts them stage by stage, hosts the services,
-/// and stops only what was started by the launcher.
+/// and stops what the launched profiles requested.
 /// </summary>
 public sealed class LaunchService
 {
@@ -19,7 +19,7 @@ public sealed class LaunchService
     private readonly ServiceProcessHost _serviceProcessHost;
     private readonly LaunchLog _launchLog;
     private readonly Dictionary<string, LaunchedProject> _launchedProjects = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _machineToolIdsStartedByLauncher = new();
+    private readonly HashSet<string> _managedMachineToolIds = new();
 
     public LaunchService(ToolCatalog toolCatalog, ProcessLauncher processLauncher, VSCodeTasksServiceHost vscodeTasksServiceHost, ServiceProcessHost serviceProcessHost, LaunchLog launchLog)
     {
@@ -29,6 +29,9 @@ public sealed class LaunchService
         _serviceProcessHost = serviceProcessHost;
         _launchLog = launchLog;
     }
+
+    /// <summary>True when a project was launched or a machine tool is managed, and nothing was stopped since.</summary>
+    public bool HasActiveEnvironment => _launchedProjects.Count > 0 || _managedMachineToolIds.Count > 0;
 
     // ════════════════════════════════════════════════════════
     //  LAUNCH
@@ -52,7 +55,8 @@ public sealed class LaunchService
             foreach (var tool in enabledTools.Where(tool => tool.Stage == launchStage))
             {
                 var toolStartResult = await tool.StartAsync(CreateContext(projectPath, profile, tool));
-                if (toolStartResult == ToolStartResult.Started && tool.Scope == ToolScope.Machine) _machineToolIdsStartedByLauncher.Add(tool.Id);
+                // A machine tool requested by the profile is managed even when it was already running : « Tout arrêter » stops it.
+                if (toolStartResult != ToolStartResult.Failed && tool.Scope == ToolScope.Machine) _managedMachineToolIds.Add(tool.Id);
             }
         }
     }
@@ -85,10 +89,10 @@ public sealed class LaunchService
             foreach (var projectTool in projectToolsToStop)
                 await projectTool.StopAsync(CreateContext(projectPath, launchedProject.Profile, projectTool));
         }
-        foreach (var machineTool in _toolCatalog.Tools.Where(tool => _machineToolIdsStartedByLauncher.Contains(tool.Id)))
+        foreach (var machineTool in _toolCatalog.Tools.Where(tool => _managedMachineToolIds.Contains(tool.Id)))
             await machineTool.StopAsync(CreateContext(string.Empty, new ProjectProfile(), machineTool));
         _launchedProjects.Clear();
-        _machineToolIdsStartedByLauncher.Clear();
+        _managedMachineToolIds.Clear();
         _launchLog.Info("✅ Tout est arrêté !");
     }
 

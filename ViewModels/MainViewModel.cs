@@ -428,6 +428,27 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private async Task StopAllAsync()
     {
         if (!_userInteractionService.Confirm("Arrêter les services et fermer les éditeurs lancés par DevLauncher ?", "⏹ Tout arrêter")) return;
+        await StopEnvironmentAsync();
+    }
+
+    /// <summary>
+    /// Asks what to do with the running environment before the application closes.
+    /// Returns false when the user cancels the closing.
+    /// </summary>
+    public async Task<bool> PrepareExitAsync()
+    {
+        if (!_launchService.HasActiveEnvironment) return true;
+        var shouldStopEnvironment = _userInteractionService.AskYesNoCancel(
+            "Arrêter l'environnement avant de quitter (services, XAMPP, éditeurs) ?\n\n" +
+            "Non : XAMPP et les éditeurs restent ouverts, les services lancés par DevLauncher sont arrêtés.",
+            "Quitter DevLauncher");
+        if (shouldStopEnvironment is null) return false;
+        if (shouldStopEnvironment == true) await StopEnvironmentAsync();
+        return true;
+    }
+
+    private async Task StopEnvironmentAsync()
+    {
         IsStopInProgress = true;
         _launchLog.Info("⏹ Arrêt de l'environnement…");
         try
@@ -475,11 +496,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // ════════════════════════════════════════════════════════════
 
     [RelayCommand]
-    private void ClearLog() => (SelectedLogTab ?? LaunchLogTab).Lines.Clear();
+    private void ClearLog() => (SelectedLogTab ?? LaunchLogTab).ClearLines();
 
     [RelayCommand]
-    private void CopyLog()
-        => _userInteractionService.CopyToClipboard(string.Join(Environment.NewLine, (SelectedLogTab ?? LaunchLogTab).Lines.Select(logEntry => logEntry.Text)));
+    private void CopyLog() => _userInteractionService.CopyToClipboard((SelectedLogTab ?? LaunchLogTab).GetText());
 
     private void OnMessageLogged(string message, bool isError) => RunOnUiThread(() => LaunchLogTab.AppendLine(message, isError));
 

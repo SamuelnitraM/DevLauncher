@@ -19,6 +19,14 @@ public sealed class UserInteractionService : IUserInteractionService
     public void ShowWarning(string message, string title)
         => MessageBox.Show(_ownerWindow, message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
 
+    public bool? AskYesNoCancel(string message, string title)
+        => MessageBox.Show(_ownerWindow, message, title, MessageBoxButton.YesNoCancel, MessageBoxImage.Question) switch
+        {
+            MessageBoxResult.Yes => true,
+            MessageBoxResult.No => false,
+            _ => null,
+        };
+
     public string? AskProfileName(string dialogTitle, string confirmLabel, string initialProfileName)
     {
         var profileNameDialog = new ProfileNameDialog(dialogTitle, confirmLabel, initialProfileName) { Owner = _ownerWindow };
