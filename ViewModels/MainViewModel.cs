@@ -222,6 +222,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         CurrentProjectPath = projectPath;
         IsSymfonyDetected = projectDetection.IsSymfony;
         if (projectDetection.IsSymfony) _launchLog.Info($"✅ Symfony détecté automatiquement dans « {projectName} »");
+        // The choices can depend on the project (sessions of an assistant) : they are read before the profile is applied.
+        ReloadOptionChoices();
         LoadProfilesForProject(projectName, projectDetection);
         StatusText = $"Prêt à lancer : {projectName}";
     }
@@ -250,6 +252,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void UpdateToolAvailability()
     {
         foreach (var toolCategoryViewModel in ToolCategoryViewModels) toolCategoryViewModel.UpdateAvailability(SelectedProjectType);
+    }
+
+    private void ReloadOptionChoices()
+    {
+        var optionContext = new ToolOptionContext(CurrentProjectPath);
+        foreach (var toolCategoryViewModel in ToolCategoryViewModels) toolCategoryViewModel.ReloadOptionChoices(optionContext);
     }
 
     /// <summary>Displays a profile in the options panel.</summary>
@@ -488,7 +496,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         if (!_userInteractionService.EditSettings()) return;
         _launchLog.Info("⚙️ Paramètres mis à jour");
-        foreach (var toolCategoryViewModel in ToolCategoryViewModels) toolCategoryViewModel.ReloadOptionChoices();
+        ReloadOptionChoices();
+        UpdateToolAvailability();
         RefreshProjects();
     }
 

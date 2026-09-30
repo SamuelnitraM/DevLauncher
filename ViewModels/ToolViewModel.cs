@@ -50,8 +50,8 @@ public partial class ToolViewModel : ObservableObject
         Options = Options.ToDictionary(option => option.Key, option => option.CaptureValues()),
     };
 
-    public void ReloadOptionChoices()
+    public void ReloadOptionChoices(ToolOptionContext optionContext)
     {
-        foreach (var option in Options) option.ReloadChoices();
+        foreach (var option in Options) option.ReloadChoices(optionContext);
     }
 }

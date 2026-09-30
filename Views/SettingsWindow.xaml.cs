@@ -3,12 +3,17 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using DevLauncher.Services;
+using DevLauncher.Services.Assistants;
 using Microsoft.Win32;
 
 namespace DevLauncher.Views;
 
 public partial class SettingsWindow : Window
 {
+    private readonly List<AssistantSettingsRow> _assistantSettingsRows = AssistantCatalog.Definitions
+        .Select(assistantDefinition => new AssistantSettingsRow(assistantDefinition, AssistantCatalog.GetSettings(assistantDefinition.Id)))
+        .ToList();
+
     public SettingsWindow()
     {
         InitializeComponent();
@@ -36,6 +41,7 @@ public partial class SettingsWindow : Window
         SymfonyPortBox.Text = AppSettings.SymfonyPort.ToString();
         LocalWebPortBox.Text = AppSettings.LocalWebPort.ToString();
         HostServicesInVSCodeBox.IsChecked = AppSettings.HostServicesInVSCode;
+        AssistantsItemsControl.ItemsSource = _assistantSettingsRows;
     }
 
     // ════════════════════════════════════════════════════════
@@ -65,6 +71,7 @@ public partial class SettingsWindow : Window
         AppSettings.SymfonyPort = symfonyPort;
         AppSettings.LocalWebPort = localWebPort;
         AppSettings.HostServicesInVSCode = HostServicesInVSCodeBox.IsChecked == true;
+        AppSettings.Assistants = _assistantSettingsRows.Select(assistantSettingsRow => assistantSettingsRow.ToSettings()).ToList();
         try
         {
             SettingsService.Save();

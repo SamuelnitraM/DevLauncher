@@ -1,3 +1,6 @@
+using DevLauncher.Models;
+using DevLauncher.Services.Assistants;
+
 namespace DevLauncher;
 
 /// <summary>
@@ -41,4 +44,7 @@ public static class AppSettings
 
     /// <summary>Runs the services as VSCode tasks when VSCode is launched, instead of running them in DevLauncher</summary>
     public static bool HostServicesInVSCode { get; set; }
+
+    /// <summary>Settings of the AI assistants, one entry per assistant of the catalog</summary>
+    public static List<AssistantSettings> Assistants { get; set; } = AssistantCatalog.MergeWithDefaults(null);
 }

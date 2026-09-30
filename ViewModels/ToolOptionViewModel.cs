@@ -23,11 +23,12 @@ public partial class ToolOptionChoiceViewModel : ObservableObject
 public partial class ToolOptionViewModel : ObservableObject
 {
     private readonly ToolOptionDefinition _definition;
+    private ToolOptionContext _optionContext = new(null);
 
     public ToolOptionViewModel(ToolOptionDefinition definition)
     {
         _definition = definition;
-        ReloadChoices();
+        ReloadChoices(_optionContext);
     }
 
     public string Key => _definition.Key;
@@ -41,12 +42,13 @@ public partial class ToolOptionViewModel : ObservableObject
     [ObservableProperty]
     private ToolOptionChoiceViewModel? _selectedChoice;
 
-    /// <summary>Reads the choices again (they can depend on the settings) and keeps the selected values that still exist.</summary>
-    public void ReloadChoices()
+    /// <summary>Reads the choices again (they can depend on the project and the settings) and keeps the selected values that still exist.</summary>
+    public void ReloadChoices(ToolOptionContext optionContext)
     {
+        _optionContext = optionContext;
         var selectedValues = CaptureValues();
         Choices.Clear();
-        foreach (var choice in _definition.GetChoices()) Choices.Add(new ToolOptionChoiceViewModel(choice));
+        foreach (var choice in _definition.GetChoices(optionContext)) Choices.Add(new ToolOptionChoiceViewModel(choice));
         ApplyValues(selectedValues);
         OnPropertyChanged(nameof(HasNoChoices));
     }
@@ -54,7 +56,7 @@ public partial class ToolOptionViewModel : ObservableObject
     /// <summary>Selects the given values, or the default values when none is given.</summary>
     public void ApplyValues(IReadOnlyList<string> values)
     {
-        var effectiveValues = values.Count > 0 ? values : _definition.DefaultValues;
+        var effectiveValues = values.Count > 0 ? values : _definition.GetDefaultValues(_optionContext);
         if (IsSingleChoice)
         {
             SelectedChoice = Choices.FirstOrDefault(choice => effectiveValues.Contains(choice.Value)) ?? Choices.FirstOrDefault();

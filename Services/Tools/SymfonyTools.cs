@@ -61,7 +61,8 @@ public sealed class MercureTool : ServiceTool
 
     public override IReadOnlyList<ToolOptionDefinition> Options { get; } = new[]
     {
-        new ToolOptionDefinition(ToolIds.MercureScriptOption, "Script Mercure :", ToolOptionKind.SingleChoice, GetMercureScripts, Array.Empty<string>()),
+        new ToolOptionDefinition(ToolIds.MercureScriptOption, "Script Mercure :", ToolOptionKind.SingleChoice,
+            _ => GetMercureScripts(), _ => Array.Empty<string>()),
     };
 
     public override ServiceCommand? BuildServiceCommand(ToolExecutionContext context)

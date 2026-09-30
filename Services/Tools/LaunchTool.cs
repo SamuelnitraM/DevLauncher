@@ -46,7 +46,10 @@ public abstract class LaunchTool
 
     public string Label => $"{Icon} {DisplayName}";
 
-    public bool Supports(ProjectType projectType) => SupportedProjectTypes is null || SupportedProjectTypes.Contains(projectType);
+    /// <summary>False when the tool is switched off in the settings : it is then neither shown nor launched.</summary>
+    public virtual bool IsEnabledInSettings => true;
+
+    public bool Supports(ProjectType projectType) => IsEnabledInSettings && (SupportedProjectTypes is null || SupportedProjectTypes.Contains(projectType));
 
     public virtual Task<ToolStartResult> StartAsync(ToolExecutionContext context) => Task.FromResult(ToolStartResult.Started);
 

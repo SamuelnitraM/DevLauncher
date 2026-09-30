@@ -43,21 +43,21 @@ Rien n'est figé : chaque bloc est à valider avant d'être développé.
 Objectif : l'IA apparaît dans la liste des outils à lancer, comme un éditeur. Deux modes distincts,
 choisis par assistant et modifiables par profil.
 
-### 1.1 Catalogue d'assistants dans les paramètres — M
+### 1.1 ✅ Catalogue d'assistants dans les paramètres — M
 
 - Onglet **« Assistants IA »** : Claude, ChatGPT, Gemini, Mistral, Perplexity… plus ajout d'un assistant personnalisé.
 - Pour chaque assistant : activation, **mode par défaut** (Navigateur ou Application), URL web,
   chemin de l'application de bureau (détecté automatiquement quand c'est possible).
 - Les assistants activés apparaissent dans la carte **Outils** de la fenêtre principale.
 
-### 1.2 Mode Navigateur — S
+### 1.2 ✅ Mode Navigateur — S
 
 - DevLauncher ouvre le navigateur choisi sur la page de l'IA (`https://claude.ai`, `https://chatgpt.com`,
   `https://gemini.google.com`…), c'est-à-dire une nouvelle discussion.
 - Option par projet : une URL précise (projet Claude, projet ChatGPT, Gem…) collée une fois dans le profil,
   ouverte à la place de la page d'accueil.
 
-### 1.3 Mode Application — M
+### 1.3 ✅ Mode Application — M
 
 - DevLauncher lance l'application de bureau de l'IA.
 - **Si l'application permet de connaître ses projets** (API locale, fichiers de données lisibles, lien profond) :
@@ -68,7 +68,10 @@ choisis par assistant et modifiables par profil.
 - État actuel connu : ni Claude Desktop ni ChatGPT Desktop n'exposent de moyen documenté de lister les projets.
   Ils démarreront donc sur une nouvelle discussion, et la liste s'activera d'elle-même si un éditeur l'ouvre un jour.
 
-### 1.4 Agents en ligne de commande (Claude Code, Codex CLI, Gemini CLI, Aider) — M
+### 1.4 ✅ (Claude Code) Agents en ligne de commande (Claude Code, Codex CLI, Gemini CLI, Aider) — M
+
+> Fait pour Claude Code : nouvelle session, dernière session, ou reprise d'une session du projet choisie dans la liste.
+> Reste : Codex CLI, Gemini CLI, Aider, et l'indicateur / génération de `CLAUDE.md`.
 
 - Considérés comme des applications qui **savent** lister leurs sessions : lecture des sessions locales du projet
   (ex. `~/.claude/projects/<chemin du projet>/` pour Claude Code).

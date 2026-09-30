@@ -10,7 +10,8 @@ public static class ToolCategories
     public static readonly ToolCategory Editor = new("editor", "💻 Éditeur de code", true, "🚫 Aucun éditeur");
     public static readonly ToolCategory Symfony = new("symfony", "🔧 Services Symfony", false);
     public static readonly ToolCategory Xampp = new("xampp", "🗄️ Services XAMPP", false);
+    public static readonly ToolCategory Assistants = new("assistants", "🤖 Assistants IA", false);
     public static readonly ToolCategory Utilities = new("utilities", "🛠️ Outils", false);
 
-    public static IReadOnlyList<ToolCategory> All { get; } = new[] { Editor, Symfony, Xampp, Utilities };
+    public static IReadOnlyList<ToolCategory> All { get; } = new[] { Editor, Symfony, Xampp, Assistants, Utilities };
 }

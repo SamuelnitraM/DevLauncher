@@ -39,13 +39,13 @@ public sealed class BrowserTool : LaunchTool
     public override IReadOnlyList<ToolOptionDefinition> Options { get; } = new[]
     {
         new ToolOptionDefinition(ToolIds.BrowserTargetsOption, "Navigateurs :", ToolOptionKind.MultipleChoice,
-            () => new[]
+            _ => new[]
             {
                 new ToolOptionChoice(ToolIds.DefaultBrowser, "🌐 Défaut"),
                 new ToolOptionChoice(ToolIds.ChromeBrowser, "🟡 Google Chrome"),
                 new ToolOptionChoice(ToolIds.FirefoxBrowser, "🦊 Firefox"),
             },
-            new[] { ToolIds.DefaultBrowser }),
+            _ => new[] { ToolIds.DefaultBrowser }),
     };
 
     public override async Task<ToolStartResult> StartAsync(ToolExecutionContext context)

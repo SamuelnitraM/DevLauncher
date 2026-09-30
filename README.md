@@ -45,8 +45,10 @@ DevLauncher/
     │   ├── EditorTools.cs          ← VSCode, Visual Studio
     │   ├── SymfonyTools.cs         ← Symfony Server, Tailwind, Mercure
     │   ├── XamppComponentTool.cs   ← Apache, MySQL, FileZilla, panneau XAMPP
+    │   ├── AssistantTools.cs       ← Assistants IA (navigateur / application), Claude Code
     │   ├── UtilityTools.cs         ← Terminal, navigateur
     │   └── ToolCatalog.cs          ← Liste des outils connus
+    ├── Assistants/                 ← Catalogue des assistants IA, lecture des sessions Claude Code
     ├── Hosting/                    ← Hébergement des services : processus gérés par DevLauncher (un onglet de journal
     │                                 par service, arrêt de toute l'arborescence) ou tâches VSCode (option)
     ├── ProcessLauncher.cs          ← Démarrage / arrêt / fermeture de processus, avec journalisation
@@ -143,6 +145,9 @@ Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à cô
 - 🌍 Ouverture du navigateur dès que le serveur répond réellement sur son port
 - 🌐 Indicateurs Apache / MySQL / FileZilla en temps réel, sans polling
 - ⏹ « Tout arrêter » : n'arrête que ce que DevLauncher a lancé, ferme proprement les fenêtres d'éditeur du projet
+- 🤖 Assistants IA dans les outils : Claude, ChatGPT, Gemini, Le Chat, Perplexity en mode Navigateur
+  (nouvelle discussion ou projet enregistré, celui nommé comme le dossier proposé par défaut) ou Application ;
+  Claude Code dans un onglet de terminal avec reprise d'une session du projet
 - 📋 Journal de lancement horodaté
 
 ---

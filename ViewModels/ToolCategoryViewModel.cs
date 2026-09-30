@@ -31,7 +31,7 @@ public partial class ToolCategoryViewModel : ObservableObject
     [ObservableProperty]
     private bool _isVisible = true;
 
-    /// <summary>Shows only the tools supporting the project type, and hides the card when none does.</summary>
+    /// <summary>Shows only the tools enabled in the settings and supporting the project type, and hides the card when none does.</summary>
     public void UpdateAvailability(ProjectType projectType)
     {
         foreach (var toolViewModel in RealTools) toolViewModel.IsAvailable = toolViewModel.Tool!.Supports(projectType);
@@ -49,9 +49,9 @@ public partial class ToolCategoryViewModel : ObservableObject
         foreach (var toolViewModel in RealTools) profile.Tools[toolViewModel.Tool!.Id] = toolViewModel.CaptureSelection();
     }
 
-    public void ReloadOptionChoices()
+    public void ReloadOptionChoices(ToolOptionContext optionContext)
     {
-        foreach (var toolViewModel in RealTools) toolViewModel.ReloadOptionChoices();
+        foreach (var toolViewModel in RealTools) toolViewModel.ReloadOptionChoices(optionContext);
     }
 
     internal void OnToolEnabledChanged(ToolViewModel changedToolViewModel)
