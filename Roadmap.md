@@ -15,6 +15,9 @@ Rien n'est figé : chaque bloc est à valider avant d'être développé.
 - 🌍 Ouverture du navigateur quand le serveur répond sur son port
 - ⏹ Arrêt ciblé de ce qui a été lancé, fermeture propre des fenêtres d'éditeur du projet
 - ⚙️ Fenêtre de paramètres (chemins, ports)
+- 🗂️ Données dans `%APPDATA%\DevLauncher` avec reprise des anciennes données (0.3)
+- 🤖 Compilation automatique GitHub Actions, exe en artefact et en release sur tag `v*` (0.5, partie CI)
+- ⭐ Projets récents en tête de liste, mis à jour au lancement uniquement (4.2, partie récents)
 
 ---
 
@@ -24,9 +27,9 @@ Rien n'est figé : chaque bloc est à valider avant d'être développé.
 |---|---|---|---|
 | 0.1 | **Modèle d'outils générique** : un outil = nom, icône, commande, arguments avec variables (`{projectPath}`, `{projectName}`, `{port}`…), stratégie de disponibilité (port, processus, aucun), stratégie d'arrêt. Les profils deviennent une liste d'outils activés avec leurs options. | L | Aujourd'hui chaque outil est codé en dur (cases à cocher, champs du profil, branches dans `LaunchService`). Ajouter Claude, Docker, Laravel… sans ce socle = copier-coller à l'infini. |
 | 0.2 | **Passage en MVVM** (bindings, `ICommand`, ViewModels) | M | Supprime le code-behind qui recopie l'UI dans le profil et inversement ; indispensable pour une liste d'outils dynamique. |
-| 0.3 | **Données dans `%APPDATA%\DevLauncher`** avec migration automatique des fichiers existants | S | `settings.json` et `Profiles/` sont à côté de l'exe : perdus à chaque changement Debug/Release/publication, et non inscriptibles si l'exe est dans `Program Files`. |
+| 0.3 | ✅ **Données dans `%APPDATA%\DevLauncher`** avec migration automatique des fichiers existants | S | `settings.json` et `Profiles/` sont à côté de l'exe : perdus à chaque changement Debug/Release/publication, et non inscriptibles si l'exe est dans `Program Files`. |
 | 0.4 | **Profils versionnables dans le projet** (`.devlauncher.json` à la racine, optionnel) | S | Partager la config d'un projet avec l'équipe via git. |
-| 0.5 | **Tests unitaires** (scanner, profils, paramètres, génération `tasks.json`) + **CI GitHub Actions** (build + publication de l'exe en artefact de release) | M | Le projet compile aussi sous Linux (`EnableWindowsTargeting`) : la CI est triviale à mettre en place. |
+| 0.5 | **Tests unitaires** (à faire) (scanner, profils, paramètres, génération `tasks.json`) + ✅ **CI GitHub Actions** (build + publication de l'exe en artefact de release) | M | Le projet compile aussi sous Linux (`EnableWindowsTargeting`) : la CI est triviale à mettre en place. |
 | 0.6 | **Option « Lancer les applications sans élévation »** (par outil) : DevLauncher reste administrateur, mais peut démarrer VSCode, le navigateur ou une IA avec le jeton de l'utilisateur standard | S | Les droits administrateur sont conservés (accès total au système, traces WMI). Les applications enfants en héritent : VSCode affiche « Administrator », le navigateur tourne élevé, le glisser-déposer depuis l'Explorateur vers ces fenêtres est bloqué. L'option permet de choisir outil par outil. |
 | 0.7 | **Journal persistant** (fichier tournant) + niveau de détail | S | Diagnostiquer un lancement raté après coup. |
 | 0.8 | **Validation des paramètres** : pastille rouge sur les chemins introuvables, bouton « Détecter automatiquement » (registre, `where code`, emplacements XAMPP usuels) | S | Évite de découvrir un mauvais chemin au moment du lancement. |
@@ -120,7 +123,7 @@ DevLauncher, sortie capturée. Les **terminaux interactifs** restent dans Window
 | # | Évolution | Effort |
 |---|---|---|
 | 4.1 | **Icône dans la zone de notification** : lancer / arrêter un projet sans ouvrir la fenêtre | M |
-| 4.2 | **Projets favoris et récents** en tête de liste, tri par date de dernier lancement | S |
+| 4.2 | ✅ **Projets récents** en tête de liste (mis à jour au lancement, jamais au clic : la liste ne bouge plus sous le curseur) — reste : **favoris épinglés** | S |
 | 4.3 | **Jump list de la barre des tâches** : clic droit sur l'icône → projets récents | S |
 | 4.4 | **Raccourci clavier global** + palette de commandes (`Ctrl+K` : « lancer templateSite ») | M |
 | 4.5 | **Notifications Windows** : « Environnement prêt », « MySQL s'est arrêté » | S |
@@ -146,7 +149,7 @@ DevLauncher, sortie capturée. Les **terminaux interactifs** restent dans Window
 
 ## 🔢 Ordre d'implémentation suggéré
 
-1. **0.3 Données dans `%APPDATA%`** — rapide, évite de perdre des profils à chaque build
+1. ✅ **0.3 Données dans `%APPDATA%`**, ✅ **CI**, ✅ **projets récents**
 2. **0.1 + 0.2 Modèle d'outils générique + MVVM** — le socle de tout le reste
 3. **3.1 → 3.3 Services supervisés** — supprime les rustines actuelles (`tasks.json`, onglets orphelins, arrêt par nom de processus)
 4. **1.1 → 1.4 Intégrations IA** (modes Navigateur / Application, agents CLI avec sessions)

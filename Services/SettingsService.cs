@@ -4,13 +4,10 @@ using System.Text.Json;
 namespace DevLauncher.Services;
 
 /// <summary>
-/// Saves and loads the application settings in settings.json, next to the executable.
+/// Saves and loads the application settings in settings.json, in the data directory.
 /// </summary>
 public static class SettingsService
 {
-    private static readonly string _settingsPath = Path.Combine(
-        AppDomain.CurrentDomain.BaseDirectory, "settings.json");
-
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         WriteIndented = true,
@@ -40,7 +37,7 @@ public static class SettingsService
             SymfonyPort = AppSettings.SymfonyPort,
             LocalWebPort = AppSettings.LocalWebPort,
         };
-        File.WriteAllText(_settingsPath, JsonSerializer.Serialize(settingsData, _jsonOptions));
+        File.WriteAllText(StoragePaths.SettingsFilePath, JsonSerializer.Serialize(settingsData, _jsonOptions));
     }
 
     // ════════════════════════════════════════════════════════
@@ -50,11 +47,11 @@ public static class SettingsService
     /// <summary>Applies settings.json to AppSettings. Missing, empty or invalid values keep their defaults.</summary>
     public static void Load()
     {
-        if (!File.Exists(_settingsPath)) return;
+        if (!File.Exists(StoragePaths.SettingsFilePath)) return;
         SettingsData? settingsData;
         try
         {
-            settingsData = JsonSerializer.Deserialize<SettingsData>(File.ReadAllText(_settingsPath), _jsonOptions);
+            settingsData = JsonSerializer.Deserialize<SettingsData>(File.ReadAllText(StoragePaths.SettingsFilePath), _jsonOptions);
         }
         catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
         {

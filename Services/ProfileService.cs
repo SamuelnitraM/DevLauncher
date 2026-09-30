@@ -6,7 +6,7 @@ namespace DevLauncher.Services;
 
 /// <summary>
 /// Saves and reads the launch profiles of each project.
-/// Profiles are stored in the Profiles folder next to the executable, one JSON file per project.
+/// Profiles are stored in the Profiles folder of the data directory, one JSON file per project.
 /// </summary>
 public class ProfileService
 {
@@ -21,7 +21,7 @@ public class ProfileService
 
     public ProfileService()
     {
-        _profilesDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Profiles");
+        _profilesDirectory = StoragePaths.ProfilesDirectory;
         _lastUsedProfilesPath = Path.Combine(_profilesDirectory, "last-used.json");
         Directory.CreateDirectory(_profilesDirectory);
     }

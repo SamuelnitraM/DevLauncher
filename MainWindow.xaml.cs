@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
 using DevLauncher.Models;
@@ -13,16 +14,19 @@ public partial class MainWindow : Window
 {
     private const string NewProfileEntry = "+ Nouveau profil...";
     private const string DefaultLaunchButtonLabel = "▶ Lancer l'environnement";
+    private const string RecentProjectsGroupName = "⭐ Récents";
+    private const string AllProjectsGroupName = "📁 Tous les projets";
 
     // ── Services ──────────────────────────────────────────────
     private readonly ProjectScanner _projectScanner = new();
     private readonly ProfileService _profileService = new();
+    private readonly RecentProjectsService _recentProjectsService = new();
     private readonly ProcessEventWatcher _processEventWatcher = new();
     private readonly ServiceMonitor _serviceMonitor;
     private readonly LaunchService _launchService;
 
     // ── State ─────────────────────────────────────────────────
-    private List<string> _allProjectPaths = new();
+    private List<ProjectListEntry> _projectEntries = new();
     private string? _selectedProjectPath;
     private string? _activeProfileName;
     private bool _isUpdatingProfileList;
@@ -52,27 +56,48 @@ public partial class MainWindow : Window
 
     private void RefreshProjectList()
     {
-        _allProjectPaths = _projectScanner.GetProjects();
-        if (_selectedProjectPath is not null && !_allProjectPaths.Contains(_selectedProjectPath, StringComparer.OrdinalIgnoreCase))
+        var projectPaths = _projectScanner.GetProjects();
+        _projectEntries = BuildProjectEntries(projectPaths);
+        if (_selectedProjectPath is not null && !_projectEntries.Any(entry => IsSamePath(entry.Path, _selectedProjectPath)))
             ClearProjectSelection();
         ApplyProjectFilter();
         if (Directory.Exists(AppSettings.HtdocsPath))
-            Log($"📁 {_allProjectPaths.Count} projet(s) trouvé(s) dans {AppSettings.HtdocsPath}");
+            Log($"📁 {projectPaths.Count} projet(s) trouvé(s) dans {AppSettings.HtdocsPath}");
         else
             AppendLog($"❌ Dossier des projets introuvable : {AppSettings.HtdocsPath}", isError: true);
+    }
+
+    /// <summary>
+    /// Rebuilds the list entries from the scanned projects : recently launched projects first, then the others alphabetically.
+    /// The recent projects only change after a launch, never during a click, so that the list does not move under the cursor.
+    /// </summary>
+    private List<ProjectListEntry> BuildProjectEntries(IReadOnlyCollection<string> projectPaths)
+    {
+        var recentProjectPaths = _recentProjectsService.GetRecentProjectPaths().Where(Directory.Exists).ToList();
+        var recentProjectEntries = recentProjectPaths
+            .Select(projectPath => new ProjectListEntry(Path.GetFileName(projectPath), projectPath, RecentProjectsGroupName));
+        var otherProjectEntries = projectPaths
+            .Where(projectPath => !recentProjectPaths.Any(recentProjectPath => IsSamePath(recentProjectPath, projectPath)))
+            .Select(projectPath => new ProjectListEntry(Path.GetFileName(projectPath), projectPath, AllProjectsGroupName));
+        return recentProjectEntries.Concat(otherProjectEntries).ToList();
     }
 
     /// <summary>Filters the projects list by the search text and keeps the selected project highlighted.</summary>
     private void ApplyProjectFilter()
     {
         var searchText = SearchBox.Text;
-        var visibleProjectNames = _allProjectPaths
-            .Select(Path.GetFileName)
-            .Where(projectName => string.IsNullOrWhiteSpace(searchText) || projectName!.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+        var visibleProjectEntries = _projectEntries
+            .Where(entry => string.IsNullOrWhiteSpace(searchText) || entry.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase))
             .ToList();
-        ProjectListBox.ItemsSource = visibleProjectNames;
-        ProjectListBox.SelectedItem = visibleProjectNames.FirstOrDefault(projectName => projectName == SelectedProjectName);
+        var groupedProjectEntries = new ListCollectionView(visibleProjectEntries);
+        groupedProjectEntries.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ProjectListEntry.GroupName)));
+        ProjectListBox.ItemsSource = groupedProjectEntries;
+        ProjectListBox.SelectedItem = visibleProjectEntries.FirstOrDefault(entry => _selectedProjectPath is not null && IsSamePath(entry.Path, _selectedProjectPath));
+        if (ProjectListBox.SelectedItem is not null) ProjectListBox.ScrollIntoView(ProjectListBox.SelectedItem);
     }
+
+    private static bool IsSamePath(string firstPath, string secondPath)
+        => string.Equals(Path.TrimEndingDirectorySeparator(firstPath), Path.TrimEndingDirectorySeparator(secondPath), StringComparison.OrdinalIgnoreCase);
 
     private void LoadMercureScripts()
     {
@@ -90,8 +115,9 @@ public partial class MainWindow : Window
     private void ProjectListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         // A filtered-out project stays selected : only an explicit choice of another project changes it.
-        if (ProjectListBox.SelectedItem is not string projectName || projectName == SelectedProjectName) return;
-        SelectProject(Path.Combine(AppSettings.HtdocsPath, projectName));
+        if (ProjectListBox.SelectedItem is not ProjectListEntry projectEntry) return;
+        if (_selectedProjectPath is not null && IsSamePath(projectEntry.Path, _selectedProjectPath)) return;
+        SelectProject(projectEntry.Path);
     }
 
     private void SelectProject(string projectPath)
@@ -209,6 +235,7 @@ public partial class MainWindow : Window
         StatusText.Text = "⏳ Lancement en cours…";
         Log("═══════════════════════════════");
         Log($"🚀 Lancement de « {projectName} »");
+        RegisterRecentProject(_selectedProjectPath);
         try
         {
             await _launchService.LaunchAsync(_selectedProjectPath, CaptureCurrentOptions(_activeProfileName ?? ProjectProfile.DefaultProfileName));
@@ -251,6 +278,14 @@ public partial class MainWindow : Window
             StopAllButton.IsEnabled = true;
             _serviceMonitor.RefreshStatus();
         }
+    }
+
+    /// <summary>Moves the launched project to the recent projects section, keeping it selected.</summary>
+    private void RegisterRecentProject(string projectPath)
+    {
+        _recentProjectsService.RegisterLaunch(projectPath);
+        _projectEntries = BuildProjectEntries(_projectScanner.GetProjects());
+        ApplyProjectFilter();
     }
 
     private void SetLaunchInProgress(bool isLaunchInProgress)

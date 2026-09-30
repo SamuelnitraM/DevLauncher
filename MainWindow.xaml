@@ -306,8 +306,23 @@
                                  Background="Transparent"
                                  BorderThickness="0"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 DisplayMemberPath="Name"
                                  ItemContainerStyle="{StaticResource ProjectListItem}"
-                                 SelectionChanged="ProjectListBox_SelectionChanged"/>
+                                 SelectionChanged="ProjectListBox_SelectionChanged">
+                            <!-- Section headers : recent projects, then all projects -->
+                            <ListBox.GroupStyle>
+                                <GroupStyle>
+                                    <GroupStyle.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       Margin="4,8,0,2"/>
+                                        </DataTemplate>
+                                    </GroupStyle.HeaderTemplate>
+                                </GroupStyle>
+                            </ListBox.GroupStyle>
+                        </ListBox>
 
                         <!-- Selected project path -->
                         <Border Grid.Row="3"

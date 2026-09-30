@@ -22,6 +22,7 @@ DevLauncher/
 │
 ├── Models/
 │   ├── ProjectProfile.cs       ← Profil de lancement d'un projet (= requête de lancement)
+│   ├── ProjectListEntry.cs     ← Entrée de la liste des projets (section Récents / Tous)
 │   └── ProjectDetection.cs     ← Technologies détectées dans un projet
 │
 └── Services/
@@ -29,6 +30,8 @@ DevLauncher/
     ├── ProjectScanner.cs       ← Liste les projets et détecte Symfony / Tailwind
     ├── ProfileService.cs       ← Persistance des profils par projet (JSON)
     ├── SettingsService.cs      ← Persistance des paramètres (settings.json)
+    ├── StoragePaths.cs         ← Dossier de données %APPDATA%\DevLauncher + reprise des anciennes données
+    ├── RecentProjectsService.cs← Projets récemment lancés
     ├── ProcessEventWatcher.cs  ← Événements WMI de démarrage / arrêt des processus
     ├── ServiceMonitor.cs       ← État Apache / MySQL / FileZilla en temps réel (événementiel)
     ├── ProcessHelper.cs        ← Utilitaires communs sur les processus
@@ -64,6 +67,14 @@ dotnet publish -c Release         # Crée un .exe Release dans bin\Release\
 
 ---
 
+## 🤖 Compilation automatique (GitHub Actions)
+
+Chaque push sur `master` compile l'application sur un runner Windows et publie `DevLauncher.exe`
+dans les artefacts du workflow **Build** (onglet *Actions* du dépôt).
+Un tag `v*` (ex. `v1.2.0`) crée en plus une release GitHub avec l'exécutable attaché.
+
+---
+
 ## 📦 Créer un .exe portable (un seul fichier)
 
 ```powershell
@@ -85,13 +96,16 @@ Tu peux le copier où tu veux et créer un raccourci sur le Bureau.
 
 Tout se règle depuis le bouton **⚙️ Paramètres** : dossier des projets, exécutables XAMPP,
 dossier Mercure, éditeurs, navigateurs, ports Symfony et Apache.
-Les valeurs sont enregistrées dans `settings.json`, à côté de l'exécutable.
+Les paramètres, profils et projets récents sont enregistrés dans `%APPDATA%\DevLauncher`,
+partagés par toutes les copies de l'exécutable (Debug, Release, version publiée).
+Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à côté de l'exécutable y sont copiés.
 
 ---
 
 ## ✨ Fonctionnalités
 
 - 📁 Liste automatique des projets du dossier `htdocs`, avec recherche
+- ⭐ Section « Récents » : les 5 derniers projets lancés en tête de liste
 - ✅ Détection automatique Symfony (`symfony.lock`, `bin/console`, `composer.json`) et Tailwind bundle
 - 💾 Profils de lancement par projet (création, renommage, suppression, mémorisation du dernier utilisé)
 - 💻 VSCode / Visual Studio, avec services Symfony dans les terminaux intégrés de VSCode
