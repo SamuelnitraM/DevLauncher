@@ -1,0 +1,34 @@
+using System.Windows;
+using DevLauncher.ViewModels;
+
+namespace DevLauncher.Views;
+
+/// <summary>Dialogs and clipboard access requested by the view models, owned by the main window.</summary>
+public sealed class UserInteractionService : IUserInteractionService
+{
+    private readonly Window _ownerWindow;
+
+    public UserInteractionService(Window ownerWindow)
+    {
+        _ownerWindow = ownerWindow;
+    }
+
+    public bool Confirm(string message, string title)
+        => MessageBox.Show(_ownerWindow, message, title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+
+    public void ShowWarning(string message, string title)
+        => MessageBox.Show(_ownerWindow, message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
+
+    public string? AskProfileName(string dialogTitle, string confirmLabel, string initialProfileName)
+    {
+        var profileNameDialog = new ProfileNameDialog(dialogTitle, confirmLabel, initialProfileName) { Owner = _ownerWindow };
+        return profileNameDialog.ShowDialog() == true ? profileNameDialog.ProfileName : null;
+    }
+
+    public bool EditSettings() => new SettingsWindow { Owner = _ownerWindow }.ShowDialog() == true;
+
+    public void CopyToClipboard(string text)
+    {
+        if (!string.IsNullOrEmpty(text)) Clipboard.SetText(text);
+    }
+}

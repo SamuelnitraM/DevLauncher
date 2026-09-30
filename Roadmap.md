@@ -18,6 +18,8 @@ Rien n'est figé : chaque bloc est à valider avant d'être développé.
 - 🗂️ Données dans `%APPDATA%\DevLauncher` avec reprise des anciennes données (0.3)
 - 🤖 Compilation automatique GitHub Actions, exe en artefact et en release sur tag `v*` (0.5, partie CI)
 - ⭐ Projets récents en tête de liste, mis à jour au lancement uniquement (4.2, partie récents)
+- 🧩 Catalogue d'outils générique + architecture MVVM (0.1, 0.2) : l'interface des options est générée depuis le catalogue,
+  profils au nouveau format avec conversion automatique des anciens
 
 ---
 
@@ -25,8 +27,8 @@ Rien n'est figé : chaque bloc est à valider avant d'être développé.
 
 | # | Évolution | Effort | Pourquoi |
 |---|---|---|---|
-| 0.1 | **Modèle d'outils générique** : un outil = nom, icône, commande, arguments avec variables (`{projectPath}`, `{projectName}`, `{port}`…), stratégie de disponibilité (port, processus, aucun), stratégie d'arrêt. Les profils deviennent une liste d'outils activés avec leurs options. | L | Aujourd'hui chaque outil est codé en dur (cases à cocher, champs du profil, branches dans `LaunchService`). Ajouter Claude, Docker, Laravel… sans ce socle = copier-coller à l'infini. |
-| 0.2 | **Passage en MVVM** (bindings, `ICommand`, ViewModels) | M | Supprime le code-behind qui recopie l'UI dans le profil et inversement ; indispensable pour une liste d'outils dynamique. |
+| 0.1 | ✅ **Modèle d'outils générique** : un outil = nom, icône, commande, arguments avec variables (`{projectPath}`, `{projectName}`, `{port}`…), stratégie de disponibilité (port, processus, aucun), stratégie d'arrêt. Les profils deviennent une liste d'outils activés avec leurs options. | L | Aujourd'hui chaque outil est codé en dur (cases à cocher, champs du profil, branches dans `LaunchService`). Ajouter Claude, Docker, Laravel… sans ce socle = copier-coller à l'infini. |
+| 0.2 | ✅ **Passage en MVVM** (bindings, `ICommand`, ViewModels) | M | Supprime le code-behind qui recopie l'UI dans le profil et inversement ; indispensable pour une liste d'outils dynamique. |
 | 0.3 | ✅ **Données dans `%APPDATA%\DevLauncher`** avec migration automatique des fichiers existants | S | `settings.json` et `Profiles/` sont à côté de l'exe : perdus à chaque changement Debug/Release/publication, et non inscriptibles si l'exe est dans `Program Files`. |
 | 0.4 | **Profils versionnables dans le projet** (`.devlauncher.json` à la racine, optionnel) | S | Partager la config d'un projet avec l'équipe via git. |
 | 0.5 | **Tests unitaires** (à faire) (scanner, profils, paramètres, génération `tasks.json`) + ✅ **CI GitHub Actions** (build + publication de l'exe en artefact de release) | M | Le projet compile aussi sous Linux (`EnableWindowsTargeting`) : la CI est triviale à mettre en place. |
@@ -150,7 +152,7 @@ DevLauncher, sortie capturée. Les **terminaux interactifs** restent dans Window
 ## 🔢 Ordre d'implémentation suggéré
 
 1. ✅ **0.3 Données dans `%APPDATA%`**, ✅ **CI**, ✅ **projets récents**
-2. **0.1 + 0.2 Modèle d'outils générique + MVVM** — le socle de tout le reste
+2. ✅ **0.1 + 0.2 Modèle d'outils générique + MVVM** — le socle de tout le reste
 3. **3.1 → 3.3 Services supervisés** — supprime les rustines actuelles (`tasks.json`, onglets orphelins, arrêt par nom de processus)
 4. **1.1 → 1.4 Intégrations IA** (modes Navigateur / Application, agents CLI avec sessions)
 5. **2.2 + 2.1 Plusieurs racines + multi-stack**

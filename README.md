@@ -7,36 +7,63 @@ par une interface graphique moderne.
 
 ## 📁 Structure du projet
 
+Architecture MVVM : les vues ne contiennent que de l'affichage, la logique est dans les ViewModels et les services.
+Chaque outil (éditeur, serveur, terminal, navigateur…) est une classe du catalogue d'outils :
+l'interface des options est générée à partir de ce catalogue.
+
 ```
 DevLauncher/
 │
-├── DevLauncher.csproj          ← Fichier projet .NET (WPF, .NET 8, System.Management)
-├── app.manifest                ← Demande des droits administrateur (traces WMI des processus)
-├── App.xaml / App.xaml.cs      ← Point d'entrée : thème global + chargement de settings.json
-├── AppSettings.cs              ← Valeurs par défaut des chemins et ports
-├── MainWindow.xaml / .cs       ← Fenêtre principale (projets, options, profils, journal)
+├── DevLauncher.csproj              ← Projet .NET 8 WPF (CommunityToolkit.Mvvm, System.Management)
+├── app.manifest                    ← Droits administrateur (traces WMI des processus)
+├── App.xaml / App.xaml.cs          ← Thème global + point de composition (création des services et de la fenêtre)
+├── AppSettings.cs                  ← Valeurs par défaut des chemins et ports
 │
-├── Views/
-│   ├── SettingsWindow          ← Fenêtre des paramètres (chemins, ports)
-│   └── ProfileNameDialog       ← Saisie du nom d'un profil (création / renommage)
+├── Views/                          ← Affichage uniquement
+│   ├── MainWindow                  ← Fenêtre principale, liée à MainViewModel
+│   ├── SettingsWindow              ← Paramètres (chemins, ports)
+│   ├── ProfileNameDialog           ← Saisie d'un nom de profil
+│   ├── UserInteractionService.cs   ← Boîtes de dialogue et presse-papiers demandés par les ViewModels
+│   └── Converters/                 ← Convertisseurs de binding
+│
+├── ViewModels/                     ← État et actions de l'interface
+│   ├── MainViewModel.cs            ← Projets, profils, lancement / arrêt, journal, indicateurs
+│   ├── ToolCategoryViewModel.cs    ← Carte d'outils (catégorie exclusive = boutons radio)
+│   ├── ToolViewModel.cs            ← Outil activable et ses options
+│   └── ToolOptionViewModel.cs      ← Option d'outil (liste déroulante ou cases à cocher)
 │
 ├── Models/
-│   ├── ProjectProfile.cs       ← Profil de lancement d'un projet (= requête de lancement)
-│   ├── ProjectListEntry.cs     ← Entrée de la liste des projets (section Récents / Tous)
-│   └── ProjectDetection.cs     ← Technologies détectées dans un projet
+│   ├── ProjectProfile.cs           ← Profil : type de projet + état de chaque outil (= requête de lancement)
+│   ├── ToolSelection.cs            ← État d'un outil dans un profil (activé, valeurs des options)
+│   ├── ToolIds.cs                  ← Identifiants stables des outils et de leurs options
+│   └── …                           ← Type de projet, détection, entrée de liste, ligne de journal
 │
 └── Services/
-    ├── LaunchService.cs        ← Lance / arrête éditeurs, XAMPP, Symfony, terminal, navigateur
-    ├── ProjectScanner.cs       ← Liste les projets et détecte Symfony / Tailwind
-    ├── ProfileService.cs       ← Persistance des profils par projet (JSON)
-    ├── SettingsService.cs      ← Persistance des paramètres (settings.json)
-    ├── StoragePaths.cs         ← Dossier de données %APPDATA%\DevLauncher + reprise des anciennes données
-    ├── RecentProjectsService.cs← Projets récemment lancés
-    ├── ProcessEventWatcher.cs  ← Événements WMI de démarrage / arrêt des processus
-    ├── ServiceMonitor.cs       ← État Apache / MySQL / FileZilla en temps réel (événementiel)
-    ├── ProcessHelper.cs        ← Utilitaires communs sur les processus
-    └── NativeWindowService.cs  ← Fermeture propre (WM_CLOSE) des fenêtres d'un projet
+    ├── LaunchService.cs            ← Orchestrateur : démarre les outils étape par étape, arrête ce qu'il a lancé
+    ├── Tools/                      ← Catalogue d'outils (un fichier par famille)
+    │   ├── LaunchTool.cs           ← Classe de base : étape, portée, options, démarrage, arrêt
+    │   ├── EditorTools.cs          ← VSCode, Visual Studio
+    │   ├── SymfonyTools.cs         ← Symfony Server, Tailwind, Mercure
+    │   ├── XamppComponentTool.cs   ← Apache, MySQL, FileZilla, panneau XAMPP
+    │   ├── UtilityTools.cs         ← Terminal, navigateur
+    │   └── ToolCatalog.cs          ← Liste des outils connus
+    ├── Hosting/                    ← Hébergement des services : tâches VSCode ou onglets Windows Terminal
+    ├── ProcessLauncher.cs          ← Démarrage / arrêt / fermeture de processus, avec journalisation
+    ├── ProcessEventWatcher.cs      ← Événements WMI de démarrage / arrêt des processus
+    ├── ServiceMonitor.cs           ← État Apache / MySQL / FileZilla en temps réel
+    ├── ProfileService.cs           ← Profils par projet (JSON), conversion des anciens profils
+    ├── SettingsService.cs          ← Paramètres (settings.json)
+    ├── StoragePaths.cs             ← Dossier de données %APPDATA%\DevLauncher
+    └── …                           ← Scanner de projets, récents, sonde de port, fenêtres natives
 ```
+
+### Ajouter un outil
+
+1. Créer une classe dérivée de `LaunchTool` (ou `ServiceTool` pour une commande longue durée) dans `Services/Tools/`
+2. Lui donner un identifiant dans `ToolIds`, une catégorie, une étape de lancement et, si besoin, des options
+3. L'ajouter à `ToolCatalog`
+
+L'interface (case à cocher, options, sauvegarde dans les profils) suit automatiquement.
 
 ---
 

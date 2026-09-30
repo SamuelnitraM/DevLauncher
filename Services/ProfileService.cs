@@ -1,5 +1,8 @@
 using System.IO;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using DevLauncher.Models;
 
 namespace DevLauncher.Services;
@@ -7,6 +10,7 @@ namespace DevLauncher.Services;
 /// <summary>
 /// Saves and reads the launch profiles of each project.
 /// Profiles are stored in the Profiles folder of the data directory, one JSON file per project.
+/// Profiles saved in the legacy format (one boolean per option) are converted and rewritten on read.
 /// </summary>
 public class ProfileService
 {
@@ -17,6 +21,8 @@ public class ProfileService
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        Converters = { new JsonStringEnumConverter() },
     };
 
     public ProfileService()
@@ -32,7 +38,27 @@ public class ProfileService
 
     /// <summary>Returns all the profiles of a project, or an empty list when none is saved or the file is unreadable.</summary>
     public List<ProjectProfile> GetProfiles(string projectName)
-        => ReadJsonFile<List<ProjectProfile>>(GetProfilesFilePath(projectName)) ?? new List<ProjectProfile>();
+    {
+        var profilesFilePath = GetProfilesFilePath(projectName);
+        var profilesArray = ReadJsonArray(profilesFilePath);
+        if (profilesArray is null) return new List<ProjectProfile>();
+        var profiles = new List<ProjectProfile>();
+        var containsLegacyProfiles = false;
+        foreach (var profileNode in profilesArray.OfType<JsonObject>())
+        {
+            if (LegacyProfileConverter.IsLegacyProfile(profileNode))
+            {
+                profiles.Add(LegacyProfileConverter.Convert(profileNode));
+                containsLegacyProfiles = true;
+            }
+            else if (DeserializeProfile(profileNode) is { } profile)
+            {
+                profiles.Add(profile);
+            }
+        }
+        if (containsLegacyProfiles) TryWriteJsonFile(profilesFilePath, profiles);
+        return profiles;
+    }
 
     /// <summary>Returns a profile by its name.</summary>
     public ProjectProfile? GetProfile(string projectName, string profileName)
@@ -90,6 +116,43 @@ public class ProfileService
 
     private Dictionary<string, string> ReadLastUsedProfiles()
         => ReadJsonFile<Dictionary<string, string>>(_lastUsedProfilesPath) ?? new Dictionary<string, string>();
+
+    private static JsonArray? ReadJsonArray(string filePath)
+    {
+        if (!File.Exists(filePath)) return null;
+        try
+        {
+            return JsonNode.Parse(File.ReadAllText(filePath), new JsonNodeOptions { PropertyNameCaseInsensitive = true }) as JsonArray;
+        }
+        catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    private static ProjectProfile? DeserializeProfile(JsonObject profileNode)
+    {
+        try
+        {
+            return profileNode.Deserialize<ProjectProfile>(_jsonOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static void TryWriteJsonFile<T>(string filePath, T content)
+    {
+        try
+        {
+            WriteJsonFile(filePath, content);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // The converted profiles are still returned : the file is rewritten on the next save.
+        }
+    }
 
     private static T? ReadJsonFile<T>(string filePath) where T : class
     {
