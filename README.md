@@ -47,7 +47,8 @@ DevLauncher/
     │   ├── XamppComponentTool.cs   ← Apache, MySQL, FileZilla, panneau XAMPP
     │   ├── UtilityTools.cs         ← Terminal, navigateur
     │   └── ToolCatalog.cs          ← Liste des outils connus
-    ├── Hosting/                    ← Hébergement des services : tâches VSCode ou onglets Windows Terminal
+    ├── Hosting/                    ← Hébergement des services : processus gérés par DevLauncher (un onglet de journal
+    │                                 par service, arrêt de toute l'arborescence) ou tâches VSCode (option)
     ├── ProcessLauncher.cs          ← Démarrage / arrêt / fermeture de processus, avec journalisation
     ├── ProcessEventWatcher.cs      ← Événements WMI de démarrage / arrêt des processus
     ├── ServiceMonitor.cs           ← État Apache / MySQL / FileZilla en temps réel
@@ -132,12 +133,13 @@ Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à cô
 ## ✨ Fonctionnalités
 
 - 📁 Liste automatique des projets du dossier `htdocs`, avec recherche
-- ⭐ Section « Récents » : les 5 derniers projets lancés en tête de liste
+- ⭐ Bloc « Récemment lancés » distinct, au-dessus de la liste complète (5 derniers projets lancés)
 - ✅ Détection automatique Symfony (`symfony.lock`, `bin/console`, `composer.json`) et Tailwind bundle
 - 💾 Profils de lancement par projet (création, renommage, suppression, mémorisation du dernier utilisé)
 - 💻 VSCode / Visual Studio, avec services Symfony dans les terminaux intégrés de VSCode
-  (le `tasks.json` du projet est préservé et restauré)
-- ⚡ Sinon, onglets Windows Terminal dédiés (fenêtre « DevLauncher ») : Symfony Server / Tailwind / Mercure
+  en option (le `tasks.json` du projet est préservé et restauré)
+- ⚡ Par défaut, services (Symfony Server, Tailwind, Mercure) lancés par DevLauncher : un onglet de journal par service,
+  boutons Arrêter / Redémarrer, détection immédiate d'un arrêt inattendu, arrêt complet avec les processus enfants
 - 🌍 Ouverture du navigateur dès que le serveur répond réellement sur son port
 - 🌐 Indicateurs Apache / MySQL / FileZilla en temps réel, sans polling
 - ⏹ « Tout arrêter » : n'arrête que ce que DevLauncher a lancé, ferme proprement les fenêtres d'éditeur du projet

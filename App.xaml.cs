@@ -21,11 +21,12 @@ public partial class App : Application
         var processEventWatcher = new ProcessEventWatcher();
         var processLauncher = new ProcessLauncher(launchLog);
         var toolCatalog = new ToolCatalog();
+        var serviceProcessHost = new ServiceProcessHost(launchLog);
         var launchService = new LaunchService(
             toolCatalog,
             processLauncher,
             new VSCodeTasksServiceHost(processEventWatcher, launchLog),
-            new WindowsTerminalServiceHost(processLauncher, launchLog),
+            serviceProcessHost,
             launchLog);
         var mainWindow = new MainWindow();
         _mainViewModel = new MainViewModel(
@@ -34,6 +35,7 @@ public partial class App : Application
             new RecentProjectsService(),
             toolCatalog,
             launchService,
+            serviceProcessHost,
             new ServiceMonitor(processEventWatcher),
             processEventWatcher,
             launchLog,

@@ -35,6 +35,7 @@ public partial class SettingsWindow : Window
         FirefoxBox.Text = AppSettings.FirefoxExe;
         SymfonyPortBox.Text = AppSettings.SymfonyPort.ToString();
         LocalWebPortBox.Text = AppSettings.LocalWebPort.ToString();
+        HostServicesInVSCodeBox.IsChecked = AppSettings.HostServicesInVSCode;
     }
 
     // ════════════════════════════════════════════════════════
@@ -63,6 +64,7 @@ public partial class SettingsWindow : Window
         AppSettings.FirefoxExe = FirefoxBox.Text.Trim();
         AppSettings.SymfonyPort = symfonyPort;
         AppSettings.LocalWebPort = localWebPort;
+        AppSettings.HostServicesInVSCode = HostServicesInVSCodeBox.IsChecked == true;
         try
         {
             SettingsService.Save();

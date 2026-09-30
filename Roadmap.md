@@ -10,7 +10,7 @@ Rien n'est figé : chaque bloc est à valider avant d'être développé.
 
 - 📁 Liste des projets du dossier `htdocs`, recherche, détection Symfony / Tailwind bundle
 - 💾 Profils par projet (création, renommage, suppression, dernier profil mémorisé)
-- 💻 VSCode / Visual Studio, services Symfony dans les tâches VSCode ou dans Windows Terminal
+- 💻 VSCode / Visual Studio, services Symfony lancés par DevLauncher (ou dans les tâches VSCode en option)
 - 🗄️ Apache / MySQL / FileZilla / panneau XAMPP, indicateurs temps réel événementiels (WMI)
 - 🌍 Ouverture du navigateur quand le serveur répond sur son port
 - ⏹ Arrêt ciblé de ce qui a été lancé, fermeture propre des fenêtres d'éditeur du projet
@@ -111,12 +111,13 @@ DevLauncher, sortie capturée. Les **terminaux interactifs** restent dans Window
 
 | # | Évolution | Effort |
 |---|---|---|
-| 3.1 | **Lancement direct des services** (processus enfants, sortie standard et erreur redirigées, entrée standard maintenue ouverte pour les `--watch`) : DevLauncher connaît chaque PID, arrêt exact, fin du `tasks.json` temporaire et des onglets Windows Terminal orphelins | M |
-| 3.2 | **Panneau de journaux par service** dans DevLauncher : un onglet par service, couleurs ANSI, recherche, copie, erreurs mises en évidence | M |
-| 3.3 | **Contrôle par service** : démarrer / arrêter / redémarrer individuellement, détection immédiate d'un crash (événement de fin de processus) avec notification | S |
+| 3.1 | ✅ **Lancement direct des services** (processus enfants, sortie standard et erreur redirigées, entrée standard maintenue ouverte pour les `--watch`) : DevLauncher connaît chaque PID, arrêt exact, fin du `tasks.json` temporaire et des onglets Windows Terminal orphelins | M |
+| 3.2 | ✅ (base) **Panneau de journaux par service** : un onglet par service, copie, erreurs en rouge — reste : couleurs ANSI, recherche | M |
+| 3.3 | ✅ **Contrôle par service** : démarrer / arrêter / redémarrer individuellement, détection immédiate d'un crash (événement de fin de processus) avec notification | S |
 | 3.4 | **Disponibilité lue dans les journaux** (« Listening on… », « Done in… ») en complément du test de port : ouverture du navigateur au bon moment, port et schéma HTTP/HTTPS réels | S |
 | 3.5 | **Terminal interactif** : bouton « Ouvrir un terminal » conservé dans Windows Terminal (onglet dans le dossier du projet, profil PowerShell / CMD / Git Bash au choix) | S |
-| 3.6 | **Mode « services dans VSCode »** conservé en option pour ceux qui préfèrent les terminaux intégrés de l'éditeur | S |
+| 3.7 | **Objet Job Windows** : les services meurent avec DevLauncher même en cas de plantage (aujourd'hui : arrêtés à la fermeture normale uniquement) | S |
+| 3.6 | ✅ **Mode « services dans VSCode »** conservé en option pour ceux qui préfèrent les terminaux intégrés de l'éditeur | S |
 
 ---
 
@@ -153,7 +154,7 @@ DevLauncher, sortie capturée. Les **terminaux interactifs** restent dans Window
 
 1. ✅ **0.3 Données dans `%APPDATA%`**, ✅ **CI**, ✅ **projets récents**
 2. ✅ **0.1 + 0.2 Modèle d'outils générique + MVVM** — le socle de tout le reste
-3. **3.1 → 3.3 Services supervisés** — supprime les rustines actuelles (`tasks.json`, onglets orphelins, arrêt par nom de processus)
+3. ✅ **3.1 → 3.3 Services supervisés** — supprime les rustines actuelles (`tasks.json`, onglets orphelins, arrêt par nom de processus)
 4. **1.1 → 1.4 Intégrations IA** (modes Navigateur / Application, agents CLI avec sessions)
 5. **2.2 + 2.1 Plusieurs racines + multi-stack**
 6. **4.1 + 4.2 + 4.5 Zone de notification, favoris, notifications**

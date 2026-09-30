@@ -70,8 +70,8 @@ public sealed class VSCodeTasksServiceHost
         {
             ["label"] = serviceCommand.Title,
             ["type"] = "process",
-            ["command"] = "powershell",
-            ["args"] = serviceCommand.PowerShellArguments,
+            ["command"] = serviceCommand.Executable,
+            ["args"] = serviceCommand.Arguments,
             ["options"] = new Dictionary<string, object> { ["cwd"] = serviceCommand.WorkingDirectory },
             ["isBackground"] = true,
             ["problemMatcher"] = Array.Empty<string>(),

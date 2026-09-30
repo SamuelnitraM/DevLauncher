@@ -350,6 +350,22 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ── Services ── -->
+                <Border Background="{StaticResource CardBgBrush}"
+                        CornerRadius="12" Padding="16" Margin="0,12,0,0">
+                    <StackPanel>
+                        <TextBlock Text="🧩 Services"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="0,0,0,12"/>
+                        <CheckBox x:Name="HostServicesInVSCodeBox"
+                                  Style="{StaticResource ModernCheckBox}">
+                            <TextBlock TextWrapping="Wrap"
+                                       Text="Lancer les services dans les terminaux de VSCode quand VSCode est coché (sinon DevLauncher les lance et affiche leurs journaux)"/>
+                        </CheckBox>
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

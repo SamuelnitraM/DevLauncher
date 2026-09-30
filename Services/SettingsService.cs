@@ -38,6 +38,7 @@ public static class SettingsService
             FirefoxExe = AppSettings.FirefoxExe,
             SymfonyPort = AppSettings.SymfonyPort,
             LocalWebPort = AppSettings.LocalWebPort,
+            HostServicesInVSCode = AppSettings.HostServicesInVSCode,
         };
         File.WriteAllText(StoragePaths.SettingsFilePath, JsonSerializer.Serialize(settingsData, _jsonOptions));
     }
@@ -74,6 +75,7 @@ public static class SettingsService
         AppSettings.FirefoxExe = ValueOrDefault(settingsData.FirefoxExe, AppSettings.FirefoxExe);
         AppSettings.SymfonyPort = IsValidPort(settingsData.SymfonyPort) ? settingsData.SymfonyPort : AppSettings.SymfonyPort;
         AppSettings.LocalWebPort = IsValidPort(settingsData.LocalWebPort) ? settingsData.LocalWebPort : AppSettings.LocalWebPort;
+        AppSettings.HostServicesInVSCode = settingsData.HostServicesInVSCode;
     }
 
     /// <summary>Returns true when the value is a usable TCP port.</summary>
@@ -102,5 +104,6 @@ public static class SettingsService
         public string? FirefoxExe { get; set; }
         public int SymfonyPort { get; set; }
         public int LocalWebPort { get; set; }
+        public bool HostServicesInVSCode { get; set; }
     }
 }

@@ -1,32 +1,29 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
-using System.Windows.Data;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DevLauncher.Models;
 using DevLauncher.Services;
+using DevLauncher.Services.Hosting;
 using DevLauncher.Services.Tools;
 
 namespace DevLauncher.ViewModels;
 
 /// <summary>
-/// State and actions of the main window : projects list, options panel built from the tool catalog,
-/// profiles, launch and stop, service indicators and launch log.
+/// State and actions of the main window : projects lists, options panel built from the tool catalog,
+/// profiles, launch and stop, service indicators, launch log and service logs.
 /// </summary>
 public partial class MainViewModel : ObservableObject, IDisposable
 {
-    private const string RecentProjectsGroupName = "⭐ Récents";
-    private const string AllProjectsGroupName = "📁 Tous les projets";
     private const string DefaultLaunchButtonLabel = "▶ Lancer l'environnement";
     private const string NoProjectStatus = "Sélectionne un projet pour commencer";
-    private const int MaximumLogEntryCount = 2000;
 
     private readonly ProjectScanner _projectScanner;
     private readonly ProfileService _profileService;
     private readonly RecentProjectsService _recentProjectsService;
     private readonly LaunchService _launchService;
+    private readonly ServiceProcessHost _serviceProcessHost;
     private readonly ServiceMonitor _serviceMonitor;
     private readonly ProcessEventWatcher _processEventWatcher;
     private readonly LaunchLog _launchLog;
@@ -42,6 +39,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         RecentProjectsService recentProjectsService,
         ToolCatalog toolCatalog,
         LaunchService launchService,
+        ServiceProcessHost serviceProcessHost,
         ServiceMonitor serviceMonitor,
         ProcessEventWatcher processEventWatcher,
         LaunchLog launchLog,
@@ -51,18 +49,21 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _profileService = profileService;
         _recentProjectsService = recentProjectsService;
         _launchService = launchService;
+        _serviceProcessHost = serviceProcessHost;
         _serviceMonitor = serviceMonitor;
         _processEventWatcher = processEventWatcher;
         _launchLog = launchLog;
         _userInteractionService = userInteractionService;
         _uiDispatcher = Dispatcher.CurrentDispatcher;
-        ProjectsView = new ListCollectionView(VisibleProjects);
-        ProjectsView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ProjectListEntry.GroupName)));
+        LaunchLogTab = new LogTabViewModel("📋 Lancement");
+        LogTabs.Add(LaunchLogTab);
+        _selectedLogTab = LaunchLogTab;
         foreach (var toolCategory in ToolCategories.All)
             ToolCategoryViewModels.Add(new ToolCategoryViewModel(toolCategory, toolCatalog.GetCategoryTools(toolCategory)));
         foreach (var serviceName in new[] { "Apache", "MySQL", "FileZilla" })
             ServiceIndicators.Add(new ServiceIndicatorViewModel(serviceName));
         _launchLog.MessageLogged += OnMessageLogged;
+        _serviceProcessHost.ServiceCreated += OnServiceCreated;
         _serviceMonitor.StatusChanged += OnServiceStatusChanged;
         if (!_processEventWatcher.Start())
             _launchLog.Error("⚠️ Surveillance des processus indisponible (droits administrateur requis) : indicateurs mis à jour uniquement au lancement et à l'arrêt");
@@ -75,12 +76,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     //  BOUND STATE
     // ════════════════════════════════════════════════════════════
 
+    public ObservableCollection<ProjectListEntry> RecentProjects { get; } = new();
     public ObservableCollection<ProjectListEntry> VisibleProjects { get; } = new();
-    public ListCollectionView ProjectsView { get; }
     public ObservableCollection<ToolCategoryViewModel> ToolCategoryViewModels { get; } = new();
     public ObservableCollection<string> ProfileNames { get; } = new();
     public ObservableCollection<ServiceIndicatorViewModel> ServiceIndicators { get; } = new();
-    public ObservableCollection<LogEntry> LogEntries { get; } = new();
+    public ObservableCollection<LogTabViewModel> LogTabs { get; } = new();
+    public LogTabViewModel LaunchLogTab { get; }
 
     public IReadOnlyList<ProjectTypeOption> ProjectTypeOptions { get; } = new[]
     {
@@ -91,9 +93,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _searchText = string.Empty;
 
-    /// <summary>Item selected in the list. Becomes null when the current project is filtered out, without deselecting it.</summary>
+    /// <summary>Item selected in the recent projects list. Kept in sync with the current project.</summary>
+    [ObservableProperty]
+    private ProjectListEntry? _selectedRecentProject;
+
+    /// <summary>Item selected in the projects list. Becomes null when the current project is filtered out, without deselecting it.</summary>
     [ObservableProperty]
     private ProjectListEntry? _selectedProjectEntry;
+
+    [ObservableProperty]
+    private LogTabViewModel? _selectedLogTab;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasProject), nameof(CurrentProjectDisplayPath), nameof(HasSeveralProfiles), nameof(LaunchButtonLabel))]
@@ -123,6 +132,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private bool _isLaunchMenuOpen;
 
     public bool HasProject => CurrentProjectPath is not null;
+    public bool HasRecentProjects => RecentProjects.Count > 0;
     public bool IsIdle => !IsLaunchInProgress;
     public bool HasSeveralProfiles => HasProject && ProfileNames.Count > 1;
     public string CurrentProjectDisplayPath => CurrentProjectPath ?? "Aucun projet sélectionné";
@@ -131,11 +141,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnSearchTextChanged(string value) => ApplyProjectFilter();
 
-    partial void OnSelectedProjectEntryChanged(ProjectListEntry? value)
-    {
-        if (value is null || (CurrentProjectPath is not null && IsSamePath(value.Path, CurrentProjectPath))) return;
-        SelectProject(value.Path);
-    }
+    partial void OnSelectedRecentProjectChanged(ProjectListEntry? value) => OnProjectEntryPicked(value);
+
+    partial void OnSelectedProjectEntryChanged(ProjectListEntry? value) => OnProjectEntryPicked(value);
 
     partial void OnSelectedProjectTypeChanged(ProjectType value) => UpdateToolAvailability();
 
@@ -169,27 +177,41 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Builds the list entries : recently launched projects first, then the others alphabetically.
-    /// The recent projects only change after a launch, never during a click, so that the list does not move under the cursor.
+    /// Builds the list entries. The recent projects only change after a launch, never during a click,
+    /// so that the lists do not move under the cursor.
     /// </summary>
     private List<ProjectListEntry> BuildProjectEntries(IReadOnlyCollection<string> projectPaths)
-    {
-        var recentProjectPaths = _recentProjectsService.GetRecentProjectPaths().Where(Directory.Exists).ToList();
-        var recentProjectEntries = recentProjectPaths
-            .Select(projectPath => new ProjectListEntry(Path.GetFileName(projectPath), projectPath, RecentProjectsGroupName));
-        var otherProjectEntries = projectPaths
-            .Where(projectPath => !recentProjectPaths.Any(recentProjectPath => IsSamePath(recentProjectPath, projectPath)))
-            .Select(projectPath => new ProjectListEntry(Path.GetFileName(projectPath), projectPath, AllProjectsGroupName));
-        return recentProjectEntries.Concat(otherProjectEntries).ToList();
-    }
+        => projectPaths.Select(projectPath => new ProjectListEntry(Path.GetFileName(projectPath), projectPath)).ToList();
 
-    /// <summary>Filters the projects list by the search text and keeps the current project selected.</summary>
+    private List<ProjectListEntry> BuildRecentProjectEntries()
+        => _recentProjectsService.GetRecentProjectPaths()
+            .Where(Directory.Exists)
+            .Select(projectPath => new ProjectListEntry(Path.GetFileName(projectPath), projectPath))
+            .ToList();
+
+    /// <summary>Filters both lists by the search text and keeps the current project selected in each of them.</summary>
     private void ApplyProjectFilter()
     {
+        bool MatchesSearch(ProjectListEntry entry) => string.IsNullOrWhiteSpace(SearchText) || entry.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
+        RecentProjects.Clear();
+        foreach (var recentProjectEntry in BuildRecentProjectEntries().Where(MatchesSearch)) RecentProjects.Add(recentProjectEntry);
         VisibleProjects.Clear();
-        foreach (var projectEntry in _projectEntries.Where(entry => string.IsNullOrWhiteSpace(SearchText) || entry.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase)))
-            VisibleProjects.Add(projectEntry);
+        foreach (var projectEntry in _projectEntries.Where(MatchesSearch)) VisibleProjects.Add(projectEntry);
+        OnPropertyChanged(nameof(HasRecentProjects));
+        SynchronizeListSelections();
+    }
+
+    private void SynchronizeListSelections()
+    {
+        SelectedRecentProject = RecentProjects.FirstOrDefault(entry => CurrentProjectPath is not null && IsSamePath(entry.Path, CurrentProjectPath));
         SelectedProjectEntry = VisibleProjects.FirstOrDefault(entry => CurrentProjectPath is not null && IsSamePath(entry.Path, CurrentProjectPath));
+    }
+
+    private void OnProjectEntryPicked(ProjectListEntry? projectEntry)
+    {
+        if (projectEntry is null || (CurrentProjectPath is not null && IsSamePath(projectEntry.Path, CurrentProjectPath))) return;
+        SelectProject(projectEntry.Path);
+        SynchronizeListSelections();
     }
 
     private void SelectProject(string projectPath)
@@ -214,7 +236,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void RegisterRecentProject(string projectPath)
     {
         _recentProjectsService.RegisterLaunch(projectPath);
-        _projectEntries = BuildProjectEntries(_projectScanner.GetProjects());
         ApplyProjectFilter();
     }
 
@@ -454,16 +475,24 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // ════════════════════════════════════════════════════════════
 
     [RelayCommand]
-    private void ClearLog() => LogEntries.Clear();
+    private void ClearLog() => (SelectedLogTab ?? LaunchLogTab).Lines.Clear();
 
     [RelayCommand]
-    private void CopyLog() => _userInteractionService.CopyToClipboard(string.Join(Environment.NewLine, LogEntries.Select(logEntry => logEntry.Text)));
+    private void CopyLog()
+        => _userInteractionService.CopyToClipboard(string.Join(Environment.NewLine, (SelectedLogTab ?? LaunchLogTab).Lines.Select(logEntry => logEntry.Text)));
 
-    private void OnMessageLogged(string message, bool isError) => RunOnUiThread(() =>
+    private void OnMessageLogged(string message, bool isError) => RunOnUiThread(() => LaunchLogTab.AppendLine(message, isError));
+
+    /// <summary>Adds a log tab for each new service run by DevLauncher.</summary>
+    private void OnServiceCreated(HostedService hostedService) => RunOnUiThread(() =>
+        LogTabs.Add(new ServiceLogTabViewModel(hostedService, _launchLog, RunOnUiThread, CloseServiceLogTab)));
+
+    private void CloseServiceLogTab(ServiceLogTabViewModel serviceLogTab)
     {
-        LogEntries.Add(new LogEntry($"[{DateTime.Now:HH:mm:ss}] {message}", isError));
-        while (LogEntries.Count > MaximumLogEntryCount) LogEntries.RemoveAt(0);
-    });
+        if (SelectedLogTab == serviceLogTab) SelectedLogTab = LaunchLogTab;
+        LogTabs.Remove(serviceLogTab);
+        _serviceProcessHost.Remove(serviceLogTab.HostedService);
+    }
 
     private void OnServiceStatusChanged(string serviceName, bool isRunning) => RunOnUiThread(() =>
     {
@@ -480,8 +509,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        _launchService.RestoreProjectFiles();
+        _launchService.Shutdown();
         _launchLog.MessageLogged -= OnMessageLogged;
+        _serviceProcessHost.ServiceCreated -= OnServiceCreated;
         _serviceMonitor.StatusChanged -= OnServiceStatusChanged;
         _serviceMonitor.Dispose();
         _processEventWatcher.Dispose();

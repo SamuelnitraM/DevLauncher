@@ -38,4 +38,7 @@ public static class AppSettings
 
     /// <summary>Local port of Apache, used for the browser URL of non-Symfony projects</summary>
     public static int LocalWebPort { get; set; } = 80;
+
+    /// <summary>Runs the services as VSCode tasks when VSCode is launched, instead of running them in DevLauncher</summary>
+    public static bool HostServicesInVSCode { get; set; }
 }

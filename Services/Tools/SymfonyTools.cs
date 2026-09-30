@@ -4,6 +4,9 @@ using DevLauncher.Services.Hosting;
 
 namespace DevLauncher.Services.Tools;
 
+// The Stop methods of the service tools are used when the services run as VSCode tasks :
+// services run by DevLauncher are stopped with their whole process tree by the service process host.
+
 /// <summary>Local Symfony web server, started on the configured port.</summary>
 public sealed class SymfonyServerTool : ServiceTool
 {
@@ -14,8 +17,8 @@ public sealed class SymfonyServerTool : ServiceTool
     public override IReadOnlyCollection<ProjectType>? SupportedProjectTypes => new[] { ProjectType.Symfony };
 
     public override ServiceCommand? BuildServiceCommand(ToolExecutionContext context)
-        => new(DisplayName, context.ProjectPath,
-            new[] { "-NoExit", "-Command", $"symfony server:start --port={AppSettings.SymfonyPort}" }, "symfony");
+        => new(Id, DisplayName, context.ProjectPath, "symfony",
+            new[] { "server:start", $"--port={AppSettings.SymfonyPort}" }, "symfony");
 
     public override async Task StopAsync(ToolExecutionContext context)
     {
@@ -34,8 +37,8 @@ public sealed class TailwindTool : ServiceTool
     public override IReadOnlyCollection<ProjectType>? SupportedProjectTypes => new[] { ProjectType.Symfony };
 
     public override ServiceCommand? BuildServiceCommand(ToolExecutionContext context)
-        => new(DisplayName, context.ProjectPath,
-            new[] { "-NoExit", "-Command", "symfony console tailwind:build --watch" }, "symfony");
+        => new(Id, DisplayName, context.ProjectPath, "symfony",
+            new[] { "console", "tailwind:build", "--watch" }, "symfony");
 
     /// <summary>Stops the Tailwind binary downloaded inside this project only.</summary>
     public override async Task StopAsync(ToolExecutionContext context)
@@ -70,7 +73,8 @@ public sealed class MercureTool : ServiceTool
             context.Log.Error($"❌ Script Mercure introuvable dans {AppSettings.MercureDir} — Mercure ne sera pas lancé.");
             return null;
         }
-        return new ServiceCommand(DisplayName, AppSettings.MercureDir, new[] { "-NoExit", "-File", mercureScriptPath }, "mercure");
+        return new ServiceCommand(Id, DisplayName, AppSettings.MercureDir, "powershell",
+            new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", mercureScriptPath }, "mercure");
     }
 
     public override async Task StopAsync(ToolExecutionContext context)

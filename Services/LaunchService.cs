@@ -10,20 +10,23 @@ namespace DevLauncher.Services;
 /// </summary>
 public sealed class LaunchService
 {
+    /// <summary>Launched project, remembering where its services run.</summary>
+    private sealed record LaunchedProject(ProjectProfile Profile, bool AreServicesInVSCode);
+
     private readonly ToolCatalog _toolCatalog;
     private readonly ProcessLauncher _processLauncher;
     private readonly VSCodeTasksServiceHost _vscodeTasksServiceHost;
-    private readonly WindowsTerminalServiceHost _windowsTerminalServiceHost;
+    private readonly ServiceProcessHost _serviceProcessHost;
     private readonly LaunchLog _launchLog;
-    private readonly Dictionary<string, ProjectProfile> _launchedProjects = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, LaunchedProject> _launchedProjects = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _machineToolIdsStartedByLauncher = new();
 
-    public LaunchService(ToolCatalog toolCatalog, ProcessLauncher processLauncher, VSCodeTasksServiceHost vscodeTasksServiceHost, WindowsTerminalServiceHost windowsTerminalServiceHost, LaunchLog launchLog)
+    public LaunchService(ToolCatalog toolCatalog, ProcessLauncher processLauncher, VSCodeTasksServiceHost vscodeTasksServiceHost, ServiceProcessHost serviceProcessHost, LaunchLog launchLog)
     {
         _toolCatalog = toolCatalog;
         _processLauncher = processLauncher;
         _vscodeTasksServiceHost = vscodeTasksServiceHost;
-        _windowsTerminalServiceHost = windowsTerminalServiceHost;
+        _serviceProcessHost = serviceProcessHost;
         _launchLog = launchLog;
     }
 
@@ -33,17 +36,17 @@ public sealed class LaunchService
 
     public async Task LaunchAsync(string projectPath, ProjectProfile profile)
     {
-        _launchedProjects[projectPath] = profile;
         var enabledTools = GetEnabledTools(profile).ToList();
         var serviceCommands = BuildServiceCommands(projectPath, profile, enabledTools);
+        var areServicesInVSCode = AppSettings.HostServicesInVSCode && serviceCommands.Count > 0 && enabledTools.Any(tool => tool.Id == ToolIds.VSCode);
+        _launchedProjects[projectPath] = new LaunchedProject(profile, areServicesInVSCode);
         // VSCode reads tasks.json when the folder opens, so the services are prepared before the editor starts.
-        var hostServicesInVSCode = serviceCommands.Count > 0 && enabledTools.Any(tool => tool.Id == ToolIds.VSCode);
-        if (hostServicesInVSCode) _vscodeTasksServiceHost.PrepareServices(projectPath, serviceCommands);
+        if (areServicesInVSCode) _vscodeTasksServiceHost.PrepareServices(projectPath, serviceCommands);
         foreach (var launchStage in Enum.GetValues<LaunchStage>())
         {
             if (launchStage == LaunchStage.Services)
             {
-                if (!hostServicesInVSCode && serviceCommands.Count > 0) _windowsTerminalServiceHost.StartServices(serviceCommands);
+                if (!areServicesInVSCode && serviceCommands.Count > 0) _serviceProcessHost.StartServices(projectPath, serviceCommands);
                 continue;
             }
             foreach (var tool in enabledTools.Where(tool => tool.Stage == launchStage))
@@ -72,13 +75,15 @@ public sealed class LaunchService
     public async Task StopAllAsync()
     {
         _vscodeTasksServiceHost.RestorePendingTasksFiles();
-        foreach (var (projectPath, profile) in _launchedProjects.ToList())
+        foreach (var (projectPath, launchedProject) in _launchedProjects.ToList())
         {
-            var projectTools = GetEnabledTools(profile)
-                .Where(tool => tool.Scope == ToolScope.Project)
+            if (!launchedProject.AreServicesInVSCode) await _serviceProcessHost.StopProjectServicesAsync(projectPath);
+            // Services run as VSCode tasks are not owned by DevLauncher : their tools stop them.
+            var projectToolsToStop = GetEnabledTools(launchedProject.Profile)
+                .Where(tool => tool.Scope == ToolScope.Project && (tool is not ServiceTool || launchedProject.AreServicesInVSCode))
                 .OrderByDescending(tool => tool.Stage);
-            foreach (var projectTool in projectTools)
-                await projectTool.StopAsync(CreateContext(projectPath, profile, projectTool));
+            foreach (var projectTool in projectToolsToStop)
+                await projectTool.StopAsync(CreateContext(projectPath, launchedProject.Profile, projectTool));
         }
         foreach (var machineTool in _toolCatalog.Tools.Where(tool => _machineToolIdsStartedByLauncher.Contains(tool.Id)))
             await machineTool.StopAsync(CreateContext(string.Empty, new ProjectProfile(), machineTool));
@@ -87,8 +92,12 @@ public sealed class LaunchService
         _launchLog.Info("✅ Tout est arrêté !");
     }
 
-    /// <summary>Restores the project files modified for the launch. Called when the application closes.</summary>
-    public void RestoreProjectFiles() => _vscodeTasksServiceHost.RestorePendingTasksFiles();
+    /// <summary>Restores the project files modified for the launch and kills the services owned by DevLauncher. Called when the application closes.</summary>
+    public void Shutdown()
+    {
+        _vscodeTasksServiceHost.RestorePendingTasksFiles();
+        _serviceProcessHost.KillAll();
+    }
 
     // ════════════════════════════════════════════════════════
     //  HELPERS

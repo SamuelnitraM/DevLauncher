@@ -143,6 +143,53 @@
             <Setter Property="Margin"     Value="0,0,0,12"/>
         </Style>
 
+        <!-- Log tabs -->
+        <Style x:Key="LogTabControl" TargetType="TabControl">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding"         Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <DockPanel>
+                            <!-- Right margin keeps the tabs clear of the copy and clear buttons -->
+                            <TabPanel DockPanel.Dock="Top" IsItemsHost="True" Margin="0,0,130,0"/>
+                            <Border BorderBrush="#333355" BorderThickness="0,1,0,0">
+                                <ContentPresenter ContentSource="SelectedContent"/>
+                            </Border>
+                        </DockPanel>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="LogTabItem" TargetType="TabItem">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="Cursor"     Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Bd"
+                                Background="Transparent"
+                                CornerRadius="6,6,0,0"
+                                Padding="10,4"
+                                Margin="0,0,2,0">
+                            <ContentPresenter ContentSource="Header"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#33445577"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#4F9EFF33"/>
+                                <Setter Property="Foreground" Value="{StaticResource AccentBlueBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Project list item -->
         <Style x:Key="ProjectListItem" TargetType="ListBoxItem">
             <Setter Property="Foreground"  Value="{StaticResource TextPrimaryBrush}"/>

@@ -54,7 +54,7 @@ public abstract class LaunchTool
 }
 
 /// <summary>
-/// Long-running command (server, watcher…) whose hosting is decided by the launcher : VSCode tasks or Windows Terminal.
+/// Long-running command (server, watcher…) whose hosting is decided by the launcher : run by DevLauncher or as a VSCode task.
 /// </summary>
 public abstract class ServiceTool : LaunchTool
 {
