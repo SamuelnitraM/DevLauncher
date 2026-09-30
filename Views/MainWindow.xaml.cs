@@ -1,33 +1,42 @@
 using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
-using DevLauncher.ViewModels;
+using System.Windows.Threading;
 
 namespace DevLauncher.Views;
 
 /// <summary>Main window. Holds only view behavior : keeping the selected project and the last log line visible.</summary>
 public partial class MainWindow : Window
 {
+    private bool _isLogScrollPending;
+
     public MainWindow()
     {
         InitializeComponent();
-        DataContextChanged += OnDataContextChanged;
+        // The displayed items are listened to, not the source collection : they notify once the list has taken the change into account.
+        ((INotifyCollectionChanged)LogListBox.Items).CollectionChanged += OnLogItemsChanged;
     }
 
-    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+    /// <summary>Scrolls to the last log line once the pending layout is done, a burst of lines producing a single scroll.</summary>
+    private void OnLogItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.OldValue is MainViewModel previousViewModel) previousViewModel.LogEntries.CollectionChanged -= OnLogEntriesChanged;
-        if (e.NewValue is MainViewModel mainViewModel) mainViewModel.LogEntries.CollectionChanged += OnLogEntriesChanged;
+        if (e.Action != NotifyCollectionChangedAction.Add || _isLogScrollPending) return;
+        _isLogScrollPending = true;
+        Dispatcher.BeginInvoke(ScrollLogToEnd, DispatcherPriority.Background);
     }
 
-    private void OnLogEntriesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    private void ScrollLogToEnd()
     {
-        if (e.Action != NotifyCollectionChangedAction.Add || LogListBox.Items.Count == 0) return;
-        LogListBox.ScrollIntoView(LogListBox.Items[LogListBox.Items.Count - 1]);
+        _isLogScrollPending = false;
+        if (LogListBox.Items.Count > 0) LogListBox.ScrollIntoView(LogListBox.Items[LogListBox.Items.Count - 1]);
     }
 
     private void ProjectListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (ProjectListBox.SelectedItem is not null) ProjectListBox.ScrollIntoView(ProjectListBox.SelectedItem);
+        if (ProjectListBox.SelectedItem is null) return;
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (ProjectListBox.SelectedItem is not null) ProjectListBox.ScrollIntoView(ProjectListBox.SelectedItem);
+        }, DispatcherPriority.Background);
     }
 }
