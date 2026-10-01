@@ -72,6 +72,8 @@ public sealed partial class HostedService
             };
             foreach (var argument in Command.Arguments) processStartInfo.ArgumentList.Add(argument);
             processStartInfo.Environment["NO_COLOR"] = "1";
+            foreach (var (variableName, variableValue) in Command.EnvironmentVariables ?? new Dictionary<string, string>())
+                processStartInfo.Environment[variableName] = variableValue;
             var serviceProcess = new Process { StartInfo = processStartInfo, EnableRaisingEvents = true };
             var processExitCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             serviceProcess.OutputDataReceived += (_, eventArgs) => PublishOutputLine(eventArgs.Data);

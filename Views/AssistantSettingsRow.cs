@@ -22,7 +22,6 @@ public partial class AssistantSettingsRow : ObservableObject
     }
 
     public string Label => $"{_assistantDefinition.Icon} {_assistantDefinition.DisplayName}";
-    public bool IsChat => _assistantDefinition.Kind == AssistantKind.Chat;
 
     [ObservableProperty]
     private bool _isEnabled;

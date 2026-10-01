@@ -45,10 +45,11 @@ DevLauncher/
     │   ├── EditorTools.cs          ← VSCode, Visual Studio
     │   ├── SymfonyTools.cs         ← Symfony Server, Tailwind, Mercure
     │   ├── XamppComponentTool.cs   ← Apache, MySQL, FileZilla, panneau XAMPP
-    │   ├── AssistantTools.cs       ← Assistants IA (navigateur / application), Claude Code
+    │   ├── AssistantTools.cs       ← Assistants IA (navigateur / application)
+    │   ├── FrameworkTools.cs       ← Laravel, script npm, Django, dotnet watch
     │   ├── UtilityTools.cs         ← Terminal, navigateur
     │   └── ToolCatalog.cs          ← Liste des outils connus
-    ├── Assistants/                 ← Catalogue des assistants IA, lecture des sessions Claude Code
+    ├── Assistants/                 ← Catalogue des assistants IA, détection de leurs applications
     ├── Hosting/                    ← Hébergement des services : processus gérés par DevLauncher (un onglet de journal
     │                                 par service, arrêt de toute l'arborescence) ou tâches VSCode (option)
     ├── ProcessLauncher.cs          ← Démarrage / arrêt / fermeture de processus, avec journalisation
@@ -134,7 +135,7 @@ Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à cô
 
 ## ✨ Fonctionnalités
 
-- 📁 Liste automatique des projets du dossier `htdocs`, avec recherche
+- 📁 Liste automatique des projets, avec recherche
 - ⭐ Bloc « Récemment lancés » distinct, au-dessus de la liste complète (5 derniers projets lancés)
 - ✅ Détection automatique Symfony (`symfony.lock`, `bin/console`, `composer.json`) et Tailwind bundle
 - 💾 Profils de lancement par projet (création, renommage, suppression, mémorisation du dernier utilisé)
@@ -145,9 +146,12 @@ Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à cô
 - 🌍 Ouverture du navigateur dès que le serveur répond réellement sur son port
 - 🌐 Indicateurs Apache / MySQL / FileZilla en temps réel, sans polling
 - ⏹ « Tout arrêter » : n'arrête que ce que DevLauncher a lancé, ferme proprement les fenêtres d'éditeur du projet
-- 🤖 Assistants IA dans les outils : Claude, ChatGPT, Gemini, Le Chat, Perplexity en mode Navigateur
-  (nouvelle discussion ou projet enregistré, celui nommé comme le dossier proposé par défaut) ou Application ;
-  Claude Code dans un onglet de terminal avec reprise d'une session du projet
+- 🤖 Assistants IA dans les outils : Claude, ChatGPT, Gemini, Mistral, Perplexity en mode Navigateur
+  (nouvelle discussion ou projet enregistré, celui nommé comme le dossier proposé par défaut) ou Application
+  (application de bureau détectée automatiquement)
+- 🧭 Plusieurs dossiers de projets, projets ajoutés un par un, dossiers ignorés (pages XAMPP par défaut)
+- 🧩 Détection Symfony, Laravel, WordPress, Node.js, Django, .NET avec leurs serveurs de développement ;
+  le navigateur s'ouvre sur l'adresse annoncée par le serveur dans son journal
 - 📋 Journal de lancement horodaté
 
 ---

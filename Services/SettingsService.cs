@@ -16,6 +16,7 @@ public static class SettingsService
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
     };
 
     // ════════════════════════════════════════════════════════
@@ -26,7 +27,9 @@ public static class SettingsService
     {
         var settingsData = new SettingsData
         {
-            HtdocsPath = AppSettings.HtdocsPath,
+            ProjectRoots = AppSettings.ProjectRoots,
+            ExtraProjectPaths = AppSettings.ExtraProjectPaths,
+            ExcludedFolderNames = AppSettings.ExcludedFolderNames,
             XamppDir = AppSettings.XamppDir,
             ApacheExe = AppSettings.ApacheExe,
             MySQLExe = AppSettings.MySQLExe,
@@ -64,7 +67,11 @@ public static class SettingsService
             return;
         }
         if (settingsData is null) return;
-        AppSettings.HtdocsPath = ValueOrDefault(settingsData.HtdocsPath, AppSettings.HtdocsPath);
+        // Settings saved with a single projects folder (htdocsPath) are read as one project root.
+        AppSettings.ProjectRoots = CleanPaths(settingsData.ProjectRoots)
+            ?? (string.IsNullOrWhiteSpace(settingsData.HtdocsPath) ? AppSettings.ProjectRoots : new List<string> { settingsData.HtdocsPath.Trim() });
+        AppSettings.ExtraProjectPaths = CleanPaths(settingsData.ExtraProjectPaths) ?? AppSettings.ExtraProjectPaths;
+        AppSettings.ExcludedFolderNames = CleanPaths(settingsData.ExcludedFolderNames) ?? AppSettings.ExcludedFolderNames;
         AppSettings.XamppDir = ValueOrDefault(settingsData.XamppDir, AppSettings.XamppDir);
         AppSettings.ApacheExe = ValueOrDefault(settingsData.ApacheExe, AppSettings.ApacheExe);
         AppSettings.MySQLExe = ValueOrDefault(settingsData.MySQLExe, AppSettings.MySQLExe);
@@ -85,6 +92,10 @@ public static class SettingsService
     /// <summary>Returns true when the value is a usable TCP port.</summary>
     public static bool IsValidPort(int port) => port is >= 1 and <= 65535;
 
+    /// <summary>Returns the non-empty trimmed entries, or null when the list was not saved.</summary>
+    private static List<string>? CleanPaths(List<string>? savedEntries)
+        => savedEntries?.Where(entry => !string.IsNullOrWhiteSpace(entry)).Select(entry => entry.Trim()).ToList();
+
     private static string ValueOrDefault(string? value, string defaultValue)
         => string.IsNullOrWhiteSpace(value) ? defaultValue : value;
 
@@ -94,7 +105,11 @@ public static class SettingsService
 
     private class SettingsData
     {
+        /// <summary>Single projects folder of the former settings, read only.</summary>
         public string? HtdocsPath { get; set; }
+        public List<string>? ProjectRoots { get; set; }
+        public List<string>? ExtraProjectPaths { get; set; }
+        public List<string>? ExcludedFolderNames { get; set; }
         public string? XamppDir { get; set; }
         public string? ApacheExe { get; set; }
         public string? MySQLExe { get; set; }

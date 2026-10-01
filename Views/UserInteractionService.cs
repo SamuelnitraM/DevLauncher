@@ -33,6 +33,12 @@ public sealed class UserInteractionService : IUserInteractionService
         return profileNameDialog.ShowDialog() == true ? profileNameDialog.ProfileName : null;
     }
 
+    public string? PickFolder(string dialogTitle)
+    {
+        var folderDialog = new Microsoft.Win32.OpenFolderDialog { Title = dialogTitle };
+        return folderDialog.ShowDialog(_ownerWindow) == true ? folderDialog.FolderName : null;
+    }
+
     public bool EditSettings() => new SettingsWindow { Owner = _ownerWindow }.ShowDialog() == true;
 
     public void CopyToClipboard(string text)

@@ -13,6 +13,9 @@ public interface IUserInteractionService
     /// <summary>Asks for a profile name. Returns null when cancelled.</summary>
     string? AskProfileName(string dialogTitle, string confirmLabel, string initialProfileName);
 
+    /// <summary>Asks for a folder. Returns null when cancelled.</summary>
+    string? PickFolder(string dialogTitle);
+
     /// <summary>Opens the settings window. Returns true when the settings were saved.</summary>
     bool EditSettings();
 

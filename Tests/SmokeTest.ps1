@@ -84,31 +84,28 @@ function Get-ComboBoxSelectionName {
     return $selectedItems[0].Current.Name
 }
 
-# ── Prepared environment : one Symfony project, its Claude project link and one Claude Code session ──
+# ── Prepared environment : a Symfony project with its Claude project link, a Laravel project, an excluded XAMPP folder ──
 New-Item -ItemType Directory -Force -Path $ScreenshotDirectory | Out-Null
 $testRootPath = Join-Path $env:RUNNER_TEMP 'DevLauncherSmoke'
 $projectsRootPath = Join-Path $testRootPath 'htdocs'
 $projectPath = Join-Path $projectsRootPath 'highlightforge'
-New-Item -ItemType Directory -Force -Path $projectPath, (Join-Path $projectsRootPath 'autreprojet') | Out-Null
+$laravelProjectPath = Join-Path $projectsRootPath 'boutique'
+New-Item -ItemType Directory -Force -Path $projectPath, $laravelProjectPath, (Join-Path $projectsRootPath 'dashboard') | Out-Null
+Set-Content -Path (Join-Path $laravelProjectPath 'artisan') -Value ''
+Set-Content -Path (Join-Path $laravelProjectPath 'package.json') -Value '{"scripts":{"dev":"vite","build":"vite build"}}' 
 Set-Content -Path (Join-Path $projectPath 'symfony.lock') -Value '{}'
 Set-Content -Path (Join-Path $projectPath 'composer.json') -Value '{"require":{"symfony/framework-bundle":"7.*","symfonycasts/tailwind-bundle":"*"}}'
 
 $dataDirectory = Join-Path $env:APPDATA 'DevLauncher'
 New-Item -ItemType Directory -Force -Path $dataDirectory | Out-Null
 $settings = @{
-    htdocsPath = $projectsRootPath
+    projectRoots = @($projectsRootPath)
     assistants = @(
         @{ id = 'claude'; isEnabled = $true; defaultMode = 'browser'; webUrl = 'https://claude.ai/new'; applicationTarget = '';
-           projects = @(@{ name = 'highlightforge'; url = 'https://claude.ai/project/smoke-test' }) },
-        @{ id = 'claude-code'; isEnabled = $true; defaultMode = 'browser'; webUrl = ''; applicationTarget = ''; projects = @() }
+           projects = @(@{ name = 'highlightforge'; url = 'https://claude.ai/project/smoke-test' }) }
     )
 }
 $settings | ConvertTo-Json -Depth 6 | Set-Content -Path (Join-Path $dataDirectory 'settings.json') -Encoding UTF8
-
-$encodedProjectPath = $projectPath -replace '[^a-zA-Z0-9]', '-'
-$sessionDirectory = Join-Path $env:USERPROFILE ".claude\projects\$encodedProjectPath"
-New-Item -ItemType Directory -Force -Path $sessionDirectory | Out-Null
-Set-Content -Path (Join-Path $sessionDirectory 'smoke-session.jsonl') -Value '{"type":"summary","summary":"Session de test DevLauncher"}' -Encoding UTF8
 
 # ── Start ──
 $devLauncherProcess = Start-Process -FilePath $ExecutablePath -PassThru
@@ -123,6 +120,8 @@ Save-WindowScreenshot $mainWindow '1-demarrage.png'
 # ── Project selection ──
 $projectItem = Find-AutomationElement $mainWindow 'highlightforge' ([System.Windows.Automation.ControlType]::ListItem)
 Write-CheckResult 'Projet listé' ($null -ne $projectItem)
+$excludedItem = Find-AutomationElement $mainWindow 'dashboard' ([System.Windows.Automation.ControlType]::ListItem) 2
+Write-CheckResult 'Dossier XAMPP ignoré' ($null -eq $excludedItem)
 if ($null -ne $projectItem) {
     $projectItem.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
 }
@@ -131,9 +130,9 @@ Write-CheckResult 'Symfony détecté' ($null -ne $symfonyBadge)
 $assistantsCard = Find-AutomationElement $mainWindow 'Assistants IA'
 Write-CheckResult 'Carte Assistants IA visible' ($null -ne $assistantsCard)
 
-# ── Claude (discussion) : the project named like the folder is proposed ──
-$claudeCheckBox = Find-AutomationElement $mainWindow 'Claude (discussion)' ([System.Windows.Automation.ControlType]::CheckBox)
-Write-CheckResult 'Case Claude (discussion)' ($null -ne $claudeCheckBox)
+# ── Claude : the project named like the folder is proposed ──
+$claudeCheckBox = Find-AutomationElement $mainWindow 'Claude' ([System.Windows.Automation.ControlType]::CheckBox)
+Write-CheckResult 'Case Claude' ($null -ne $claudeCheckBox)
 if ($null -ne $claudeCheckBox) {
     $claudeCheckBox.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
     Start-Sleep -Milliseconds 500
@@ -143,27 +142,19 @@ $comboBoxSelections = @($mainWindow.FindAll([System.Windows.Automation.TreeScope
 Write-Host "Listes déroulantes : $($comboBoxSelections -join ' | ')"
 Write-CheckResult 'Projet Claude présélectionné' (@($comboBoxSelections | Where-Object { $_ -like '*highlightforge*' }).Count -gt 0)
 
-# ── Claude Code (terminal) : the sessions of the project are listed ──
-$claudeCodeCheckBox = Find-AutomationElement $mainWindow 'Claude Code (terminal)' ([System.Windows.Automation.ControlType]::CheckBox)
-Write-CheckResult 'Case Claude Code (terminal)' ($null -ne $claudeCodeCheckBox)
-if ($null -ne $claudeCodeCheckBox) {
-    $claudeCodeCheckBox.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
-    Start-Sleep -Milliseconds 500
+# ── Laravel project : detected, with its development server and its npm scripts ──
+$laravelItem = Find-AutomationElement $mainWindow 'boutique' ([System.Windows.Automation.ControlType]::ListItem)
+Write-CheckResult 'Projet Laravel listé' ($null -ne $laravelItem)
+if ($null -ne $laravelItem) {
+    $laravelItem.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
 }
-$isSessionListed = $false
-foreach ($comboBox in $mainWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboBoxCondition)) {
-    $expandCollapsePattern = $comboBox.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
-    $expandCollapsePattern.Expand()
-    Start-Sleep -Milliseconds 300
-    $listedNames = @($comboBox.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | ForEach-Object { $_.Current.Name })
-    if (@($listedNames | Where-Object { $_ -like '*Session de test DevLauncher*' }).Count -gt 0) {
-        $isSessionListed = $true
-        Write-Host "Choix de session : $($listedNames -join ' | ')"
-        Save-WindowScreenshot $mainWindow '2-sessions-claude-code.png'
-    }
-    $expandCollapsePattern.Collapse()
-}
-Write-CheckResult 'Session Claude Code listée' $isSessionListed
+Write-CheckResult 'Laravel détecté' ($null -ne (Find-AutomationElement $mainWindow 'Laravel détecté'))
+$laravelServerCheckBox = Find-AutomationElement $mainWindow 'Laravel Serve' ([System.Windows.Automation.ControlType]::CheckBox)
+$isLaravelServerChecked = ($null -ne $laravelServerCheckBox) -and ($laravelServerCheckBox.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -eq 'On')
+Write-CheckResult 'Laravel Serve coché par défaut' $isLaravelServerChecked
+$laravelComboBoxSelections = @($mainWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants, $comboBoxCondition) | ForEach-Object { Get-ComboBoxSelectionName $_ })
+Write-Host "Listes déroulantes Laravel : $($laravelComboBoxSelections -join ' | ')"
+Write-CheckResult 'Script npm run dev proposé' (@($laravelComboBoxSelections | Where-Object { $_ -eq 'npm run dev' }).Count -gt 0)
 Save-WindowScreenshot $mainWindow '3-assistants.png'
 
 # ── Settings window : Claude Desktop detection ──
@@ -197,6 +188,5 @@ $hasExited = $devLauncherProcess.WaitForExit(15000)
 Write-CheckResult 'Fermeture propre' $hasExited "(code $(if ($hasExited) { $devLauncherProcess.ExitCode } else { 'en cours' }))"
 if (-not $hasExited) { $devLauncherProcess.Kill() }
 
-Remove-Item -Recurse -Force $sessionDirectory -ErrorAction SilentlyContinue
 Write-Host "Contrôles en échec : $script:FailedCheckCount"
 exit $script:FailedCheckCount

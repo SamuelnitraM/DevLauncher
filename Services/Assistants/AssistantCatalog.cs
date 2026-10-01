@@ -3,23 +3,13 @@ using DevLauncher.Models;
 
 namespace DevLauncher.Services.Assistants;
 
-public enum AssistantKind
-{
-    /// <summary>Conversation assistant, opened in the browser or in its desktop application.</summary>
-    Chat,
-
-    /// <summary>Command line agent, opened in a terminal in the project folder.</summary>
-    CommandLine,
-}
-
-/// <summary>Built-in description of an assistant.</summary>
+/// <summary>Built-in description of a conversation assistant, opened in the browser or in its desktop application.</summary>
 /// <param name="ApplicationNames">Names of the desktop application in the Start menu.</param>
 /// <param name="ApplicationCandidates">Usual install locations of the desktop application, environment variables allowed.</param>
 public sealed record AssistantDefinition(
     string Id,
     string DisplayName,
     string Icon,
-    AssistantKind Kind,
     string DefaultWebUrl,
     IReadOnlyList<string> ApplicationNames,
     IReadOnlyList<string> ApplicationCandidates,
@@ -29,11 +19,10 @@ public sealed record AssistantDefinition(
 public static class AssistantCatalog
 {
     public const string ClaudeId = "claude";
-    public const string ClaudeCodeId = "claude-code";
 
     public static IReadOnlyList<AssistantDefinition> Definitions { get; } = new[]
     {
-        new AssistantDefinition(ClaudeId, "Claude (discussion)", "🟠", AssistantKind.Chat, "https://claude.ai/new",
+        new AssistantDefinition(ClaudeId, "Claude", "🟠", "https://claude.ai/new",
             new[] { "Claude" },
             new[]
             {
@@ -42,7 +31,7 @@ public static class AssistantCatalog
                 @"%LOCALAPPDATA%\Microsoft\WindowsApps\claude.exe",
             },
             IsEnabledByDefault: true),
-        new AssistantDefinition("chatgpt", "ChatGPT", "🟢", AssistantKind.Chat, "https://chatgpt.com/",
+        new AssistantDefinition("chatgpt", "ChatGPT", "🟢", "https://chatgpt.com/",
             new[] { "ChatGPT" },
             new[]
             {
@@ -50,14 +39,12 @@ public static class AssistantCatalog
                 @"%LOCALAPPDATA%\Programs\ChatGPT\ChatGPT.exe",
             },
             IsEnabledByDefault: false),
-        new AssistantDefinition("gemini", "Gemini", "🔵", AssistantKind.Chat, "https://gemini.google.com/app",
+        new AssistantDefinition("gemini", "Gemini", "🔵", "https://gemini.google.com/app",
             new[] { "Gemini" }, Array.Empty<string>(), IsEnabledByDefault: false),
-        new AssistantDefinition("mistral", "Le Chat (Mistral)", "🔶", AssistantKind.Chat, "https://chat.mistral.ai/chat",
+        new AssistantDefinition("mistral", "Mistral", "🔶", "https://chat.mistral.ai/chat",
             new[] { "Le Chat", "Mistral" }, Array.Empty<string>(), IsEnabledByDefault: false),
-        new AssistantDefinition("perplexity", "Perplexity", "🔎", AssistantKind.Chat, "https://www.perplexity.ai/",
+        new AssistantDefinition("perplexity", "Perplexity", "🔎", "https://www.perplexity.ai/",
             new[] { "Perplexity" }, Array.Empty<string>(), IsEnabledByDefault: false),
-        new AssistantDefinition(ClaudeCodeId, "Claude Code (terminal)", "⌨️", AssistantKind.CommandLine, string.Empty,
-            Array.Empty<string>(), Array.Empty<string>(), IsEnabledByDefault: true),
     };
 
     public static AssistantDefinition GetDefinition(string assistantId) => Definitions.First(definition => definition.Id == assistantId);

@@ -1,3 +1,4 @@
+using System.IO;
 using DevLauncher.Models;
 using DevLauncher.Services.Assistants;
 
@@ -8,11 +9,30 @@ namespace DevLauncher;
 /// </summary>
 public static class AppSettings
 {
-    /// <summary>Folder containing the web projects (XAMPP htdocs)</summary>
-    public static string HtdocsPath { get; set; } = @"C:\xampp\htdocs";
+    /// <summary>Folders whose sub-folders are projects</summary>
+    public static List<string> ProjectRoots { get; set; } = new() { @"C:\xampp\htdocs" };
+
+    /// <summary>Projects added one by one, outside the project roots</summary>
+    public static List<string> ExtraProjectPaths { get; set; } = new();
+
+    /// <summary>Folder names never listed as projects (XAMPP default pages by default)</summary>
+    public static List<string> ExcludedFolderNames { get; set; } = new() { "dashboard", "img", "webalizer", "xampp", "forbidden", "restricted" };
 
     /// <summary>Root of the XAMPP installation</summary>
     public static string XamppDir { get; set; } = @"C:\xampp";
+
+    /// <summary>Folder served by Apache at http://localhost/</summary>
+    public static string ApacheDocumentRoot => Path.Combine(XamppDir, "htdocs");
+
+    /// <summary>PHP executable : the one of XAMPP when present, else the one of the PATH</summary>
+    public static string PhpExecutable
+    {
+        get
+        {
+            var xamppPhpExecutable = Path.Combine(XamppDir, "php", "php.exe");
+            return File.Exists(xamppPhpExecutable) ? xamppPhpExecutable : "php";
+        }
+    }
 
     // XAMPP executables
     public static string ApacheExe { get; set; } = @"C:\xampp\apache\bin\httpd.exe";

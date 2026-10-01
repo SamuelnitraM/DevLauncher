@@ -84,11 +84,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<LogTabViewModel> LogTabs { get; } = new();
     public LogTabViewModel LaunchLogTab { get; }
 
-    public IReadOnlyList<ProjectTypeOption> ProjectTypeOptions { get; } = new[]
-    {
-        new ProjectTypeOption(ProjectType.Symfony, "⚡ Symfony"),
-        new ProjectTypeOption(ProjectType.Other, "📦 Autre (PHP / HTML…)"),
-    };
+    public IReadOnlyList<ProjectTypeOption> ProjectTypeOptions { get; } = ProjectTypeLabels.All
+        .Select(projectTypeLabel => new ProjectTypeOption(projectTypeLabel.ProjectType, projectTypeLabel.Label))
+        .ToList();
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -108,8 +106,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(HasProject), nameof(CurrentProjectDisplayPath), nameof(HasSeveralProfiles), nameof(LaunchButtonLabel))]
     private string? _currentProjectPath;
 
+    /// <summary>Framework detected in the selected project, null when none is recognized.</summary>
     [ObservableProperty]
-    private bool _isSymfonyDetected;
+    [NotifyPropertyChangedFor(nameof(HasDetectedProjectType))]
+    private string? _detectedProjectTypeText;
+
+    public bool HasDetectedProjectType => DetectedProjectTypeText is not null;
 
     [ObservableProperty]
     private ProjectType _selectedProjectType;
@@ -171,24 +173,55 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (CurrentProjectPath is not null && !_projectEntries.Any(entry => IsSamePath(entry.Path, CurrentProjectPath)))
             ClearProjectSelection();
         ApplyProjectFilter();
-        if (Directory.Exists(AppSettings.HtdocsPath))
-            _launchLog.Info($"📁 {projectPaths.Count} projet(s) trouvé(s) dans {AppSettings.HtdocsPath}");
-        else
-            _launchLog.Error($"❌ Dossier des projets introuvable : {AppSettings.HtdocsPath}");
+        foreach (var missingFolder in AppSettings.ProjectRoots.Concat(AppSettings.ExtraProjectPaths).Where(folder => !Directory.Exists(folder)))
+            _launchLog.Error($"❌ Dossier introuvable : {missingFolder}");
+        _launchLog.Info($"📁 {projectPaths.Count} projet(s) trouvé(s) dans {AppSettings.ProjectRoots.Count} dossier(s) et {AppSettings.ExtraProjectPaths.Count} projet(s) ajouté(s)");
+    }
+
+    /// <summary>Adds a project folder located anywhere, saves it in the settings and selects it.</summary>
+    [RelayCommand]
+    private void AddProject()
+    {
+        var projectPath = _userInteractionService.PickFolder("Choisis le dossier du projet à ajouter");
+        if (projectPath is null) return;
+        if (!_projectEntries.Any(entry => IsSamePath(entry.Path, projectPath)))
+        {
+            AppSettings.ExtraProjectPaths.Add(projectPath);
+            SettingsService.Save();
+            _launchLog.Info($"➕ Projet ajouté : {projectPath}");
+            RefreshProjects();
+        }
+        SelectProject(_projectEntries.FirstOrDefault(entry => IsSamePath(entry.Path, projectPath))?.Path ?? projectPath);
+        SynchronizeListSelections();
     }
 
     /// <summary>
     /// Builds the list entries. The recent projects only change after a launch, never during a click,
     /// so that the lists do not move under the cursor.
     /// </summary>
-    private List<ProjectListEntry> BuildProjectEntries(IReadOnlyCollection<string> projectPaths)
-        => projectPaths.Select(projectPath => new ProjectListEntry(Path.GetFileName(projectPath), projectPath)).ToList();
+    private static List<ProjectListEntry> BuildProjectEntries(IReadOnlyCollection<string> projectPaths)
+    {
+        var duplicatedNames = projectPaths
+            .GroupBy(projectPath => Path.GetFileName(projectPath), StringComparer.OrdinalIgnoreCase)
+            .Where(nameGroup => nameGroup.Count() > 1)
+            .Select(nameGroup => nameGroup.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return projectPaths.Select(projectPath => CreateProjectEntry(projectPath, duplicatedNames.Contains(Path.GetFileName(projectPath)))).ToList();
+    }
 
     private List<ProjectListEntry> BuildRecentProjectEntries()
         => _recentProjectsService.GetRecentProjectPaths()
             .Where(Directory.Exists)
-            .Select(projectPath => new ProjectListEntry(Path.GetFileName(projectPath), projectPath))
+            .Select(projectPath => CreateProjectEntry(projectPath, isNameDuplicated: false))
             .ToList();
+
+    /// <summary>Projects with the same name in different folders are told apart by their parent folder.</summary>
+    private static ProjectListEntry CreateProjectEntry(string projectPath, bool isNameDuplicated)
+    {
+        var projectName = Path.GetFileName(projectPath);
+        var parentFolderName = Path.GetFileName(Path.GetDirectoryName(projectPath));
+        return new ProjectListEntry(isNameDuplicated ? $"{projectName} ({parentFolderName})" : projectName, projectPath);
+    }
 
     /// <summary>Filters both lists by the search text and keeps the current project selected in each of them.</summary>
     private void ApplyProjectFilter()
@@ -220,8 +253,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var projectName = Path.GetFileName(projectPath);
         var projectDetection = _projectScanner.DetectProject(projectPath);
         CurrentProjectPath = projectPath;
-        IsSymfonyDetected = projectDetection.IsSymfony;
-        if (projectDetection.IsSymfony) _launchLog.Info($"✅ Symfony détecté automatiquement dans « {projectName} »");
+        DetectedProjectTypeText = projectDetection.ProjectType == ProjectType.Other
+            ? null
+            : $"✅ {ProjectTypeLabels.GetName(projectDetection.ProjectType)} détecté automatiquement";
+        if (DetectedProjectTypeText is not null) _launchLog.Info($"{DetectedProjectTypeText} dans « {projectName} »");
         // The choices can depend on the project (sessions of an assistant) : they are read before the profile is applied.
         ReloadOptionChoices();
         LoadProfilesForProject(projectName, projectDetection);
@@ -231,7 +266,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void ClearProjectSelection()
     {
         CurrentProjectPath = null;
-        IsSymfonyDetected = false;
+        DetectedProjectTypeText = null;
         StatusText = NoProjectStatus;
         UpdateProfileList(Array.Empty<string>(), null);
     }

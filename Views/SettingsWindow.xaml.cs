@@ -26,7 +26,9 @@ public partial class SettingsWindow : Window
 
     private void LoadSettings()
     {
-        HtdocsBox.Text = AppSettings.HtdocsPath;
+        ProjectRootsBox.Text = string.Join(Environment.NewLine, AppSettings.ProjectRoots);
+        ExtraProjectsBox.Text = string.Join(Environment.NewLine, AppSettings.ExtraProjectPaths);
+        ExcludedFoldersBox.Text = string.Join(", ", AppSettings.ExcludedFolderNames);
         XamppDirBox.Text = AppSettings.XamppDir;
         ApacheExeBox.Text = AppSettings.ApacheExe;
         MySQLExeBox.Text = AppSettings.MySQLExe;
@@ -51,12 +53,9 @@ public partial class SettingsWindow : Window
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         if (!TryReadPort(SymfonyPortBox, "Symfony", out var symfonyPort) || !TryReadPort(LocalWebPortBox, "Apache", out var localWebPort)) return;
-        if (string.IsNullOrWhiteSpace(HtdocsBox.Text))
-        {
-            ShowValidationError("❌ Le dossier des projets est obligatoire");
-            return;
-        }
-        AppSettings.HtdocsPath = HtdocsBox.Text.Trim();
+        AppSettings.ProjectRoots = SplitEntries(ProjectRootsBox.Text, '\n');
+        AppSettings.ExtraProjectPaths = SplitEntries(ExtraProjectsBox.Text, '\n');
+        AppSettings.ExcludedFolderNames = SplitEntries(ExcludedFoldersBox.Text, ',');
         AppSettings.XamppDir = XamppDirBox.Text.Trim();
         AppSettings.ApacheExe = ApacheExeBox.Text.Trim();
         AppSettings.MySQLExe = MySQLExeBox.Text.Trim();
@@ -83,6 +82,11 @@ public partial class SettingsWindow : Window
         }
         DialogResult = true;
     }
+
+    private static List<string> SplitEntries(string text, char separator)
+        => text.Split(separator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     private bool TryReadPort(TextBox portBox, string serverName, out int port)
     {
@@ -123,6 +127,20 @@ public partial class SettingsWindow : Window
         var currentDirectory = GetExistingDirectory(currentPath);
         if (currentDirectory is not null) fileDialog.InitialDirectory = currentDirectory;
         if (fileDialog.ShowDialog(this) == true) pathBox.Text = fileDialog.FileName;
+    }
+
+    private void AddProjectRoot_Click(object sender, RoutedEventArgs e) => AppendPickedFolder(ProjectRootsBox, "Sélectionne un dossier contenant des projets");
+
+    private void AddExtraProject_Click(object sender, RoutedEventArgs e) => AppendPickedFolder(ExtraProjectsBox, "Sélectionne le dossier du projet");
+
+    /// <summary>Adds a picked folder as a new line of a multi-line path box.</summary>
+    private void AppendPickedFolder(TextBox pathsBox, string dialogTitle)
+    {
+        var folderDialog = new OpenFolderDialog { Title = dialogTitle };
+        if (folderDialog.ShowDialog(this) != true) return;
+        pathsBox.Text = string.IsNullOrWhiteSpace(pathsBox.Text)
+            ? folderDialog.FolderName
+            : pathsBox.Text.TrimEnd() + Environment.NewLine + folderDialog.FolderName;
     }
 
     /// <summary>Picks the executable or the shortcut of an assistant desktop application.</summary>

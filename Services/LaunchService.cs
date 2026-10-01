@@ -136,5 +136,6 @@ public sealed class LaunchService
         Selection = profile.GetToolSelection(tool.Id),
         ProcessLauncher = _processLauncher,
         Log = _launchLog,
+        ServiceHost = _serviceProcessHost,
     };
 }

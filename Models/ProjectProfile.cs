@@ -23,17 +23,36 @@ public class ProjectProfile
     /// <summary>Builds the initial profile of a project from what was detected in its folder.</summary>
     public static ProjectProfile CreateDefault(ProjectDetection detection)
     {
-        var defaultProfile = new ProjectProfile
-        {
-            Name = DefaultProfileName,
-            ProjectType = detection.IsSymfony ? ProjectType.Symfony : ProjectType.Other,
-        };
-        defaultProfile.Tools[ToolIds.VSCode] = ToolSelection.Enabled();
-        defaultProfile.Tools[ToolIds.MySql] = ToolSelection.Enabled();
+        var defaultProfile = new ProjectProfile { Name = DefaultProfileName, ProjectType = detection.ProjectType };
+        void EnableTool(string toolId) => defaultProfile.Tools[toolId] = ToolSelection.Enabled();
+        EnableTool(ToolIds.VSCode);
         defaultProfile.Tools[ToolIds.Browser] = ToolSelection.Enabled((ToolIds.BrowserTargetsOption, new[] { ToolIds.DefaultBrowser }));
-        if (detection.IsSymfony) defaultProfile.Tools[ToolIds.SymfonyServer] = ToolSelection.Enabled();
-        else defaultProfile.Tools[ToolIds.Apache] = ToolSelection.Enabled();
-        if (detection.IsSymfony && detection.UsesTailwindBundle) defaultProfile.Tools[ToolIds.Tailwind] = ToolSelection.Enabled();
+        switch (detection.ProjectType)
+        {
+            case ProjectType.Symfony:
+                EnableTool(ToolIds.MySql);
+                EnableTool(ToolIds.SymfonyServer);
+                if (detection.UsesTailwindBundle) EnableTool(ToolIds.Tailwind);
+                break;
+            case ProjectType.Laravel:
+                EnableTool(ToolIds.MySql);
+                EnableTool(ToolIds.LaravelServer);
+                if (detection.HasPackageJson) EnableTool(ToolIds.NpmScript);
+                break;
+            case ProjectType.Node:
+                EnableTool(ToolIds.NpmScript);
+                break;
+            case ProjectType.Django:
+                EnableTool(ToolIds.DjangoServer);
+                break;
+            case ProjectType.DotNet:
+                EnableTool(ToolIds.DotNetWatch);
+                break;
+            default:
+                EnableTool(ToolIds.Apache);
+                EnableTool(ToolIds.MySql);
+                break;
+        }
         return defaultProfile;
     }
 }

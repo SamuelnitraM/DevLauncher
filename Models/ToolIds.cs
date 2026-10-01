@@ -8,6 +8,11 @@ public static class ToolIds
     public const string SymfonyServer = "symfony-server";
     public const string Tailwind = "tailwind";
     public const string Mercure = "mercure";
+    public const string LaravelServer = "laravel-serve";
+    public const string LaravelQueue = "laravel-queue";
+    public const string NpmScript = "npm-script";
+    public const string DjangoServer = "django-runserver";
+    public const string DotNetWatch = "dotnet-watch";
     public const string Apache = "apache";
     public const string MySql = "mysql";
     public const string FileZilla = "filezilla";
@@ -18,7 +23,8 @@ public static class ToolIds
     /// <summary>Tool of a chat assistant of the assistant catalog.</summary>
     public static string ChatAssistant(string assistantId) => $"assistant-{assistantId}";
 
-    public const string ClaudeCode = "claude-code";
+    /// <summary>Option of the npm tool : script of package.json to run.</summary>
+    public const string NpmScriptOption = "script";
 
     /// <summary>Option of the Mercure tool : script started from the Mercure folder.</summary>
     public const string MercureScriptOption = "script";
@@ -29,11 +35,6 @@ public static class ToolIds
     /// <summary>Options of a chat assistant : opening mode, and project opened in the browser.</summary>
     public const string AssistantModeOption = "mode";
     public const string AssistantProjectOption = "project";
-
-    /// <summary>Option of Claude Code : new session, last session, or a given session identifier.</summary>
-    public const string ClaudeCodeSessionOption = "session";
-    public const string NewClaudeCodeSession = "new";
-    public const string ContinueClaudeCodeSession = "continue";
 
     public const string DefaultBrowser = "default";
     public const string ChromeBrowser = "chrome";

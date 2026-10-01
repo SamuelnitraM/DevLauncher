@@ -56,12 +56,19 @@ public class ProfileServiceTests
     [Fact]
     public void DefaultProfileFollowsTheDetection()
     {
-        var symfonyProfile = ProjectProfile.CreateDefault(new ProjectDetection(IsSymfony: true, UsesTailwindBundle: true));
+        var symfonyProfile = ProjectProfile.CreateDefault(new ProjectDetection(ProjectType.Symfony, UsesTailwindBundle: true, HasPackageJson: false));
         Assert.Equal(ProjectType.Symfony, symfonyProfile.ProjectType);
         Assert.True(symfonyProfile.IsToolEnabled(ToolIds.SymfonyServer));
         Assert.True(symfonyProfile.IsToolEnabled(ToolIds.Tailwind));
         Assert.False(symfonyProfile.IsToolEnabled(ToolIds.Apache));
-        var otherProfile = ProjectProfile.CreateDefault(new ProjectDetection(IsSymfony: false, UsesTailwindBundle: false));
+        var laravelProfile = ProjectProfile.CreateDefault(new ProjectDetection(ProjectType.Laravel, UsesTailwindBundle: false, HasPackageJson: true));
+        Assert.True(laravelProfile.IsToolEnabled(ToolIds.LaravelServer));
+        Assert.True(laravelProfile.IsToolEnabled(ToolIds.NpmScript));
+        Assert.True(laravelProfile.IsToolEnabled(ToolIds.MySql));
+        var nodeProfile = ProjectProfile.CreateDefault(new ProjectDetection(ProjectType.Node, UsesTailwindBundle: false, HasPackageJson: true));
+        Assert.True(nodeProfile.IsToolEnabled(ToolIds.NpmScript));
+        Assert.False(nodeProfile.IsToolEnabled(ToolIds.Apache));
+        var otherProfile = ProjectProfile.CreateDefault(new ProjectDetection(ProjectType.Other, UsesTailwindBundle: false, HasPackageJson: false));
         Assert.True(otherProfile.IsToolEnabled(ToolIds.Apache));
         Assert.False(otherProfile.IsToolEnabled(ToolIds.SymfonyServer));
     }

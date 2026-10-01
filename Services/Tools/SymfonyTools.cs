@@ -13,7 +13,7 @@ public sealed class SymfonyServerTool : ServiceTool
     public override string Id => ToolIds.SymfonyServer;
     public override string DisplayName => "Symfony Server";
     public override string Icon => "🚀";
-    public override ToolCategory Category => ToolCategories.Symfony;
+    public override ToolCategory Category => ToolCategories.ProjectServices;
     public override IReadOnlyCollection<ProjectType>? SupportedProjectTypes => new[] { ProjectType.Symfony };
 
     public override ServiceCommand? BuildServiceCommand(ToolExecutionContext context)
@@ -33,7 +33,7 @@ public sealed class TailwindTool : ServiceTool
     public override string Id => ToolIds.Tailwind;
     public override string DisplayName => "Tailwind Watch";
     public override string Icon => "🎨";
-    public override ToolCategory Category => ToolCategories.Symfony;
+    public override ToolCategory Category => ToolCategories.ProjectServices;
     public override IReadOnlyCollection<ProjectType>? SupportedProjectTypes => new[] { ProjectType.Symfony };
 
     public override ServiceCommand? BuildServiceCommand(ToolExecutionContext context)
@@ -56,7 +56,7 @@ public sealed class MercureTool : ServiceTool
     public override string Id => ToolIds.Mercure;
     public override string DisplayName => "Mercure";
     public override string Icon => "📡";
-    public override ToolCategory Category => ToolCategories.Symfony;
+    public override ToolCategory Category => ToolCategories.ProjectServices;
     public override IReadOnlyCollection<ProjectType>? SupportedProjectTypes => new[] { ProjectType.Symfony };
 
     public override IReadOnlyList<ToolOptionDefinition> Options { get; } = new[]

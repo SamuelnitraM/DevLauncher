@@ -12,17 +12,19 @@ public sealed class ToolCatalog
             new SymfonyServerTool(),
             new TailwindTool(),
             new MercureTool(),
+            new LaravelServerTool(),
+            new LaravelQueueTool(),
+            new NpmScriptTool(),
+            new DjangoServerTool(),
+            new DotNetWatchTool(),
             XamppComponentTool.Apache,
             XamppComponentTool.MySql,
             XamppComponentTool.FileZilla,
             XamppComponentTool.Panel,
         }
-        .Concat(AssistantCatalog.Definitions
-            .Where(assistantDefinition => assistantDefinition.Kind == AssistantKind.Chat)
-            .Select(assistantDefinition => new ChatAssistantTool(assistantDefinition)))
+        .Concat(AssistantCatalog.Definitions.Select(assistantDefinition => new ChatAssistantTool(assistantDefinition)))
         .Concat(new LaunchTool[]
         {
-            new ClaudeCodeTool(),
             new TerminalTool(),
             new BrowserTool(),
         })

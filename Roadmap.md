@@ -68,16 +68,10 @@ choisis par assistant et modifiables par profil.
 - État actuel connu : ni Claude Desktop ni ChatGPT Desktop n'exposent de moyen documenté de lister les projets.
   Ils démarreront donc sur une nouvelle discussion, et la liste s'activera d'elle-même si un éditeur l'ouvre un jour.
 
-### 1.4 ✅ (Claude Code) Agents en ligne de commande (Claude Code, Codex CLI, Gemini CLI, Aider) — M
+### 1.4 Agents en ligne de commande (Claude Code, Codex CLI, Gemini CLI, Aider) — M
 
-> Fait pour Claude Code : nouvelle session, dernière session, ou reprise d'une session du projet choisie dans la liste.
-> Reste : Codex CLI, Gemini CLI, Aider, et l'indicateur / génération de `CLAUDE.md`.
-
-- Considérés comme des applications qui **savent** lister leurs sessions : lecture des sessions locales du projet
-  (ex. `~/.claude/projects/<chemin du projet>/` pour Claude Code).
-- Liste déroulante : « Nouvelle session », « Continuer la dernière », puis les sessions existantes (date, premier message).
-- Lancement dans un onglet de terminal ouvert dans le dossier du projet (`claude`, `claude --continue`, `claude --resume <id>`).
-- Indicateur de présence d'un `CLAUDE.md` / `AGENTS.md`, avec bouton « Générer ».
+> Essayé avec Claude Code puis retiré : il suppose l'outil en ligne de commande installé, ce qui n'est pas le cas
+> sur le poste cible. À reprendre avec une vérification de présence dans le PATH et un lien d'installation.
 
 ### 1.5 DevLauncher pilotable par l'IA (serveur MCP) — L
 
@@ -96,8 +90,8 @@ choisis par assistant et modifiables par profil.
 
 | # | Évolution | Effort |
 |---|---|---|
-| 2.1 | **Détection multi-stack** : Laravel (`artisan serve`, Vite), Node (scripts `dev` / `start` de `package.json`), Vite / Next / Nuxt, Python (venv, `manage.py runserver`, `uvicorn`), .NET (`dotnet watch`), WordPress | M |
-| 2.2 | **Plusieurs dossiers racines** (pas seulement `htdocs`) + ajout manuel d'un projet n'importe où + liste d'exclusions (`dashboard`, `img`, `xampp`… de XAMPP) | S |
+| 2.1 | ✅ **Détection multi-stack** : Laravel (`artisan serve`, Vite), Node (scripts `dev` / `start` de `package.json`), Vite / Next / Nuxt, Python (venv, `manage.py runserver`, `uvicorn`), .NET (`dotnet watch`), WordPress | M |
+| 2.2 | ✅ **Plusieurs dossiers racines** (pas seulement `htdocs`) + ajout manuel d'un projet n'importe où + liste d'exclusions (`dashboard`, `img`, `xampp`… de XAMPP) | S |
 | 2.3 | **Docker Compose** : détection de `compose.yaml`, `docker compose up -d` / `down`, état des conteneurs | M |
 | 2.4 | **Virtual hosts Apache automatiques** (`templateSite.test`) avec entrée dans `hosts` | M |
 | 2.5 | **Détection des conflits de ports** avant lancement (qui occupe le 80 / 3306 / 8000 ?) avec proposition d'action | S |
@@ -159,7 +153,7 @@ DevLauncher, sortie capturée. Les **terminaux interactifs** restent dans Window
 2. ✅ **0.1 + 0.2 Modèle d'outils générique + MVVM** — le socle de tout le reste
 3. ✅ **3.1 → 3.3 Services supervisés** — supprime les rustines actuelles (`tasks.json`, onglets orphelins, arrêt par nom de processus)
 4. **1.1 → 1.4 Intégrations IA** (modes Navigateur / Application, agents CLI avec sessions)
-5. **2.2 + 2.1 Plusieurs racines + multi-stack**
+5. ✅ **2.2 + 2.1 Plusieurs racines + multi-stack**
 6. **4.1 + 4.2 + 4.5 Zone de notification, favoris, notifications**
 7. **1.5 Serveur MCP** — une fois les actions centralisées, l'exposer à l'IA devient simple
 8. Le reste selon l'usage réel

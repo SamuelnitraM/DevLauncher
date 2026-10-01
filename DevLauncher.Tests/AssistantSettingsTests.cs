@@ -31,7 +31,6 @@ public class AssistantSettingsTests
         Assert.Equal(AssistantModes.Browser, claudeSettings.DefaultMode);
         Assert.Equal("https://claude.ai/new", claudeSettings.WebUrl);
         Assert.Equal("highlightforge", Assert.Single(claudeSettings.Projects).Name);
-        Assert.True(mergedSettings.Single(settings => settings.Id == AssistantCatalog.ClaudeCodeId).IsEnabled);
     }
 
     [Fact]

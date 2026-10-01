@@ -90,6 +90,55 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
             <StackPanel>
 
+                <!-- ── Projects ── -->
+                <Border Background="{StaticResource CardBgBrush}"
+                        CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="📁 Projets"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="0,0,0,4"/>
+                        <TextBlock Text="Dossiers contenant des projets (un par ligne) : chaque sous-dossier est un projet."
+                                   Style="{StaticResource SettingsCaption}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="ProjectRootsBox"
+                                     Style="{StaticResource SettingsTextBox}"
+                                     AcceptsReturn="True" MinHeight="50"
+                                     VerticalScrollBarVisibility="Auto"/>
+                            <Button Grid.Column="1" VerticalAlignment="Top"
+                                    Style="{StaticResource BrowseButton}"
+                                    Content="➕"
+                                    ToolTip="Ajouter un dossier"
+                                    Click="AddProjectRoot_Click"/>
+                        </Grid>
+                        <TextBlock Text="Projets ajoutés un par un (un par ligne), situés n'importe où :"
+                                   Style="{StaticResource SettingsCaption}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="ExtraProjectsBox"
+                                     Style="{StaticResource SettingsTextBox}"
+                                     AcceptsReturn="True" MinHeight="50"
+                                     VerticalScrollBarVisibility="Auto"/>
+                            <Button Grid.Column="1" VerticalAlignment="Top"
+                                    Style="{StaticResource BrowseButton}"
+                                    Content="➕"
+                                    ToolTip="Ajouter un projet"
+                                    Click="AddExtraProject_Click"/>
+                        </Grid>
+                        <TextBlock Text="Dossiers ignorés (séparés par des virgules) :"
+                                   Style="{StaticResource SettingsCaption}"/>
+                        <TextBox x:Name="ExcludedFoldersBox"
+                                 Style="{StaticResource SettingsTextBox}"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- ── XAMPP ── -->
                 <Border Background="{StaticResource CardBgBrush}"
                         CornerRadius="12" Padding="16" Margin="0,0,0,12">
@@ -98,22 +147,6 @@
                                    FontSize="14" FontWeight="SemiBold"
                                    Foreground="{StaticResource TextPrimaryBrush}"
                                    Margin="0,0,0,12"/>
-
-                        <!-- Htdocs -->
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="160"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Dossier htdocs"
-                                       Style="{StaticResource SettingsLabel}"/>
-                            <TextBox Grid.Column="1" x:Name="HtdocsBox"
-                                     Style="{StaticResource SettingsTextBox}"/>
-                            <Button Grid.Column="2" Tag="Folder" x:Name="HtdocsBtn"
-                                    Style="{StaticResource BrowseButton}"
-                                    Click="Browse_Click"/>
-                        </Grid>
 
                         <!-- XamppDir -->
                         <Grid Margin="0,0,0,10">
@@ -395,8 +428,7 @@
                                                       FontWeight="SemiBold"
                                                       Style="{StaticResource ModernCheckBox}"/>
                                             <StackPanel Margin="22,4,0,0"
-                                                        IsEnabled="{Binding IsEnabled}"
-                                                        Visibility="{Binding IsChat, Converter={StaticResource BooleanToVisibility}}">
+                                                        IsEnabled="{Binding IsEnabled}">
                                                 <CheckBox Content="Ouvrir l'application plutôt que le navigateur par défaut"
                                                           IsChecked="{Binding OpensInApplication, Mode=TwoWay}"
                                                           Style="{StaticResource ModernCheckBox}"/>

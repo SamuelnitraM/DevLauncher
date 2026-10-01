@@ -11,6 +11,7 @@ public sealed class ToolExecutionContext
     public required ToolSelection Selection { get; init; }
     public required ProcessLauncher ProcessLauncher { get; init; }
     public required LaunchLog Log { get; init; }
+    public required Hosting.ServiceProcessHost ServiceHost { get; init; }
 
     public string ProjectName => Path.GetFileName(ProjectPath);
 

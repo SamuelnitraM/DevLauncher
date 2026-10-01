@@ -8,10 +8,10 @@ public sealed record ToolCategory(string Id, string Title, bool IsExclusive, str
 public static class ToolCategories
 {
     public static readonly ToolCategory Editor = new("editor", "💻 Éditeur de code", true, "🚫 Aucun éditeur");
-    public static readonly ToolCategory Symfony = new("symfony", "🔧 Services Symfony", false);
+    public static readonly ToolCategory ProjectServices = new("project-services", "🔧 Services du projet", false);
     public static readonly ToolCategory Xampp = new("xampp", "🗄️ Services XAMPP", false);
     public static readonly ToolCategory Assistants = new("assistants", "🤖 Assistants IA", false);
     public static readonly ToolCategory Utilities = new("utilities", "🛠️ Outils", false);
 
-    public static IReadOnlyList<ToolCategory> All { get; } = new[] { Editor, Symfony, Xampp, Assistants, Utilities };
+    public static IReadOnlyList<ToolCategory> All { get; } = new[] { Editor, ProjectServices, Xampp, Assistants, Utilities };
 }
