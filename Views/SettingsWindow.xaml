@@ -402,8 +402,18 @@
                                                           Style="{StaticResource ModernCheckBox}"/>
                                                 <TextBlock Text="Application (exe, raccourci .lnk, protocole ou shell:AppsFolder\…) :"
                                                            Style="{StaticResource SettingsCaption}"/>
-                                                <TextBox Text="{Binding ApplicationTarget, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                         Style="{StaticResource SettingsTextBox}"/>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Text="{Binding ApplicationTarget, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                             Style="{StaticResource SettingsTextBox}"/>
+                                                    <Button Grid.Column="1"
+                                                            Style="{StaticResource BrowseButton}"
+                                                            ToolTip="Choisir l'exécutable ou le raccourci de l'application"
+                                                            Click="BrowseAssistantApplication_Click"/>
+                                                </Grid>
                                                 <TextBlock Text="{Binding ApplicationHint}"
                                                            Style="{StaticResource SettingsCaption}"
                                                            FontStyle="Italic"/>

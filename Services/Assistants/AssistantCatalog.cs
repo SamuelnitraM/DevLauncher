@@ -87,12 +87,12 @@ public static class AssistantCatalog
     }
 
     /// <summary>
-    /// Detects the desktop application : first the usual install locations, then the Start menu applications,
+    /// Detects the desktop application : first the usual install locations, then the Start menu shortcuts and applications,
     /// which also cover the Microsoft Store and MSIX installations.
     /// </summary>
     public static string? DetectApplicationTarget(AssistantDefinition assistantDefinition)
         => assistantDefinition.ApplicationCandidates.Select(Environment.ExpandEnvironmentVariables).FirstOrDefault(File.Exists)
-           ?? (assistantDefinition.ApplicationNames.Count > 0 ? InstalledApplicationLocator.FindStartMenuApplication(assistantDefinition.ApplicationNames) : null);
+           ?? (assistantDefinition.ApplicationNames.Count > 0 ? InstalledApplicationLocator.FindApplication(assistantDefinition.ApplicationNames) : null);
 
     private static AssistantSettings CreateDefaultSettings(AssistantDefinition definition) => new()
     {

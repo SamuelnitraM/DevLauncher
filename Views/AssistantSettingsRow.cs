@@ -28,7 +28,9 @@ public partial class AssistantSettingsRow : ObservableObject
     private bool _isEnabled;
 
     public bool OpensInApplication { get; set; }
-    public string ApplicationTarget { get; set; }
+    [ObservableProperty]
+    private string _applicationTarget = string.Empty;
+
     public string WebUrl { get; set; }
     public string ProjectsText { get; set; }
 

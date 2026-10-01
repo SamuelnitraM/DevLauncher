@@ -88,9 +88,11 @@ public sealed class ChatAssistantTool : LaunchTool
 /// </summary>
 public sealed class ClaudeCodeTool : LaunchTool
 {
+    private static readonly AssistantDefinition _claudeCodeDefinition = AssistantCatalog.GetDefinition(AssistantCatalog.ClaudeCodeId);
+
     public override string Id => ToolIds.ClaudeCode;
-    public override string DisplayName => "Claude Code";
-    public override string Icon => "⌨️";
+    public override string DisplayName => _claudeCodeDefinition.DisplayName;
+    public override string Icon => _claudeCodeDefinition.Icon;
     public override ToolCategory Category => ToolCategories.Assistants;
     public override LaunchStage Stage => LaunchStage.Workspace;
     public override bool IsEnabledInSettings => AssistantCatalog.GetSettings(AssistantCatalog.ClaudeCodeId).IsEnabled;

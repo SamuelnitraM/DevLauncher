@@ -22,7 +22,7 @@ public class InstalledApplicationLocatorTests
         Assert.NotEmpty(startMenuApplications);
     }
 
-    /// <summary>A shortcut added to the Start menu is found by its name, as a classic Claude installation would be.</summary>
+    /// <summary>A shortcut added to the Start menu is found by its name at once, as a classic Claude installation would be.</summary>
     [Fact]
     public void ShortcutAddedToTheStartMenuIsFound()
     {
@@ -33,10 +33,9 @@ public class InstalledApplicationLocatorTests
         try
         {
             InstalledApplicationLocator.ClearCache();
-            var applicationTarget = InstalledApplicationLocator.FindStartMenuApplication(new[] { applicationName });
+            var applicationTarget = InstalledApplicationLocator.FindApplication(new[] { applicationName.ToUpperInvariant() });
             _testOutput.WriteLine($"{applicationName} → {applicationTarget}");
-            Assert.NotNull(applicationTarget);
-            Assert.StartsWith(@"shell:AppsFolder\", applicationTarget);
+            Assert.Equal(shortcutPath, applicationTarget, ignoreCase: true);
         }
         finally
         {
@@ -46,7 +45,7 @@ public class InstalledApplicationLocatorTests
 
     [Fact]
     public void UnknownApplicationIsNotFound()
-        => Assert.Null(InstalledApplicationLocator.FindStartMenuApplication(new[] { $"Missing{Guid.NewGuid():N}" }));
+        => Assert.Null(InstalledApplicationLocator.FindApplication(new[] { $"Missing{Guid.NewGuid():N}" }));
 
     /// <summary>Run only on a machine where Claude Desktop is installed (dedicated CI job).</summary>
     [Fact]

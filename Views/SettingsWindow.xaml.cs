@@ -125,6 +125,21 @@ public partial class SettingsWindow : Window
         if (fileDialog.ShowDialog(this) == true) pathBox.Text = fileDialog.FileName;
     }
 
+    /// <summary>Picks the executable or the shortcut of an assistant desktop application.</summary>
+    private void BrowseAssistantApplication_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: AssistantSettingsRow assistantSettingsRow }) return;
+        var applicationDialog = new OpenFileDialog
+        {
+            Title = "Sélectionne l'application",
+            Filter = "Applications et raccourcis (*.exe;*.lnk)|*.exe;*.lnk|Tous les fichiers (*.*)|*.*",
+            DereferenceLinks = false,
+        };
+        var currentDirectory = GetExistingDirectory(assistantSettingsRow.ApplicationTarget);
+        applicationDialog.InitialDirectory = currentDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+        if (applicationDialog.ShowDialog(this) == true) assistantSettingsRow.ApplicationTarget = applicationDialog.FileName;
+    }
+
     /// <summary>Returns the folder of a file path when it exists, or null for a bare command or an invalid path.</summary>
     private static string? GetExistingDirectory(string filePath)
     {
