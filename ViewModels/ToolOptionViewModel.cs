@@ -17,6 +17,9 @@ public partial class ToolOptionChoiceViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isSelected;
+
+    /// <summary>Name read by the accessibility tools and the UI automation.</summary>
+    public override string ToString() => Label;
 }
 
 /// <summary>Option of a tool : a dropdown for a single choice, check boxes for multiple choices.</summary>

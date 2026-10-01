@@ -1,4 +1,3 @@
-using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DevLauncher.Models;
 using DevLauncher.Services.Assistants;
@@ -33,17 +32,15 @@ public partial class AssistantSettingsRow : ObservableObject
     public string WebUrl { get; set; }
     public string ProjectsText { get; set; }
 
-    /// <summary>Install location found automatically, shown when no target is typed.</summary>
+    /// <summary>Application found automatically, used when no target is typed.</summary>
     public string ApplicationHint
     {
         get
         {
-            var detectedTarget = _assistantDefinition.ApplicationCandidates
-                .Select(Environment.ExpandEnvironmentVariables)
-                .FirstOrDefault(File.Exists);
+            var detectedTarget = AssistantCatalog.DetectApplicationTarget(_assistantDefinition);
             return detectedTarget is null
                 ? "Application non détectée : renseigne sa cible pour le mode Application."
-                : $"Détectée : {detectedTarget}";
+                : $"Détectée automatiquement : {detectedTarget}";
         }
     }
 

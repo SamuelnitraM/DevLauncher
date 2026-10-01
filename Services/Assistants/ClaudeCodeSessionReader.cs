@@ -17,15 +17,16 @@ public static partial class ClaudeCodeSessionReader
     private const int MaximumScannedLineCount = 80;
     private const int MaximumTitleLength = 70;
 
-    private static string ProjectsDirectory => Path.Combine(
+    private static string DefaultProjectsDirectory => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "projects");
 
     /// <summary>Returns the most recent sessions of the project, most recent first. Never throws.</summary>
-    public static IReadOnlyList<ClaudeCodeSession> GetSessions(string projectPath)
+    /// <param name="projectsDirectory">Folder of the Claude Code projects, ~/.claude/projects when null.</param>
+    public static IReadOnlyList<ClaudeCodeSession> GetSessions(string projectPath, string? projectsDirectory = null)
     {
         try
         {
-            var sessionDirectory = FindSessionDirectory(projectPath);
+            var sessionDirectory = FindSessionDirectory(projectPath, projectsDirectory ?? DefaultProjectsDirectory);
             if (sessionDirectory is null) return Array.Empty<ClaudeCodeSession>();
             return new DirectoryInfo(sessionDirectory)
                 .EnumerateFiles("*.jsonl")
@@ -47,13 +48,17 @@ public static partial class ClaudeCodeSessionReader
     /// Claude Code names the folder of a project after its path, every character other than a letter or a digit
     /// becoming a dash. The comparison ignores the case, the drive letter case varying between tools.
     /// </summary>
-    private static string? FindSessionDirectory(string projectPath)
+    private static string? FindSessionDirectory(string projectPath, string projectsDirectory)
     {
-        if (!Directory.Exists(ProjectsDirectory)) return null;
-        var encodedProjectPath = NonAlphanumericCharacterRegex().Replace(Path.TrimEndingDirectorySeparator(projectPath), "-");
-        return Directory.EnumerateDirectories(ProjectsDirectory)
+        if (!Directory.Exists(projectsDirectory)) return null;
+        var encodedProjectPath = EncodeProjectPath(projectPath);
+        return Directory.EnumerateDirectories(projectsDirectory)
             .FirstOrDefault(directory => string.Equals(Path.GetFileName(directory), encodedProjectPath, StringComparison.OrdinalIgnoreCase));
     }
+
+    /// <summary>Name of the folder in which Claude Code saves the sessions of a project.</summary>
+    public static string EncodeProjectPath(string projectPath)
+        => NonAlphanumericCharacterRegex().Replace(Path.TrimEndingDirectorySeparator(projectPath), "-");
 
     /// <summary>Uses the session summary when there is one, otherwise the first message typed by the user.</summary>
     private static string ReadSessionTitle(string sessionFilePath)

@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   build:
+    name: Compilation et tests unitaires
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -22,6 +23,9 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+
+      - name: Unit tests
+        run: dotnet test DevLauncher.Tests/DevLauncher.Tests.csproj --filter "Category!=RealApplication" --logger "console;verbosity=normal"
 
       - name: Publish single-file executable
         run: dotnet publish DevLauncher.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
@@ -39,3 +43,68 @@ jobs:
         with:
           files: publish/DevLauncher.exe
           generate_release_notes: true
+
+  smoke-test:
+    name: Test de bout en bout de l'interface
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish
+        run: dotnet publish DevLauncher.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
+
+      - name: Drive the interface
+        shell: powershell
+        run: ./Tests/SmokeTest.ps1 -ExecutablePath "$PWD\publish\DevLauncher.exe" -ScreenshotDirectory "$PWD\screenshots"
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ github.sha }}
+          path: screenshots/
+          if-no-files-found: ignore
+
+  claude-desktop-detection:
+    name: Détection de Claude Desktop installé
+    runs-on: windows-2025
+    # Depends on the availability of the Claude installer on the runner : informative, never blocking.
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install Claude Desktop
+        shell: powershell
+        run: |
+          $wingetCommand = Get-Command winget -ErrorAction SilentlyContinue
+          if ($null -ne $wingetCommand) {
+            winget install --id Anthropic.Claude --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+            Write-Host "winget : code $LASTEXITCODE"
+          }
+          else {
+            Write-Host "winget absent du runner"
+          }
+          Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs", "$env:ProgramData\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter '*Claude*' -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "Raccourci : $($_.FullName)" }
+          Get-AppxPackage -Name '*Claude*' -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "Paquet : $($_.PackageFullName)" }
+
+      - name: Detection test
+        run: dotnet test DevLauncher.Tests/DevLauncher.Tests.csproj --filter "Category=RealApplication" --logger "console;verbosity=detailed"
+
+      - name: Publish
+        run: dotnet publish DevLauncher.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
+
+      - name: Drive the interface with Claude Desktop installed
+        shell: powershell
+        run: ./Tests/SmokeTest.ps1 -ExecutablePath "$PWD\publish\DevLauncher.exe" -ScreenshotDirectory "$PWD\screenshots" -ExpectClaudeDesktopDetected

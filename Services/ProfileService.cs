@@ -25,9 +25,13 @@ public class ProfileService
         Converters = { new JsonStringEnumConverter() },
     };
 
-    public ProfileService()
+    public ProfileService() : this(StoragePaths.ProfilesDirectory)
     {
-        _profilesDirectory = StoragePaths.ProfilesDirectory;
+    }
+
+    public ProfileService(string profilesDirectory)
+    {
+        _profilesDirectory = profilesDirectory;
         _lastUsedProfilesPath = Path.Combine(_profilesDirectory, "last-used.json");
         Directory.CreateDirectory(_profilesDirectory);
     }

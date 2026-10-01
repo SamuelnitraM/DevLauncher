@@ -13,6 +13,7 @@ public enum AssistantKind
 }
 
 /// <summary>Built-in description of an assistant.</summary>
+/// <param name="ApplicationNames">Names of the desktop application in the Start menu.</param>
 /// <param name="ApplicationCandidates">Usual install locations of the desktop application, environment variables allowed.</param>
 public sealed record AssistantDefinition(
     string Id,
@@ -20,6 +21,7 @@ public sealed record AssistantDefinition(
     string Icon,
     AssistantKind Kind,
     string DefaultWebUrl,
+    IReadOnlyList<string> ApplicationNames,
     IReadOnlyList<string> ApplicationCandidates,
     bool IsEnabledByDefault);
 
@@ -31,7 +33,8 @@ public static class AssistantCatalog
 
     public static IReadOnlyList<AssistantDefinition> Definitions { get; } = new[]
     {
-        new AssistantDefinition(ClaudeId, "Claude", "🟠", AssistantKind.Chat, "https://claude.ai/new",
+        new AssistantDefinition(ClaudeId, "Claude (discussion)", "🟠", AssistantKind.Chat, "https://claude.ai/new",
+            new[] { "Claude" },
             new[]
             {
                 @"%LOCALAPPDATA%\AnthropicClaude\claude.exe",
@@ -40,6 +43,7 @@ public static class AssistantCatalog
             },
             IsEnabledByDefault: true),
         new AssistantDefinition("chatgpt", "ChatGPT", "🟢", AssistantKind.Chat, "https://chatgpt.com/",
+            new[] { "ChatGPT" },
             new[]
             {
                 @"%LOCALAPPDATA%\Microsoft\WindowsApps\ChatGPT.exe",
@@ -47,13 +51,13 @@ public static class AssistantCatalog
             },
             IsEnabledByDefault: false),
         new AssistantDefinition("gemini", "Gemini", "🔵", AssistantKind.Chat, "https://gemini.google.com/app",
-            Array.Empty<string>(), IsEnabledByDefault: false),
+            new[] { "Gemini" }, Array.Empty<string>(), IsEnabledByDefault: false),
         new AssistantDefinition("mistral", "Le Chat (Mistral)", "🔶", AssistantKind.Chat, "https://chat.mistral.ai/chat",
-            Array.Empty<string>(), IsEnabledByDefault: false),
+            new[] { "Le Chat", "Mistral" }, Array.Empty<string>(), IsEnabledByDefault: false),
         new AssistantDefinition("perplexity", "Perplexity", "🔎", AssistantKind.Chat, "https://www.perplexity.ai/",
-            Array.Empty<string>(), IsEnabledByDefault: false),
-        new AssistantDefinition(ClaudeCodeId, "Claude Code", "⌨️", AssistantKind.CommandLine, string.Empty,
-            Array.Empty<string>(), IsEnabledByDefault: true),
+            new[] { "Perplexity" }, Array.Empty<string>(), IsEnabledByDefault: false),
+        new AssistantDefinition(ClaudeCodeId, "Claude Code (terminal)", "⌨️", AssistantKind.CommandLine, string.Empty,
+            Array.Empty<string>(), Array.Empty<string>(), IsEnabledByDefault: true),
     };
 
     public static AssistantDefinition GetDefinition(string assistantId) => Definitions.First(definition => definition.Id == assistantId);
@@ -75,15 +79,20 @@ public static class AssistantCatalog
     public static AssistantSettings GetSettings(string assistantId)
         => AppSettings.Assistants.FirstOrDefault(settings => settings.Id == assistantId) ?? CreateDefaultSettings(GetDefinition(assistantId));
 
-    /// <summary>Returns the configured application target, or the first usual install location that exists.</summary>
+    /// <summary>Returns the configured application target, or else the detected one.</summary>
     public static string? ResolveApplicationTarget(string assistantId)
     {
         var configuredTarget = GetSettings(assistantId).ApplicationTarget;
-        if (!string.IsNullOrWhiteSpace(configuredTarget)) return configuredTarget.Trim();
-        return GetDefinition(assistantId).ApplicationCandidates
-            .Select(Environment.ExpandEnvironmentVariables)
-            .FirstOrDefault(File.Exists);
+        return string.IsNullOrWhiteSpace(configuredTarget) ? DetectApplicationTarget(GetDefinition(assistantId)) : configuredTarget.Trim();
     }
+
+    /// <summary>
+    /// Detects the desktop application : first the usual install locations, then the Start menu applications,
+    /// which also cover the Microsoft Store and MSIX installations.
+    /// </summary>
+    public static string? DetectApplicationTarget(AssistantDefinition assistantDefinition)
+        => assistantDefinition.ApplicationCandidates.Select(Environment.ExpandEnvironmentVariables).FirstOrDefault(File.Exists)
+           ?? (assistantDefinition.ApplicationNames.Count > 0 ? InstalledApplicationLocator.FindStartMenuApplication(assistantDefinition.ApplicationNames) : null);
 
     private static AssistantSettings CreateDefaultSettings(AssistantDefinition definition) => new()
     {

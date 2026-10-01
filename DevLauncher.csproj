@@ -15,6 +15,8 @@
     <SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- The test project lives inside this folder and is built on its own -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);DevLauncher.Tests/**;Tests/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
