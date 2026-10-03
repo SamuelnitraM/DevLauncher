@@ -228,6 +228,9 @@ if ($null -ne $statisticsButton) {
     $closeButton = Find-AutomationElement $statisticsRoot 'Fermer' ([System.Windows.Automation.ControlType]::Button) 5
     if ($null -ne $closeButton) { $closeButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
     Start-Sleep -Seconds 1
+    # A statistics window still open would keep the main window disabled for the next steps.
+    $remainingStatisticsWindow = Find-TopLevelWindow 'Statistiques' 1
+    if ($null -ne $remainingStatisticsWindow) { $remainingStatisticsWindow.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).Close() }
 }
 
 # ── Single instance : a second start hands its request over to the open window ──
@@ -252,9 +255,20 @@ if ($null -eq $settingsButton) {
 }
 Write-CheckResult 'Bouton Paramètres' ($null -ne $settingsButton)
 if ($null -ne $settingsButton) {
-    $settingsButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-    $settingsWindow = Find-AutomationElement $mainWindow 'Configure les chemins' $null 10
-    $settingsRoot = if ($null -ne $settingsWindow) { $mainWindow } else { Find-TopLevelWindow 'Paramètres' 10 }
+    # The click is retried once : a dialog closed just before can still hold the focus.
+    $settingsRoot = $null
+    for ($attempt = 1; $attempt -le 2 -and $null -eq $settingsRoot; $attempt++) {
+        $mainWindow.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).SetWindowVisualState([System.Windows.Automation.WindowVisualState]::Normal)
+        $settingsButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        $settingsRoot = Find-TopLevelWindow 'Paramètres' 10
+        if ($null -eq $settingsRoot -and $null -ne (Find-AutomationElement $mainWindow 'Configure les chemins' $null 5)) { $settingsRoot = $mainWindow }
+    }
+}
+if ($null -eq $settingsRoot) {
+    Write-CheckResult 'Fenêtre des paramètres ouverte' $false
+    Save-WindowScreenshot $mainWindow '4-parametres-introuvables.png'
+}
+else {
     $detectionHint = Find-AutomationElement $settingsRoot 'tect' ([System.Windows.Automation.ControlType]::Text) 10
     $claudeHint = @($settingsRoot.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition) |
         ForEach-Object { $_.Current.Name } | Where-Object { $_ -like '*Détectée automatiquement*' -or $_ -like '*non détectée*' })
