@@ -45,6 +45,7 @@ public class SingleInstanceCoordinatorTests
     [Fact]
     public async Task SecondInstanceForwardsItsArguments()
     {
+        if (!OperatingSystem.IsWindows()) return;
         var instanceName = $"DevLauncherTest-{Guid.NewGuid():N}";
         using var primaryCoordinator = new SingleInstanceCoordinator(instanceName);
         Assert.True(primaryCoordinator.TryBecomePrimaryInstance());

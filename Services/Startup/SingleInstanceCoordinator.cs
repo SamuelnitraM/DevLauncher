@@ -8,17 +8,18 @@ using System.Text.Json;
 namespace DevLauncher.Services.Startup;
 
 /// <summary>
-/// Keeps a single DevLauncher per Windows session : the first instance owns a mutex and listens on a named pipe,
-/// a second instance forwards its arguments through the pipe and exits.
+/// Keeps a single DevLauncher per Windows session : the first instance creates a named event, which exists as long as
+/// it runs, and listens on a named pipe ; a second instance forwards its arguments through the pipe and exits.
+/// The named event has no thread affinity, unlike a mutex : it can be released from any thread.
 /// </summary>
 public sealed class SingleInstanceCoordinator : IDisposable
 {
     private const int AllowAnyProcess = -1;
     private static readonly TimeSpan ForwardingTimeout = TimeSpan.FromSeconds(5);
 
-    private readonly string _mutexName;
+    private readonly string _instanceMarkerName;
     private readonly string _pipeName;
-    private Mutex? _instanceMutex;
+    private EventWaitHandle? _instanceMarker;
     private CancellationTokenSource? _listeningCancellation;
 
     [DllImport("user32.dll")]
@@ -30,23 +31,23 @@ public sealed class SingleInstanceCoordinator : IDisposable
 
     public SingleInstanceCoordinator(string instanceName)
     {
-        _mutexName = $@"Local\{instanceName}";
+        _instanceMarkerName = $@"Local\{instanceName}";
         _pipeName = instanceName;
     }
 
     /// <summary>Raised on a background thread with the arguments forwarded by a second instance.</summary>
     public event Action<IReadOnlyList<string>>? ArgumentsReceived;
 
-    /// <summary>Returns true for the first instance of the session, which then owns the instance mutex.</summary>
+    /// <summary>Returns true for the first instance of the session, which then holds the instance marker.</summary>
     public bool TryBecomePrimaryInstance()
     {
-        var instanceMutex = new Mutex(initiallyOwned: true, _mutexName, out var isCreatedNew);
+        var instanceMarker = new EventWaitHandle(false, EventResetMode.ManualReset, _instanceMarkerName, out var isCreatedNew);
         if (!isCreatedNew)
         {
-            instanceMutex.Dispose();
+            instanceMarker.Dispose();
             return false;
         }
-        _instanceMutex = instanceMutex;
+        _instanceMarker = instanceMarker;
         return true;
     }
 
@@ -117,9 +118,7 @@ public sealed class SingleInstanceCoordinator : IDisposable
         _listeningCancellation?.Cancel();
         _listeningCancellation?.Dispose();
         _listeningCancellation = null;
-        if (_instanceMutex is null) return;
-        _instanceMutex.ReleaseMutex();
-        _instanceMutex.Dispose();
-        _instanceMutex = null;
+        _instanceMarker?.Dispose();
+        _instanceMarker = null;
     }
 }
