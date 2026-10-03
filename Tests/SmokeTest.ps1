@@ -76,10 +76,33 @@ function Save-WindowScreenshot {
     }
 }
 
+function Find-DialogWindow {
+    param([string] $NamePart, [int] $TimeoutSeconds = 10)
+    # An owned dialog is a child of the main window in the automation tree, or a top-level window : both are looked at.
+    $windowCondition = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty), ([System.Windows.Automation.ControlType]::Window)
+    $rootElement = [System.Windows.Automation.AutomationElement]::RootElement
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        $candidateWindows = @($rootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $windowCondition))
+        try { $candidateWindows += @($mainWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants, $windowCondition)) }
+        catch { Write-Host "Fenêtre principale indisponible : $($_.Exception.Message)" }
+        foreach ($candidateWindow in $candidateWindows) {
+            if ($candidateWindow.Current.Name -like "*$NamePart*") { return $candidateWindow }
+        }
+        Start-Sleep -Milliseconds 500
+    } while ((Get-Date) -lt $deadline)
+    return $null
+}
+
+function Close-DialogWindow {
+    param([string] $NamePart)
+    $dialogWindow = Find-DialogWindow -NamePart $NamePart -TimeoutSeconds 1
+    if ($null -ne $dialogWindow) { $dialogWindow.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).Close() }
+}
+
 function Invoke-DialogButton {
     param([string] $DialogNamePart, [string] $ButtonAutomationId, [int] $TimeoutSeconds = 10)
-    $dialogWindow = Find-TopLevelWindow -NamePart $DialogNamePart -TimeoutSeconds 2
-    if ($null -eq $dialogWindow) { $dialogWindow = Find-AutomationElement $mainWindow $DialogNamePart ([System.Windows.Automation.ControlType]::Window) $TimeoutSeconds }
+    $dialogWindow = Find-DialogWindow -NamePart $DialogNamePart -TimeoutSeconds $TimeoutSeconds
     if ($null -eq $dialogWindow) { return $false }
     $buttonCondition = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::AutomationIdProperty), $ButtonAutomationId
     $dialogButton = $dialogWindow.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $buttonCondition)
@@ -199,6 +222,7 @@ Write-CheckResult 'Projet outil listé' ($null -ne $toolItem)
 if ($null -ne $toolItem) {
     $toolItem.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
     Write-CheckResult 'Commande personnalisée affichée' ($null -ne (Find-AutomationElement $mainWindow 'Commande personnalisée' ([System.Windows.Automation.ControlType]::Edit) 5))
+    Write-CheckResult 'Outil base de données proposé' ($null -ne (Find-AutomationElement $mainWindow 'Base de données du projet' ([System.Windows.Automation.ControlType]::CheckBox) 5))
     $launchButton = Find-AutomationElement $mainWindow "Lancer l'environnement" ([System.Windows.Automation.ControlType]::Button) 5
     Write-CheckResult 'Bouton de lancement' ($null -ne $launchButton)
     if ($null -ne $launchButton) {
@@ -219,7 +243,7 @@ $statisticsButton = Find-AutomationElement $mainWindow 'Statistiques' ([System.W
 Write-CheckResult 'Bouton statistiques' ($null -ne $statisticsButton)
 if ($null -ne $statisticsButton) {
     $statisticsButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-    $statisticsRoot = Find-TopLevelWindow 'Statistiques' 5
+    $statisticsRoot = Find-DialogWindow 'Statistiques' 10
     if ($null -eq $statisticsRoot) { $statisticsRoot = $mainWindow }
     $statisticsTitle = Find-AutomationElement $statisticsRoot 'Statistiques de lancement' $null 10
     $statisticsRow = Find-AutomationElement $statisticsRoot 'lancement(s) sur' $null 5
@@ -229,8 +253,7 @@ if ($null -ne $statisticsButton) {
     if ($null -ne $closeButton) { $closeButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
     Start-Sleep -Seconds 1
     # A statistics window still open would keep the main window disabled for the next steps.
-    $remainingStatisticsWindow = Find-TopLevelWindow 'Statistiques' 1
-    if ($null -ne $remainingStatisticsWindow) { $remainingStatisticsWindow.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).Close() }
+    Close-DialogWindow 'Statistiques'
 }
 
 # ── Single instance : a second start hands its request over to the open window ──
@@ -243,7 +266,7 @@ $paletteButton = Find-AutomationElement $mainWindow 'Palette de commandes' ([Sys
 Write-CheckResult 'Bouton palette de commandes' ($null -ne $paletteButton)
 if ($null -ne $paletteButton) {
     $paletteButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-    $paletteWindow = Find-TopLevelWindow 'Palette de commandes' 10
+    $paletteWindow = Find-DialogWindow 'Palette de commandes' 10
     if ($null -eq $paletteWindow) { $paletteWindow = $mainWindow }
     $paletteSearchBox = Find-AutomationElement $paletteWindow 'Rechercher une commande' ([System.Windows.Automation.ControlType]::Edit) 10
     Write-CheckResult 'Palette de commandes ouverte' ($null -ne $paletteSearchBox)
@@ -252,8 +275,7 @@ if ($null -ne $paletteButton) {
         Write-CheckResult 'Palette filtrée' ($null -ne (Find-AutomationElement $paletteWindow 'Lancer boutique' ([System.Windows.Automation.ControlType]::ListItem) 5))
         Save-WindowScreenshot $paletteWindow '8-palette.png'
     }
-    $remainingPaletteWindow = Find-TopLevelWindow 'Palette de commandes' 1
-    if ($null -ne $remainingPaletteWindow) { $remainingPaletteWindow.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).Close() }
+    Close-DialogWindow 'Palette de commandes'
     Start-Sleep -Seconds 1
 }
 
@@ -279,8 +301,7 @@ if ($null -ne $settingsButton) {
     for ($attempt = 1; $attempt -le 2 -and $null -eq $settingsRoot; $attempt++) {
         $mainWindow.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).SetWindowVisualState([System.Windows.Automation.WindowVisualState]::Normal)
         $settingsButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-        $settingsRoot = Find-TopLevelWindow 'Paramètres' 10
-        if ($null -eq $settingsRoot -and $null -ne (Find-AutomationElement $mainWindow 'Configure les chemins' $null 5)) { $settingsRoot = $mainWindow }
+        $settingsRoot = Find-DialogWindow 'Paramètres' 10
     }
 }
 if ($null -eq $settingsRoot) {
@@ -302,7 +323,7 @@ else {
     # Light theme : chosen in the settings, applied to the open windows once saved.
     $themeComboBox = Find-AutomationElement $settingsRoot 'Thème' ([System.Windows.Automation.ControlType]::ComboBox) 5
     $isThemeSaved = $false
-    if ($null -ne $themeComboBox -and $settingsRoot -ne $mainWindow) {
+    if ($null -ne $themeComboBox) {
         $themeComboBox.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
         $lightThemeItem = Find-AutomationElement $settingsRoot 'Clair' ([System.Windows.Automation.ControlType]::ListItem) 5
         if ($null -ne $lightThemeItem) { $lightThemeItem.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() }
@@ -316,7 +337,7 @@ else {
     }
     Write-CheckResult 'Thème clair enregistré' $isThemeSaved
     Save-WindowScreenshot $mainWindow '9-theme-clair.png'
-    $remainingSettingsWindow = Find-TopLevelWindow 'Paramètres' 1
+    $remainingSettingsWindow = Find-DialogWindow 'Paramètres' 1
     if ($null -ne $remainingSettingsWindow) {
         $cancelButton = Find-AutomationElement $remainingSettingsWindow 'Annuler' ([System.Windows.Automation.ControlType]::Button) 5
         if ($null -ne $cancelButton) { $cancelButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
