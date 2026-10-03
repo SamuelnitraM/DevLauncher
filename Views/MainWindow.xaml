@@ -33,6 +33,9 @@
             <MenuItem Header="🧠 Copier le contexte pour l'IA"
                       Command="{Binding PlacementTarget.Tag.CopyProjectContextCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                       CommandParameter="{Binding}"/>
+            <MenuItem Header="🔗 Copier le lien de lancement (devlauncher://)"
+                      Command="{Binding PlacementTarget.Tag.CopyLaunchLinkCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding}"/>
         </ContextMenu>
 
         <!-- Project item carrying the main view model in its Tag, for the context menu commands -->

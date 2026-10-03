@@ -35,6 +35,9 @@ public interface IUserInteractionService
     /// <summary>Tells which program holds a port needed by the launch and asks what to do.</summary>
     PortConflictDecision AskPortConflict(PortConflict portConflict);
 
+    /// <summary>Replaces the favorite and recent projects of the jump list of the taskbar icon.</summary>
+    void UpdateJumpList(IReadOnlyList<Models.ProjectListEntry> favoriteProjects, IReadOnlyList<Models.ProjectListEntry> recentProjects);
+
     /// <summary>Shows the launch figures of the projects.</summary>
     void ShowStatistics(IReadOnlyList<ProjectLaunchStatistics> projectStatistics);
 }

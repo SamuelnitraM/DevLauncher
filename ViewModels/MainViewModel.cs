@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using DevLauncher.Models;
 using DevLauncher.Services;
 using DevLauncher.Services.Hosting;
+using DevLauncher.Services.Startup;
 using DevLauncher.Services.Tools;
 
 namespace DevLauncher.ViewModels;
@@ -82,6 +83,7 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
         _serviceMonitor.RefreshStatus();
         UpdateToolAvailability();
         RefreshProjects();
+        UpdateJumpList();
     }
 
     // ════════════════════════════════════════════════════════════
@@ -243,16 +245,84 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
     {
         var projectPath = _userInteractionService.PickFolder("Choisis le dossier du projet à ajouter");
         if (projectPath is null) return;
-        if (!_projectEntries.Any(entry => PathComparer.AreSame(entry.Path, projectPath)))
-        {
-            AppSettings.ExtraProjectPaths.Add(projectPath);
-            SettingsService.Save();
-            _launchLog.Info($"➕ Projet ajouté : {projectPath}");
-            RefreshProjects();
-        }
-        SelectProject(_projectEntries.FirstOrDefault(entry => PathComparer.AreSame(entry.Path, projectPath))?.Path ?? projectPath);
+        SelectProject(EnsureProjectListed(projectPath));
         SynchronizeListSelections();
     }
+
+    /// <summary>Adds a folder outside of the project roots to the projects added one by one. Returns the path as listed.</summary>
+    private string EnsureProjectListed(string projectPath)
+    {
+        var listedEntry = _projectEntries.FirstOrDefault(entry => PathComparer.AreSame(entry.Path, projectPath));
+        if (listedEntry is not null) return listedEntry.Path;
+        AppSettings.ExtraProjectPaths.Add(projectPath);
+        try
+        {
+            SettingsService.Save();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _launchLog.Error($"❌ Sauvegarde des paramètres impossible : {exception.Message}");
+        }
+        _launchLog.Info($"➕ Projet ajouté : {projectPath}");
+        RefreshProjects();
+        return _projectEntries.FirstOrDefault(entry => PathComparer.AreSame(entry.Path, projectPath))?.Path ?? projectPath;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  STARTUP COMMANDS (command line, devlauncher:// links, Explorer, jump list)
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Selects the requested project (folder name or full path, added to the list when it is outside of it),
+    /// applies the requested profile, then launches when asked.
+    /// </summary>
+    public async Task HandleStartupCommandAsync(StartupCommand startupCommand)
+    {
+        if (startupCommand.Project is not { } requestedProject) return;
+        var projectPath = ResolveRequestedProject(requestedProject);
+        if (projectPath is null)
+        {
+            _launchLog.Error($"❌ Projet « {requestedProject} » introuvable dans les dossiers de projets");
+            return;
+        }
+        if (CurrentProjectPath is null || !PathComparer.AreSame(CurrentProjectPath, projectPath)) SelectProject(projectPath);
+        SynchronizeListSelections();
+        if (startupCommand.ProfileName is { } requestedProfileName)
+        {
+            var matchingProfileName = ProfileNames.FirstOrDefault(profileName => profileName.Equals(requestedProfileName, StringComparison.OrdinalIgnoreCase));
+            if (matchingProfileName is null) _launchLog.Error($"❌ Profil « {requestedProfileName} » introuvable : profil « {ActiveProfileName} » utilisé");
+            else ActiveProfileName = matchingProfileName;
+        }
+        if (!startupCommand.ShouldLaunch) return;
+        if (IsLaunchInProgress)
+        {
+            _launchLog.Error("⏳ Un lancement est déjà en cours : demande ignorée");
+            return;
+        }
+        await LaunchAsync();
+    }
+
+    /// <summary>An existing folder is used as is (and listed), a name is looked up among the listed projects.</summary>
+    private string? ResolveRequestedProject(string requestedProject)
+    {
+        if (Path.IsPathRooted(requestedProject) && Directory.Exists(requestedProject))
+            return EnsureProjectListed(Path.TrimEndingDirectorySeparator(Path.GetFullPath(requestedProject)));
+        return _projectEntries.FirstOrDefault(entry => Path.GetFileName(entry.Path).Equals(requestedProject, StringComparison.OrdinalIgnoreCase))?.Path;
+    }
+
+    /// <summary>Copies the devlauncher:// link launching the project with the active profile, to paste in a README or a note.</summary>
+    [RelayCommand]
+    private void CopyLaunchLink(ProjectListEntry? projectEntry)
+    {
+        if (GetTargetProjectPath(projectEntry) is not { } projectPath) return;
+        var isCurrentProject = CurrentProjectPath is not null && PathComparer.AreSame(projectPath, CurrentProjectPath);
+        var launchLink = StartupCommand.BuildLaunchLink(Path.GetFileName(projectPath), isCurrentProject && HasSeveralProfiles ? ActiveProfileName : null);
+        _userInteractionService.CopyToClipboard(launchLink);
+        StatusText = $"🔗 Lien copié : {launchLink}";
+    }
+
+    /// <summary>Puts the favorite and recent projects in the jump list of the taskbar icon.</summary>
+    private void UpdateJumpList() => _userInteractionService.UpdateJumpList(BuildFavoriteProjectEntries(), BuildRecentProjectEntries());
 
     /// <summary>
     /// Builds the list entries. The recent projects only change after a launch, never during a click,
@@ -349,6 +419,7 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
     {
         _recentProjectsService.RegisterLaunch(projectPath);
         ApplyProjectFilter();
+        UpdateJumpList();
     }
 
 
@@ -374,6 +445,7 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
         }
         if (CurrentProjectPath is not null) IsCurrentProjectFavorite = _favoriteProjectsService.IsFavorite(CurrentProjectPath);
         ApplyProjectFilter();
+        UpdateJumpList();
     }
 
     [RelayCommand]
@@ -796,6 +868,7 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
         // Imported profiles replace the ones displayed for the current project.
         if (settingsEditResult == SettingsEditResult.Imported && CurrentProjectPath is { } projectPath)
             LoadProfilesForProject(projectPath, _projectScanner.DetectProject(projectPath));
+        UpdateJumpList();
     }
 
     // ════════════════════════════════════════════════════════════

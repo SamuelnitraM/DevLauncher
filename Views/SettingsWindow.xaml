@@ -488,6 +488,32 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ── Windows integration ── -->
+                <Border Background="{StaticResource CardBgBrush}"
+                        CornerRadius="12" Padding="16" Margin="0,12,0,0">
+                    <StackPanel>
+                        <TextBlock Text="🪟 Intégration Windows"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="0,0,0,4"/>
+                        <TextBlock Text="Une seule fenêtre DevLauncher : un nouveau démarrage (raccourci, liste de l'icône de la barre des tâches, lien, ligne de commande) est transmis à la fenêtre ouverte."
+                                   Style="{StaticResource SettingsCaption}"/>
+                        <CheckBox x:Name="StartAtLogonBox"
+                                  Style="{StaticResource ModernCheckBox}">
+                            <TextBlock TextWrapping="Wrap"
+                                       Text="Démarrer avec Windows (réduit, avec les droits administrateur, sans confirmation)"/>
+                        </CheckBox>
+                        <CheckBox x:Name="ShellIntegrationBox"
+                                  Style="{StaticResource ModernCheckBox}">
+                            <TextBlock TextWrapping="Wrap"
+                                       Text="Liens devlauncher://launch/projet et entrée « Lancer avec DevLauncher » du clic droit sur un dossier dans l'Explorateur"/>
+                        </CheckBox>
+                        <TextBlock Text="Ligne de commande : DevLauncher.exe --project nom|chemin [--profile Profil] [--minimized], ou --open pour sélectionner sans lancer."
+                                   Style="{StaticResource SettingsCaption}"
+                                   FontFamily="Consolas"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- ── Persistent log ── -->
                 <Border Background="{StaticResource CardBgBrush}"
                         CornerRadius="12" Padding="16" Margin="0,12,0,0">

@@ -168,6 +168,12 @@ Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à cô
   console classique si Windows Terminal est absent
 - 📊 Statistiques : nombre de lancements, dernier lancement, durées par projet
 - 🎨 Onglets des services en couleurs (couleurs ANSI des outils), recherche et filtre « erreurs seules » dans chaque onglet
+- 🪟 Instance unique : un nouveau démarrage est transmis à la fenêtre ouverte, qui passe au premier plan
+- ⌨️ Ligne de commande : `DevLauncher.exe --project templateSite --profile Front` (lance), `--open` (sélectionne), `--minimized`
+- 🔗 Liens `devlauncher://launch/templateSite?profile=Front` (clic droit sur un projet → copier le lien)
+  et entrée « Lancer avec DevLauncher » du clic droit sur un dossier dans l'Explorateur (option des paramètres)
+- 📌 Liste de l'icône de la barre des tâches : favoris et projets récents, lancés en un clic
+- 🚀 Démarrage avec Windows (option des paramètres), réduit et sans confirmation UAC
 - 📋 Journal de lancement horodaté, enregistré chaque jour dans `%APPDATA%\DevLauncher\Logs` (10 jours conservés),
   journal détaillé en option (commandes exécutées, sortie des services)
 - 📌 Profils partagés avec le projet : bouton 📤 du bloc Profil, qui les écrit dans `.devlauncher.json`

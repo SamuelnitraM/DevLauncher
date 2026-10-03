@@ -230,6 +230,11 @@ if ($null -ne $statisticsButton) {
     Start-Sleep -Seconds 1
 }
 
+# ── Single instance : a second start hands its request over to the open window ──
+$secondProcess = Start-Process -FilePath $ExecutablePath -ArgumentList '--open', 'boutique' -PassThru
+Write-CheckResult 'Seconde instance transmise puis fermée' ($secondProcess.WaitForExit(30000))
+Write-CheckResult 'Projet demandé ouvert dans la fenêtre existante' ($null -ne (Find-AutomationElement $mainWindow 'Laravel détecté' $null 10))
+
 # ── Log search ──
 $logSearchBox = Find-AutomationElement $mainWindow 'Rechercher dans le journal' ([System.Windows.Automation.ControlType]::Edit) 5
 Write-CheckResult 'Recherche dans le journal' ($null -ne $logSearchBox)

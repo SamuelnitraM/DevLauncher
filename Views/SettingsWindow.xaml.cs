@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using DevLauncher.Services;
 using DevLauncher.Services.Assistants;
+using DevLauncher.Services.Startup;
 using Microsoft.Win32;
 
 namespace DevLauncher.Views;
@@ -16,6 +17,9 @@ public partial class SettingsWindow : Window
         .ToList();
 
     private readonly Dictionary<DetectableSetting, TextBox> _pathBoxesBySetting;
+    private readonly WindowsIntegrationService _windowsIntegrationService = new();
+    private bool _wasStartAtLogonEnabled;
+    private bool _wasShellIntegrationRegistered;
     private readonly Brush _validBorderBrush;
 
     public SettingsWindow()
@@ -68,6 +72,10 @@ public partial class SettingsWindow : Window
         LocalWebPortBox.Text = AppSettings.LocalWebPort.ToString();
         HostServicesInVSCodeBox.IsChecked = AppSettings.HostServicesInVSCode;
         DetailedLoggingBox.IsChecked = AppSettings.DetailedLogging;
+        _wasStartAtLogonEnabled = _windowsIntegrationService.IsStartAtLogonEnabled();
+        _wasShellIntegrationRegistered = _windowsIntegrationService.IsShellIntegrationRegistered();
+        StartAtLogonBox.IsChecked = _wasStartAtLogonEnabled;
+        ShellIntegrationBox.IsChecked = _wasShellIntegrationRegistered;
         AssistantsItemsControl.ItemsSource = _assistantSettingsRows;
     }
 
@@ -106,7 +114,38 @@ public partial class SettingsWindow : Window
             ShowValidationError($"❌ Sauvegarde impossible : {exception.Message}");
             return;
         }
+        if (!ApplyWindowsIntegration()) return;
         DialogResult = true;
+    }
+
+    /// <summary>Registers or removes the start at logon and the shell integration when their box changed. Returns false on failure.</summary>
+    private bool ApplyWindowsIntegration()
+    {
+        var shouldStartAtLogon = StartAtLogonBox.IsChecked == true;
+        if (shouldStartAtLogon != _wasStartAtLogonEnabled)
+        {
+            var isApplied = shouldStartAtLogon ? _windowsIntegrationService.EnableStartAtLogon() : _windowsIntegrationService.DisableStartAtLogon();
+            if (!isApplied)
+            {
+                ShowValidationError("❌ Démarrage avec Windows : la tâche planifiée n'a pas pu être modifiée");
+                return false;
+            }
+            _wasStartAtLogonEnabled = shouldStartAtLogon;
+        }
+        var shouldRegisterShellIntegration = ShellIntegrationBox.IsChecked == true;
+        if (shouldRegisterShellIntegration == _wasShellIntegrationRegistered) return true;
+        try
+        {
+            if (shouldRegisterShellIntegration) _windowsIntegrationService.RegisterShellIntegration();
+            else _windowsIntegrationService.UnregisterShellIntegration();
+            _wasShellIntegrationRegistered = shouldRegisterShellIntegration;
+            return true;
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        {
+            ShowValidationError($"❌ Intégration à l'Explorateur impossible : {exception.Message}");
+            return false;
+        }
     }
 
     private static List<string> SplitEntries(string text, char separator)

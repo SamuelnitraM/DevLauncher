@@ -19,6 +19,18 @@ public partial class MainWindow : Window
         Height = Math.Min(Height, SystemParameters.WorkArea.Height);
     }
 
+    /// <summary>Shows the window above the others, restored when it was minimized or hidden.</summary>
+    public void BringToFront()
+    {
+        if (!IsVisible) Show();
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        Activate();
+        // Toggling Topmost brings the window forward even when Windows refuses the activation.
+        Topmost = true;
+        Topmost = false;
+        Focus();
+    }
+
     /// <summary>
     /// With a running environment, the closing is cancelled while the view model asks what to do,
     /// then requested again once the current closing is over.

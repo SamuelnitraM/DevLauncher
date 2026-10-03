@@ -1,4 +1,6 @@
 using System.Windows;
+using System.Windows.Shell;
+using DevLauncher.Models;
 using DevLauncher.Services;
 using DevLauncher.ViewModels;
 
@@ -64,6 +66,28 @@ public sealed class UserInteractionService : IUserInteractionService
             MessageBoxResult.No => PortConflictDecision.Ignore,
             _ => PortConflictDecision.CancelLaunch,
         };
+    }
+
+    /// <summary>Each entry of the jump list starts DevLauncher on the project, which forwards it to the running instance.</summary>
+    public void UpdateJumpList(IReadOnlyList<ProjectListEntry> favoriteProjects, IReadOnlyList<ProjectListEntry> recentProjects)
+    {
+        var executablePath = Environment.ProcessPath;
+        if (executablePath is null || Application.Current is null) return;
+        JumpTask CreateProjectTask(ProjectListEntry projectEntry, string category) => new()
+        {
+            Title = projectEntry.Name,
+            Description = $"Lancer {projectEntry.Path}",
+            ApplicationPath = executablePath,
+            Arguments = $"--project \"{projectEntry.Path}\"",
+            IconResourcePath = executablePath,
+            CustomCategory = category,
+        };
+        var jumpList = new JumpList { ShowRecentCategory = false, ShowFrequentCategory = false };
+        foreach (var favoriteProject in favoriteProjects) jumpList.JumpItems.Add(CreateProjectTask(favoriteProject, "★ Favoris"));
+        foreach (var recentProject in recentProjects.Where(recentProject => !favoriteProjects.Any(favoriteProject => favoriteProject.Path == recentProject.Path)))
+            jumpList.JumpItems.Add(CreateProjectTask(recentProject, "🕘 Récemment lancés"));
+        JumpList.SetJumpList(Application.Current, jumpList);
+        jumpList.Apply();
     }
 
     public void ShowStatistics(IReadOnlyList<ProjectLaunchStatistics> projectStatistics)
