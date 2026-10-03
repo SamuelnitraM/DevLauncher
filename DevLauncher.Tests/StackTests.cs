@@ -57,6 +57,16 @@ public class DatabaseConnectionReaderTests
     [InlineData("", false)]
     public void OnlyPlainDatabaseNamesAreAccepted(string databaseName, bool isExpectedSafe) => Assert.Equal(isExpectedSafe, DatabaseTool.IsSafeDatabaseName(databaseName));
 
+    [Theory]
+    [InlineData("127.0.0.1", true)]
+    [InlineData("db.local-net", true)]
+    [InlineData("app_user", true)]
+    [InlineData("root&calc", false)]
+    [InlineData("root calc", false)]
+    [InlineData("\"root\"", false)]
+    [InlineData("", false)]
+    public void OnlyPlainHostsAndUsersAreAccepted(string connectionValue, bool isExpectedSafe) => Assert.Equal(isExpectedSafe, DatabaseTool.IsSafeConnectionValue(connectionValue));
+
     [Fact]
     public void DumpsAreFoundInTheUsualFolders()
     {
@@ -111,6 +121,23 @@ public class VirtualHostServiceTests
         virtualHostService.Remove(otherProjectPath, 80);
         Assert.Null(virtualHostService.FindHostName(projectPath));
         Assert.Equal(new[] { "# Copyright Microsoft", "127.0.0.1 intranet.local" }, File.ReadAllLines(hostsFilePath));
+    }
+
+    [Fact]
+    public void FailedOrUnsafeChangesLeaveTheListUntouched()
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var entriesFilePath = temporaryDirectory.Combine("data", "virtual-hosts.json");
+        var projectPath = temporaryDirectory.Combine("htdocs", "boutique");
+        Directory.CreateDirectory(projectPath);
+        var virtualHostService = new VirtualHostService(entriesFilePath, temporaryDirectory.Combine("xampp-absent"), temporaryDirectory.Combine("hosts"));
+        Assert.Throws<FileNotFoundException>(() => virtualHostService.Add(projectPath, 80));
+        Assert.False(File.Exists(entriesFilePath));
+        Directory.CreateDirectory(temporaryDirectory.Combine("data"));
+        File.WriteAllText(entriesFilePath, "{ illisible");
+        Assert.Empty(virtualHostService.GetEntries());
+        Assert.Throws<InvalidDataException>(() => virtualHostService.Remove(projectPath, 80));
+        Assert.Equal("{ illisible", File.ReadAllText(entriesFilePath));
     }
 
     [Fact]

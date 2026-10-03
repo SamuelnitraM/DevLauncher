@@ -83,6 +83,9 @@ public static class AppSettings
     /// <summary>Local MCP server letting an AI list, launch and stop the projects</summary>
     public static bool McpServerEnabled { get; set; }
 
+    /// <summary>Token the AI clients send to the local MCP server, generated when the server is first enabled</summary>
+    public static string McpServerToken { get; set; } = string.Empty;
+
     /// <summary>Port of the local MCP server</summary>
     public static int McpServerPort { get; set; } = 8765;
 

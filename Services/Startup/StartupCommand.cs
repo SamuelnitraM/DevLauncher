@@ -7,9 +7,15 @@ namespace DevLauncher.Services.Startup;
 /// <param name="ProfileName">Profile to use, null for the last used profile of the project.</param>
 /// <param name="ShouldLaunch">Launches the project after selecting it.</param>
 /// <param name="StartsMinimized">Starts without showing the main window.</param>
-public sealed record StartupCommand(string? Project, string? ProfileName, bool ShouldLaunch, bool StartsMinimized)
+/// <param name="AllowsUnlistedFolder">
+/// A folder outside of the project list may be added and launched. True for the command line of the user (Explorer menu,
+/// jump list, shortcut) ; false for a link or an AI, which only reach the projects already listed : a project can run
+/// its own commands, as administrator.
+/// </param>
+public sealed record StartupCommand(string? Project, string? ProfileName, bool ShouldLaunch, bool StartsMinimized, bool AllowsUnlistedFolder = true)
 {
     public const string ProtocolScheme = "devlauncher";
+    private const string ListedProjectsOnlyArgument = "--listed-only";
 
     public static StartupCommand Empty { get; } = new(null, null, false, false);
 
@@ -27,6 +33,7 @@ public sealed record StartupCommand(string? Project, string? ProfileName, bool S
         string? profileName = null;
         var shouldLaunch = false;
         var startsMinimized = false;
+        var allowsUnlistedFolder = true;
         for (var argumentIndex = 0; argumentIndex < arguments.Count; argumentIndex++)
         {
             var argument = arguments[argumentIndex];
@@ -48,9 +55,12 @@ public sealed record StartupCommand(string? Project, string? ProfileName, bool S
                 case "--minimized":
                     startsMinimized = true;
                     break;
+                case ListedProjectsOnlyArgument:
+                    allowsUnlistedFolder = false;
+                    break;
             }
         }
-        return new StartupCommand(Clean(project), Clean(profileName), shouldLaunch && project is not null, startsMinimized);
+        return new StartupCommand(Clean(project), Clean(profileName), shouldLaunch && project is not null, startsMinimized, allowsUnlistedFolder);
     }
 
     /// <summary>Reads « devlauncher://action/project?profile=name », the project being URL-encoded.</summary>
@@ -67,7 +77,7 @@ public sealed record StartupCommand(string? Project, string? ProfileName, bool S
             .Select(queryParts => Uri.UnescapeDataString(queryParts[1].Replace('+', ' ')))
             .FirstOrDefault();
         var cleanProject = Clean(project);
-        return new StartupCommand(cleanProject, Clean(profileName), action == "launch" && cleanProject is not null, false);
+        return new StartupCommand(cleanProject, Clean(profileName), action == "launch" && cleanProject is not null, false, AllowsUnlistedFolder: false);
     }
 
     /// <summary>Builds the link launching a project, for a README, a bookmark or a note.</summary>
@@ -81,7 +91,20 @@ public sealed record StartupCommand(string? Project, string? ProfileName, bool S
         if (Project is not null) arguments.AddRange(new[] { ShouldLaunch ? "--project" : "--open", Project });
         if (ProfileName is not null) arguments.AddRange(new[] { "--profile", ProfileName });
         if (StartsMinimized) arguments.Add("--minimized");
+        if (!AllowsUnlistedFolder) arguments.Add(ListedProjectsOnlyArgument);
         return arguments;
+    }
+
+    /// <summary>
+    /// Returns the full path of a requested folder, or null for a project name. A bare drive (« C: », as the Explorer passes
+    /// the root of a drive) means its root, never the current folder of that drive.
+    /// </summary>
+    public static string? NormalizeRequestedFolder(string requestedProject)
+    {
+        var folderPath = requestedProject.Length == 2 && requestedProject[1] == ':' ? requestedProject + System.IO.Path.DirectorySeparatorChar : requestedProject;
+        if (!System.IO.Path.IsPathFullyQualified(folderPath)) return null;
+        var fullPath = System.IO.Path.GetFullPath(folderPath);
+        return System.IO.Path.GetPathRoot(fullPath) == fullPath ? fullPath : System.IO.Path.TrimEndingDirectorySeparator(fullPath);
     }
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim().Trim('"');

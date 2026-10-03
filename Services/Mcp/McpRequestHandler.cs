@@ -69,6 +69,11 @@ public sealed class McpRequestHandler
         {
             return BuildError(requestIdentifier, -32602, exception.Message);
         }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            // Any failure of DevLauncher is reported to the client instead of leaving its request unanswered.
+            return BuildError(requestIdentifier, -32603, $"Erreur interne : {exception.Message}");
+        }
     }
 
     private JsonObject BuildInitializeResult(JsonObject parameters)

@@ -124,6 +124,8 @@ public partial class SettingsWindow : Window
             ShowValidationError("❌ Raccourci global invalide : modificateurs Ctrl, Alt, Shift, Win puis une lettre, un chiffre, F1-F24 ou Space");
             return;
         }
+        // Windows refusing the integration leaves every setting unchanged : nothing is saved half-way.
+        if (!ApplyWindowsIntegration()) return;
         AppSettings.ProjectRoots = SplitEntries(ProjectRootsBox.Text, '\n');
         AppSettings.ExtraProjectPaths = SplitEntries(ExtraProjectsBox.Text, '\n');
         AppSettings.ExcludedFolderNames = SplitEntries(ExcludedFoldersBox.Text, ',');
@@ -160,7 +162,6 @@ public partial class SettingsWindow : Window
             ShowValidationError($"❌ Sauvegarde impossible : {exception.Message}");
             return;
         }
-        if (!ApplyWindowsIntegration()) return;
         DialogResult = true;
     }
 
@@ -276,7 +277,8 @@ public partial class SettingsWindow : Window
     private void UpdateMcpCommand()
     {
         var port = int.TryParse(McpServerPortBox.Text, out var typedPort) && SettingsService.IsValidPort(typedPort) ? typedPort : AppSettings.McpServerPort;
-        McpCommandBox.Text = $"claude mcp add --transport http devlauncher {McpHttpServer.BuildEndpointUrl(port)}";
+        McpAccessToken.EnsureGenerated();
+        McpCommandBox.Text = McpAccessToken.BuildClaudeCodeCommand(port, AppSettings.McpServerToken);
     }
 
     /// <summary>Opens the installation page of a command line agent.</summary>

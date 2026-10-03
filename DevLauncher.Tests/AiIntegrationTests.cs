@@ -99,6 +99,35 @@ public class McpRequestHandlerTests
         Assert.Equal(-32600, (await SendAsync(requestHandler, """{"jsonrpc":"2.0","id":3}"""))["error"]!["code"]!.GetValue<int>());
     }
 
+    [Fact]
+    public void AccessTokenIsRequired()
+    {
+        Assert.True(McpHttpServer.IsAuthorized("Bearer abc123", "abc123"));
+        Assert.False(McpHttpServer.IsAuthorized("Bearer abc124", "abc123"));
+        Assert.False(McpHttpServer.IsAuthorized(null, "abc123"));
+        Assert.False(McpHttpServer.IsAuthorized("Bearer ", ""));
+        Assert.Matches("^[0-9a-f]{48}$", McpHttpServer.GenerateAccessToken());
+        Assert.NotEqual(McpHttpServer.GenerateAccessToken(), McpHttpServer.GenerateAccessToken());
+    }
+
+    [Fact]
+    public async Task FailingAutomationIsReportedAsAnInternalError()
+    {
+        var requestHandler = new McpRequestHandler(new FailingAutomation(), "2.0.0");
+        var response = await SendAsync(requestHandler, CallTool(1, "list_projects"));
+        Assert.Equal(-32603, response["error"]!["code"]!.GetValue<int>());
+    }
+
+    private sealed class FailingAutomation : IDevLauncherAutomation
+    {
+        public Task<IReadOnlyList<AutomationProject>> ListProjectsAsync() => throw new ArgumentException("clé en double");
+        public Task<string> LaunchProjectAsync(string project, string? profileName) => throw new InvalidOperationException();
+        public Task<string> StopAllAsync() => throw new InvalidOperationException();
+        public Task<IReadOnlyList<AutomationService>> GetServiceStatusAsync() => throw new InvalidOperationException();
+        public Task<IReadOnlyList<string>?> ReadServiceLogsAsync(string serviceName, int lineCount) => throw new InvalidOperationException();
+        public Task<string> RestartServiceAsync(string serviceName) => throw new InvalidOperationException();
+    }
+
     [Theory]
     [InlineData(null, "127.0.0.1:8765", true)]
     [InlineData("", "localhost:8765", true)]
@@ -118,9 +147,14 @@ public class McpRequestHandlerTests
         freePortListener.Start();
         var port = ((IPEndPoint)freePortListener.LocalEndpoint).Port;
         freePortListener.Stop();
-        using var mcpHttpServer = new McpHttpServer(new McpRequestHandler(new FakeAutomation(), "2.0.0"), new LaunchLog());
+        using var mcpHttpServer = new McpHttpServer(new McpRequestHandler(new FakeAutomation(), "2.0.0"), new LaunchLog(), () => "jeton-secret");
         Assert.True(mcpHttpServer.Start(port));
+        using var anonymousHttpClient = new HttpClient();
+        var anonymousResponse = await anonymousHttpClient.PostAsync(McpHttpServer.BuildEndpointUrl(port),
+            new StringContent("""{"jsonrpc":"2.0","id":1,"method":"tools/list"}""", Encoding.UTF8, "text/plain"));
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousResponse.StatusCode);
         using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer jeton-secret");
         var toolsResponse = await httpClient.PostAsync(McpHttpServer.BuildEndpointUrl(port),
             new StringContent("""{"jsonrpc":"2.0","id":1,"method":"tools/list"}""", Encoding.UTF8, "application/json"));
         Assert.Equal(HttpStatusCode.OK, toolsResponse.StatusCode);

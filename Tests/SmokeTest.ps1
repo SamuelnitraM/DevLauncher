@@ -137,6 +137,7 @@ New-Item -ItemType Directory -Force -Path $dataDirectory | Out-Null
 $settings = @{
     projectRoots = @($projectsRootPath)
     mcpServerEnabled = $true
+    mcpServerToken = 'jeton-du-test'
     theme = 'light'
     mcpServerPort = 8765
     assistants = @(
@@ -261,12 +262,20 @@ if ($null -ne $statisticsButton) {
 
 # ── MCP server : an AI lists the projects and the services over HTTP ──
 $mcpEndpoint = 'http://127.0.0.1:8765/mcp'
+$mcpHeaders = @{ Authorization = 'Bearer jeton-du-test' }
 try {
-    $initializeResponse = Invoke-RestMethod -Method Post -Uri $mcpEndpoint -ContentType 'application/json' -Body '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke-test","version":"1"}}}'
+    try {
+        Invoke-RestMethod -Method Post -Uri $mcpEndpoint -ContentType 'application/json' -Body '{"jsonrpc":"2.0","id":0,"method":"tools/list"}' | Out-Null
+        Write-CheckResult 'Serveur MCP fermé sans jeton' $false
+    }
+    catch {
+        Write-CheckResult 'Serveur MCP fermé sans jeton' ($_.Exception.Response.StatusCode.value__ -eq 401)
+    }
+    $initializeResponse = Invoke-RestMethod -Method Post -Uri $mcpEndpoint -Headers $mcpHeaders -ContentType 'application/json' -Body '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke-test","version":"1"}}}'
     Write-CheckResult 'Serveur MCP initialisé' ($initializeResponse.result.serverInfo.name -eq 'devlauncher')
-    $projectsResponse = Invoke-RestMethod -Method Post -Uri $mcpEndpoint -ContentType 'application/json' -Body '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_projects","arguments":{}}}'
+    $projectsResponse = Invoke-RestMethod -Method Post -Uri $mcpEndpoint -Headers $mcpHeaders -ContentType 'application/json' -Body '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_projects","arguments":{}}}'
     Write-CheckResult 'Projets listés par MCP' ($projectsResponse.result.content[0].text -like '*highlightforge*')
-    $logsResponse = Invoke-RestMethod -Method Post -Uri $mcpEndpoint -ContentType 'application/json' -Body '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_service_logs","arguments":{"service":"lancement","lines":50}}}'
+    $logsResponse = Invoke-RestMethod -Method Post -Uri $mcpEndpoint -Headers $mcpHeaders -ContentType 'application/json' -Body '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_service_logs","arguments":{"service":"lancement","lines":50}}}'
     Write-CheckResult 'Journal de lancement lu par MCP' ($logsResponse.result.content[0].text -like '*outil*')
 }
 catch {

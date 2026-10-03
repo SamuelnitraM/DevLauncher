@@ -21,10 +21,20 @@ public class StartupCommandTests
     [Fact]
     public void LinksAreParsed()
     {
-        Assert.Equal(new StartupCommand("templateSite", "Front Office", true, false), StartupCommand.Parse(new[] { "devlauncher://launch/templateSite?profile=Front%20Office" }));
-        Assert.Equal(new StartupCommand("mon site", null, false, false), StartupCommand.Parse(new[] { "devlauncher://open/mon%20site/" }));
+        Assert.Equal(new StartupCommand("templateSite", "Front Office", true, false, false), StartupCommand.Parse(new[] { "devlauncher://launch/templateSite?profile=Front%20Office" }));
+        Assert.Equal(new StartupCommand("mon site", null, false, false, false), StartupCommand.Parse(new[] { "devlauncher://open/mon%20site/" }));
         Assert.Equal(StartupCommand.Empty, StartupCommand.Parse(new[] { "devlauncher://delete/templateSite" }));
         Assert.Equal(StartupCommand.Empty, StartupCommand.Parse(new[] { "devlauncher:" }));
+    }
+
+    [Fact]
+    public void RequestedFolderIsNormalized()
+    {
+        Assert.Null(StartupCommand.NormalizeRequestedFolder("templateSite"));
+        if (!OperatingSystem.IsWindows()) return;
+        Assert.Equal(@"C:\", StartupCommand.NormalizeRequestedFolder("C:"));
+        Assert.Equal(@"C:\xampp\htdocs\site", StartupCommand.NormalizeRequestedFolder(@"C:\xampp\htdocs\site\"));
+        Assert.Null(StartupCommand.NormalizeRequestedFolder(@"C:relatif"));
     }
 
     [Fact]
@@ -33,7 +43,7 @@ public class StartupCommandTests
         var launchLink = StartupCommand.BuildLaunchLink("mon site", "Front & Back");
         Assert.Equal("devlauncher://launch/mon%20site?profile=Front%20%26%20Back", launchLink);
         var linkCommand = StartupCommand.Parse(new[] { launchLink });
-        Assert.Equal(new StartupCommand("mon site", "Front & Back", true, false), linkCommand);
+        Assert.Equal(new StartupCommand("mon site", "Front & Back", true, false, false), linkCommand);
         Assert.Equal(linkCommand, StartupCommand.Parse(linkCommand.ToArguments()));
         var openCommand = new StartupCommand(@"C:\xampp\htdocs\site", null, false, true);
         Assert.Equal(openCommand, StartupCommand.Parse(openCommand.ToArguments()));

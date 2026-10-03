@@ -58,18 +58,19 @@ public sealed class ProcessLauncher
 
     /// <summary>Opens a file, an URL or a GUI application through the Windows shell.</summary>
     /// <param name="runsUnelevated">Starts it with the rights of the standard user when DevLauncher runs as administrator.</param>
-    public bool StartShellProcess(string target, string? arguments = null, bool runsUnelevated = false)
+    /// <param name="hidesArgumentsInLog">Keeps the arguments out of the log, when they hold a password.</param>
+    public bool StartShellProcess(string target, string? arguments = null, bool runsUnelevated = false, bool hidesArgumentsInLog = false)
     {
         // Without arguments, the Explorer opens the target for the standard user : URLs, files, applications and shell: links alike.
         var unelevatedCommandLine = arguments is null
             ? UnelevatedProcessStarter.BuildCommandLine("explorer.exe", new[] { target })
             : $"{UnelevatedProcessStarter.QuoteArgument(target)} {arguments}";
-        if (TryStartUnelevated(runsUnelevated, unelevatedCommandLine, null, target)) return true;
+        if (TryStartUnelevated(runsUnelevated, unelevatedCommandLine, null, target, hidesArgumentsInLog)) return true;
         try
         {
             var processStartInfo = new ProcessStartInfo(target) { UseShellExecute = true };
             if (arguments is not null) processStartInfo.Arguments = arguments;
-            _launchLog.Detail($"Ouverture par le shell : {target} {arguments}");
+            _launchLog.Detail($"Ouverture par le shell : {target} {(hidesArgumentsInLog ? "(arguments masqués)" : arguments)}");
             Process.Start(processStartInfo)?.Dispose();
             return true;
         }
@@ -151,12 +152,12 @@ public sealed class ProcessLauncher
     /// Starts the command line with the rights of the standard user when asked and DevLauncher is elevated.
     /// Returns false when the normal start must happen instead : not asked, not elevated, or refused by Windows (logged).
     /// </summary>
-    private bool TryStartUnelevated(bool runsUnelevated, string commandLine, string? workingDirectory, string displayName)
+    private bool TryStartUnelevated(bool runsUnelevated, string commandLine, string? workingDirectory, string displayName, bool hidesCommandLineInLog = false)
     {
         if (!runsUnelevated || !UnelevatedProcessStarter.IsCurrentProcessElevated) return false;
         try
         {
-            _launchLog.Detail($"Sans élévation : {commandLine}");
+            _launchLog.Detail($"Sans élévation : {(hidesCommandLineInLog ? displayName : commandLine)}");
             UnelevatedProcessStarter.StartCommandLine(commandLine, workingDirectory);
             return true;
         }

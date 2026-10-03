@@ -626,7 +626,7 @@
                                      Style="{StaticResource SettingsTextBox}"
                                      MaxLength="5"/>
                         </Grid>
-                        <TextBlock Text="Ajout dans Claude Code :" Style="{StaticResource SettingsCaption}"/>
+                        <TextBlock Text="Ajout dans Claude Code (le jeton d'accès est propre à cet ordinateur, à ne pas partager) :" Style="{StaticResource SettingsCaption}"/>
                         <TextBox x:Name="McpCommandBox"
                                  Style="{StaticResource SettingsTextBox}"
                                  IsReadOnly="True"/>

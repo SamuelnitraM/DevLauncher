@@ -201,7 +201,8 @@ Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à cô
 - 🛡️ Applications lancées sans les droits administrateur au choix (VSCode, Visual Studio, terminal, navigateur, assistants) :
   glisser-déposer depuis l'Explorateur retrouvé
 - 🧩 Serveur MCP local (option) : une IA liste les projets, lance un projet, arrête tout, lit les journaux des services
-  et les redémarre — `claude mcp add --transport http devlauncher http://127.0.0.1:8765/mcp`
+  et les redémarre ; accès protégé par un jeton propre au poste, commande d'ajout à Claude Code affichée dans les paramètres.
+  Une IA ou un lien `devlauncher://` ne lance que les projets déjà listés
 - 📋 Journal de lancement horodaté, enregistré chaque jour dans `%APPDATA%\DevLauncher\Logs` (10 jours conservés),
   journal détaillé en option (commandes exécutées, sortie des services)
 - 📌 Profils partagés avec le projet : bouton 📤 du bloc Profil, qui les écrit dans `.devlauncher.json`

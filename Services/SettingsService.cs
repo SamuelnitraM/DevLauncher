@@ -52,6 +52,7 @@ public static class SettingsService
             UnelevatedApplications = AppSettings.UnelevatedApplications,
             McpServerEnabled = AppSettings.McpServerEnabled,
             McpServerPort = AppSettings.McpServerPort,
+            McpServerToken = AppSettings.McpServerToken,
             Assistants = AppSettings.Assistants,
             CliAgents = AppSettings.CliAgents,
         };
@@ -100,6 +101,7 @@ public static class SettingsService
         AppSettings.ShowNotifications = settingsData.ShowNotifications ?? AppSettings.ShowNotifications;
         AppSettings.GlobalHotkey = settingsData.GlobalHotkey?.Trim() ?? AppSettings.GlobalHotkey;
         AppSettings.McpServerEnabled = settingsData.McpServerEnabled;
+        AppSettings.McpServerToken = settingsData.McpServerToken?.Trim() ?? string.Empty;
         AppSettings.McpServerPort = IsValidPort(settingsData.McpServerPort) ? settingsData.McpServerPort : AppSettings.McpServerPort;
         AppSettings.UnelevatedApplications = CleanPaths(settingsData.UnelevatedApplications) ?? AppSettings.UnelevatedApplications;
         AppSettings.Theme = settingsData.Theme is ThemeNames.System or ThemeNames.Light or ThemeNames.Dark ? settingsData.Theme : AppSettings.Theme;
@@ -151,6 +153,7 @@ public static class SettingsService
         public List<string>? UnelevatedApplications { get; set; }
         public bool McpServerEnabled { get; set; }
         public int McpServerPort { get; set; }
+        public string? McpServerToken { get; set; }
         public List<AssistantSettings>? Assistants { get; set; }
         public List<CliAgentSettings>? CliAgents { get; set; }
     }

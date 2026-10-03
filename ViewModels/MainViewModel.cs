@@ -285,10 +285,12 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
     public async Task<string> HandleStartupCommandAsync(StartupCommand startupCommand)
     {
         if (startupCommand.Project is not { } requestedProject) return "Aucun projet demandé";
-        var projectPath = ResolveRequestedProject(requestedProject);
+        var projectPath = ResolveRequestedProject(requestedProject, startupCommand.AllowsUnlistedFolder);
         if (projectPath is null)
         {
-            var notFoundMessage = $"❌ Projet « {requestedProject} » introuvable dans les dossiers de projets";
+            var notFoundMessage = startupCommand.AllowsUnlistedFolder
+                ? $"❌ Projet « {requestedProject} » introuvable dans les dossiers de projets"
+                : $"❌ Projet « {requestedProject} » absent de la liste des projets : un lien ou une IA ne lance que les projets listés";
             _launchLog.Error(notFoundMessage);
             return notFoundMessage;
         }
@@ -318,12 +320,19 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
         return profileWarning + StatusText;
     }
 
-    /// <summary>An existing folder is used as is (and listed), a name is looked up among the listed projects.</summary>
-    private string? ResolveRequestedProject(string requestedProject)
+    /// <summary>
+    /// A name is looked up among the listed projects. A full local path designates a listed project, or, when the request
+    /// allows it, a folder added to the list. Network paths are refused : their project files could run commands as administrator.
+    /// </summary>
+    private string? ResolveRequestedProject(string requestedProject, bool allowsUnlistedFolder)
     {
-        if (Path.IsPathRooted(requestedProject) && Directory.Exists(requestedProject))
-            return EnsureProjectListed(Path.TrimEndingDirectorySeparator(Path.GetFullPath(requestedProject)));
-        return _projectEntries.FirstOrDefault(entry => Path.GetFileName(entry.Path).Equals(requestedProject, StringComparison.OrdinalIgnoreCase))?.Path;
+        var requestedFolderPath = StartupCommand.NormalizeRequestedFolder(requestedProject);
+        if (requestedFolderPath is null)
+            return _projectEntries.FirstOrDefault(entry => Path.GetFileName(entry.Path).Equals(requestedProject, StringComparison.OrdinalIgnoreCase))?.Path;
+        var listedEntry = _projectEntries.FirstOrDefault(entry => PathComparer.AreSame(entry.Path, requestedFolderPath));
+        if (listedEntry is not null) return listedEntry.Path;
+        if (!allowsUnlistedFolder || requestedFolderPath.StartsWith(@"\\", StringComparison.Ordinal) || !Directory.Exists(requestedFolderPath)) return null;
+        return EnsureProjectListed(requestedFolderPath);
     }
 
     /// <summary>Copies the devlauncher:// link launching the project with the active profile, to paste in a README or a note.</summary>
@@ -535,7 +544,7 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
                 _launchLog.Info($"🌐 Hôte virtuel {existingHostName} supprimé");
             }
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
         {
             _launchLog.Error($"❌ Hôte virtuel : {exception.Message}");
             return;
@@ -1021,7 +1030,7 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
     });
 
     Task<string> IDevLauncherAutomation.LaunchProjectAsync(string project, string? profileName)
-        => RunAutomationAsync(() => HandleStartupCommandAsync(new StartupCommand(project, profileName, true, false)));
+        => RunAutomationAsync(() => HandleStartupCommandAsync(new StartupCommand(project, profileName, true, false, AllowsUnlistedFolder: false)));
 
     Task<string> IDevLauncherAutomation.StopAllAsync() => RunAutomationAsync(async () =>
     {

@@ -109,6 +109,12 @@ public sealed partial class DatabaseTool : LaunchTool
             context.Log.Error($"❌ Nom de base « {databaseConnection.DatabaseName} » non pris en charge (lettres, chiffres, _ , - et $ uniquement)");
             return ToolStartResult.Failed;
         }
+        // The host and the user come from a file of the project : they are written into a command line only when plain.
+        if (!IsSafeConnectionValue(databaseConnection.Host) || !IsSafeConnectionValue(databaseConnection.User))
+        {
+            context.Log.Error($"❌ Hôte « {databaseConnection.Host} » ou utilisateur « {databaseConnection.User} » non pris en charge (lettres, chiffres, . _ - uniquement)");
+            return ToolStartResult.Failed;
+        }
         await MySqlReadiness.WaitForMySqlAsync(context);
         var selectedActions = context.GetOptionValues(ToolIds.DatabaseActionsOption);
         var isStarted = true;
@@ -193,8 +199,13 @@ public sealed partial class DatabaseTool : LaunchTool
                 break;
             case HeidiSqlClient when FindHeidiSql() is { } heidiSqlPath:
                 context.Log.Info("🗃️ Ouverture de HeidiSQL…");
+                // A password holding a quote cannot be passed safely : HeidiSQL then asks for it.
+                var passwordArgument = databaseConnection.Password.Length == 0 || databaseConnection.Password.Contains('"')
+                    ? string.Empty
+                    : $" --password=\"{databaseConnection.Password}\"";
                 context.ProcessLauncher.StartShellProcess(heidiSqlPath,
-                    $"--host={databaseConnection.Host} --port={databaseConnection.Port} --user={databaseConnection.User} --password=\"{databaseConnection.Password}\" --databases={databaseConnection.DatabaseName}");
+                    $"--host={databaseConnection.Host} --port={databaseConnection.Port} --user={databaseConnection.User}{passwordArgument} --databases={databaseConnection.DatabaseName}",
+                    hidesArgumentsInLog: true);
                 break;
         }
     }
@@ -244,6 +255,12 @@ public sealed partial class DatabaseTool : LaunchTool
     /// <summary>The name is written inside SQL and command lines : only plain identifiers are accepted.</summary>
     public static bool IsSafeDatabaseName(string databaseName) => SafeDatabaseNameRegex().IsMatch(databaseName);
 
+    /// <summary>Host names and user names written into command lines : letters, digits, dots, dashes and underscores.</summary>
+    public static bool IsSafeConnectionValue(string connectionValue) => SafeConnectionValueRegex().IsMatch(connectionValue);
+
     [GeneratedRegex(@"^[A-Za-z0-9_$\-]{1,64}$")]
     private static partial Regex SafeDatabaseNameRegex();
+
+    [GeneratedRegex(@"^[A-Za-z0-9._\-]{1,255}$")]
+    private static partial Regex SafeConnectionValueRegex();
 }

@@ -156,7 +156,7 @@ public class ProfileService
             if (containsLegacyProfiles) TryWriteJsonFile(profilesFilePath, profiles);
             return profiles;
         }
-        catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException or ArgumentException)
         {
             return new List<ProjectProfile>();
         }
@@ -177,8 +177,9 @@ public class ProfileService
             };
             return ConvertProfiles(profilesArray, out _);
         }
-        catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException or ArgumentException)
         {
+            // A property written twice (« name » and « Name ») raises an ArgumentException with case-insensitive names.
             throw new InvalidDataException($"{ProjectProfilesFileName} illisible ({exception.Message})", exception);
         }
     }

@@ -22,25 +22,29 @@ public sealed partial class VirtualHostService
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
 
     private readonly string _entriesFilePath;
-    private readonly string _xamppDirectory;
+    private readonly Func<string> _getXamppDirectory;
     private readonly string _hostsFilePath;
 
-    /// <summary>Virtual hosts of the XAMPP of the settings and of the hosts file of Windows.</summary>
+    /// <summary>Virtual hosts of the XAMPP of the settings (read at each use, so that a changed folder applies at once) and of the hosts file of Windows.</summary>
     public VirtualHostService() : this(
         StoragePaths.VirtualHostsFilePath,
-        AppSettings.XamppDir,
+        () => AppSettings.XamppDir,
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "drivers", "etc", "hosts"))
     {
     }
 
-    public VirtualHostService(string entriesFilePath, string xamppDirectory, string hostsFilePath)
+    public VirtualHostService(string entriesFilePath, string xamppDirectory, string hostsFilePath) : this(entriesFilePath, () => xamppDirectory, hostsFilePath)
+    {
+    }
+
+    private VirtualHostService(string entriesFilePath, Func<string> getXamppDirectory, string hostsFilePath)
     {
         _entriesFilePath = entriesFilePath;
-        _xamppDirectory = xamppDirectory;
+        _getXamppDirectory = getXamppDirectory;
         _hostsFilePath = hostsFilePath;
     }
 
-    private string ApacheConfigurationDirectory => Path.Combine(_xamppDirectory, "apache", "conf");
+    private string ApacheConfigurationDirectory => Path.Combine(_getXamppDirectory(), "apache", "conf");
     private string IncludedConfigurationPath => Path.Combine(ApacheConfigurationDirectory, "extra", IncludedFileName);
     private string MainConfigurationPath => Path.Combine(ApacheConfigurationDirectory, "httpd.conf");
 
@@ -61,16 +65,30 @@ public sealed partial class VirtualHostService
         return Directory.Exists(publicFolderPath) ? publicFolderPath : projectPath;
     }
 
+    /// <summary>Virtual hosts of the list, none when the list is missing or unreadable.</summary>
     public IReadOnlyList<VirtualHostEntry> GetEntries()
     {
-        if (!File.Exists(_entriesFilePath)) return Array.Empty<VirtualHostEntry>();
+        try
+        {
+            return ReadEntries();
+        }
+        catch (InvalidDataException)
+        {
+            return Array.Empty<VirtualHostEntry>();
+        }
+    }
+
+    /// <summary>Reads the list before a change. An unreadable list throws : rewriting the files from it would drop every other virtual host.</summary>
+    private List<VirtualHostEntry> ReadEntries()
+    {
+        if (!File.Exists(_entriesFilePath)) return new List<VirtualHostEntry>();
         try
         {
             return JsonSerializer.Deserialize<List<VirtualHostEntry>>(File.ReadAllText(_entriesFilePath)) ?? new List<VirtualHostEntry>();
         }
         catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
         {
-            return Array.Empty<VirtualHostEntry>();
+            throw new InvalidDataException($"Liste des hôtes virtuels illisible ({_entriesFilePath}) : {exception.Message}", exception);
         }
     }
 
@@ -81,7 +99,7 @@ public sealed partial class VirtualHostService
     /// <summary>Creates the virtual host of the project and returns its address. Throws IOException or UnauthorizedAccessException when a file cannot be written.</summary>
     public string Add(string projectPath, int apachePort)
     {
-        var entries = GetEntries().Where(entry => !PathComparer.AreSame(entry.ProjectPath, projectPath)).ToList();
+        var entries = ReadEntries().Where(entry => !PathComparer.AreSame(entry.ProjectPath, projectPath)).ToList();
         var hostName = BuildHostName(projectPath);
         // Two projects with the same folder name get distinct addresses.
         for (var suffixNumber = 2; entries.Any(entry => entry.HostName == hostName); suffixNumber++)
@@ -93,17 +111,21 @@ public sealed partial class VirtualHostService
 
     /// <summary>Removes the virtual host of the project.</summary>
     public void Remove(string projectPath, int apachePort)
-        => Apply(GetEntries().Where(entry => !PathComparer.AreSame(entry.ProjectPath, projectPath)).ToList(), apachePort);
+        => Apply(ReadEntries().Where(entry => !PathComparer.AreSame(entry.ProjectPath, projectPath)).ToList(), apachePort);
 
-    /// <summary>Writes the list, the Apache file, its include in httpd.conf and the hosts lines.</summary>
+    /// <summary>
+    /// Writes the Apache file, its include in httpd.conf and the hosts lines, then the list : the list only records
+    /// a virtual host once Apache and the hosts file know it.
+    /// </summary>
     private void Apply(IReadOnlyList<VirtualHostEntry> entries, int apachePort)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(_entriesFilePath)!);
-        File.WriteAllText(_entriesFilePath, JsonSerializer.Serialize(entries, _jsonOptions));
+        if (!File.Exists(MainConfigurationPath)) throw new FileNotFoundException($"httpd.conf introuvable dans {ApacheConfigurationDirectory}", MainConfigurationPath);
         Directory.CreateDirectory(Path.GetDirectoryName(IncludedConfigurationPath)!);
-        File.WriteAllText(IncludedConfigurationPath, BuildApacheConfiguration(entries, _xamppDirectory, apachePort));
+        File.WriteAllText(IncludedConfigurationPath, BuildApacheConfiguration(entries, _getXamppDirectory(), apachePort));
         EnsureIncludedInMainConfiguration();
         File.WriteAllLines(_hostsFilePath, BuildHostsLines(File.Exists(_hostsFilePath) ? File.ReadAllLines(_hostsFilePath) : Array.Empty<string>(), entries));
+        Directory.CreateDirectory(Path.GetDirectoryName(_entriesFilePath)!);
+        File.WriteAllText(_entriesFilePath, JsonSerializer.Serialize(entries, _jsonOptions));
     }
 
     /// <summary>
@@ -152,7 +174,6 @@ public sealed partial class VirtualHostService
 
     private void EnsureIncludedInMainConfiguration()
     {
-        if (!File.Exists(MainConfigurationPath)) throw new FileNotFoundException($"httpd.conf introuvable dans {ApacheConfigurationDirectory}", MainConfigurationPath);
         var includeDirective = $"Include \"conf/extra/{IncludedFileName}\"";
         var mainConfigurationLines = File.ReadAllLines(MainConfigurationPath);
         if (mainConfigurationLines.Any(configurationLine => configurationLine.Trim() == includeDirective)) return;

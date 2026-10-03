@@ -43,9 +43,9 @@ public sealed class DataPortabilityService
             {
                 exportedFiles[relativePath] = JsonNode.Parse(File.ReadAllText(dataFilePath));
             }
-            catch (JsonException)
+            catch (Exception exception) when (exception is JsonException or ArgumentException or IOException)
             {
-                // A corrupted data file is not worth exporting.
+                // A corrupted or unreadable data file is not worth exporting.
             }
         }
         var exportDocument = new JsonObject
@@ -67,7 +67,7 @@ public sealed class DataPortabilityService
         {
             exportDocument = JsonNode.Parse(File.ReadAllText(exportFilePath)) as JsonObject ?? throw new InvalidDataException("Le fichier n'est pas un export DevLauncher.");
         }
-        catch (JsonException exception)
+        catch (Exception exception) when (exception is JsonException or ArgumentException)
         {
             throw new InvalidDataException("Le fichier n'est pas un export DevLauncher (JSON invalide).", exception);
         }

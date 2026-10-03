@@ -37,6 +37,9 @@ public partial class App : Application
             Shutdown();
             return;
         }
+        // Listening starts at once : requests arriving during the startup are queued on the dispatcher and run once the window exists.
+        _singleInstanceCoordinator.ArgumentsReceived += forwardedArguments => Dispatcher.BeginInvoke(() => OnArgumentsForwarded(forwardedArguments));
+        _singleInstanceCoordinator.StartListening();
         StoragePaths.InitializeDataDirectory();
         SettingsService.Load();
         ThemeService.Apply(AppSettings.Theme);
@@ -84,7 +87,7 @@ public partial class App : Application
             _mainViewModel.OpenCommandPaletteCommand.Execute(null);
         };
         ApplyGlobalHotkey(launchLog);
-        _mcpHttpServer = new McpHttpServer(new McpRequestHandler(_mainViewModel, typeof(App).Assembly.GetName().Version?.ToString(3) ?? "1.0.0"), launchLog);
+        _mcpHttpServer = new McpHttpServer(new McpRequestHandler(_mainViewModel, typeof(App).Assembly.GetName().Version?.ToString(3) ?? "1.0.0"), launchLog, () => AppSettings.McpServerToken);
         ApplyMcpServer();
         _mainViewModel.SettingsApplied += () =>
         {
@@ -93,8 +96,6 @@ public partial class App : Application
             ApplyMcpServer();
         };
         RefreshMovedShellIntegration(launchLog);
-        _singleInstanceCoordinator.ArgumentsReceived += forwardedArguments => Dispatcher.BeginInvoke(() => OnArgumentsForwarded(forwardedArguments));
-        _singleInstanceCoordinator.StartListening();
         // Started minimized : the window stays in the notification area when the option allows it.
         if (!startupCommand.StartsMinimized || !AppSettings.MinimizeToTray) mainWindow.Show();
         if (startupCommand.StartsMinimized && !AppSettings.MinimizeToTray) mainWindow.WindowState = WindowState.Minimized;
@@ -118,8 +119,13 @@ public partial class App : Application
     private void ApplyMcpServer()
     {
         if (_mcpHttpServer is null) return;
-        if (AppSettings.McpServerEnabled) _mcpHttpServer.Start(AppSettings.McpServerPort);
-        else _mcpHttpServer.Stop();
+        if (!AppSettings.McpServerEnabled)
+        {
+            _mcpHttpServer.Stop();
+            return;
+        }
+        McpAccessToken.EnsureGenerated();
+        _mcpHttpServer.Start(AppSettings.McpServerPort);
     }
 
     /// <summary>A second instance was started (jump list, link, Explorer, command line) : this window comes forward and runs its request.</summary>

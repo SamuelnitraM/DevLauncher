@@ -130,6 +130,10 @@ public class ProfileServiceTests
         Directory.CreateDirectory(projectPath);
         var sharedFilePath = Path.Combine(projectPath, ProfileService.ProjectProfilesFileName);
         File.WriteAllText(sharedFilePath, "{ conflict <<<<<<< HEAD");
+        var duplicatedKeysProjectPath = temporaryDirectory.Combine("doublons");
+        Directory.CreateDirectory(duplicatedKeysProjectPath);
+        File.WriteAllText(Path.Combine(duplicatedKeysProjectPath, ProfileService.ProjectProfilesFileName), """{"profiles":[{"name":"A","Name":"B"}]}""");
+        Assert.Throws<InvalidDataException>(() => new ProfileService(temporaryDirectory.Combine("data")).GetProfiles(duplicatedKeysProjectPath));
         var profileService = new ProfileService(temporaryDirectory.Combine("data"));
         Assert.Throws<InvalidDataException>(() => profileService.GetProfiles(projectPath));
         Assert.Throws<InvalidDataException>(() => profileService.SaveProfile(projectPath, new ProjectProfile { Name = "X" }));
