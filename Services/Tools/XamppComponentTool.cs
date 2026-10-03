@@ -8,24 +8,29 @@ namespace DevLauncher.Services.Tools;
 /// </summary>
 public sealed class XamppComponentTool : LaunchTool
 {
+    private const int FtpPort = 21;
+
     public static readonly XamppComponentTool Apache = new(ToolIds.Apache, "Apache", "🌐", "httpd",
-        () => AppSettings.ApacheExe, () => null, runsHidden: true);
+        () => AppSettings.ApacheExe, () => null, runsHidden: true,
+        () => ApacheConfigurationReader.ReadListenPorts(AppSettings.XamppDir, AppSettings.LocalWebPort));
 
     public static readonly XamppComponentTool MySql = new(ToolIds.MySql, "MySQL", "🗃️", "mysqld",
-        () => AppSettings.MySQLExe, () => $"--defaults-file=\"{AppSettings.MySQLConfig}\"", runsHidden: true);
+        () => AppSettings.MySQLExe, () => $"--defaults-file=\"{AppSettings.MySQLConfig}\"", runsHidden: true,
+        () => new[] { MySqlConfigurationReader.ReadServerPort(AppSettings.MySQLConfig) });
 
     public static readonly XamppComponentTool FileZilla = new(ToolIds.FileZilla, "FileZilla FTP", "📂", "FileZillaServer",
-        () => AppSettings.FileZillaExe, () => "-compat -start", runsHidden: true);
+        () => AppSettings.FileZillaExe, () => "-compat -start", runsHidden: true, () => new[] { FtpPort });
 
     public static readonly XamppComponentTool Panel = new(ToolIds.XamppPanel, "Panneau XAMPP", "🖥️", "xampp-control",
-        () => AppSettings.XamppPanel, () => null, runsHidden: false);
+        () => AppSettings.XamppPanel, () => null, runsHidden: false, Array.Empty<int>);
 
     private readonly string _processName;
     private readonly Func<string> _getExecutablePath;
     private readonly Func<string?> _getArguments;
     private readonly bool _runsHidden;
+    private readonly Func<IReadOnlyList<int>> _getListenedPorts;
 
-    private XamppComponentTool(string id, string displayName, string icon, string processName, Func<string> getExecutablePath, Func<string?> getArguments, bool runsHidden)
+    private XamppComponentTool(string id, string displayName, string icon, string processName, Func<string> getExecutablePath, Func<string?> getArguments, bool runsHidden, Func<IReadOnlyList<int>> getListenedPorts)
     {
         Id = id;
         DisplayName = displayName;
@@ -34,6 +39,7 @@ public sealed class XamppComponentTool : LaunchTool
         _getExecutablePath = getExecutablePath;
         _getArguments = getArguments;
         _runsHidden = runsHidden;
+        _getListenedPorts = getListenedPorts;
     }
 
     public override string Id { get; }
@@ -42,6 +48,10 @@ public sealed class XamppComponentTool : LaunchTool
     public override ToolCategory Category => ToolCategories.Xampp;
     public override LaunchStage Stage => LaunchStage.Infrastructure;
     public override ToolScope Scope => ToolScope.Machine;
+
+    /// <summary>The component already running holds its own ports : only another program is a conflict.</summary>
+    public override IReadOnlyList<RequiredPort> GetRequiredPorts(ToolExecutionContext context)
+        => _getListenedPorts().Select(port => new RequiredPort(port, new[] { _processName })).ToList();
 
     public override Task<ToolStartResult> StartAsync(ToolExecutionContext context)
     {

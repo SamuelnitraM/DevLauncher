@@ -23,7 +23,7 @@ public sealed class ServiceProcessHost
         {
             _killOnCloseJob = new KillOnCloseJob();
         }
-        catch (Win32Exception exception)
+        catch (Exception exception) when (exception is Win32Exception or DllNotFoundException or EntryPointNotFoundException)
         {
             _launchLog.Error($"⚠️ Les services ne pourront pas être arrêtés automatiquement si DevLauncher est tué : {exception.Message}");
         }
@@ -49,6 +49,7 @@ public sealed class ServiceProcessHost
                 hostedService = new HostedService(projectPath, serviceCommand, _killOnCloseJob);
                 var serviceTitle = $"{serviceCommand.Title} · {hostedService.ProjectName}";
                 hostedService.OutputReceived += (outputLine, isError) => _launchLog.ServiceOutput(serviceTitle, outputLine, isError);
+                hostedService.BecameReady += () => _launchLog.Info($"✅ {serviceTitle} prêt");
                 if (serviceCommand.AnnouncesApplicationUrl) hostedService.OutputReceived += (outputLine, _) => OnWebServerOutput(projectPath, outputLine);
                 lock (_hostedServicesLock) _hostedServices.Add(hostedService);
                 ServiceCreated?.Invoke(hostedService);
@@ -95,6 +96,19 @@ public sealed class ServiceProcessHost
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Waits until every running service of the project that declares a readiness line has printed it
+    /// (assets built, workers started). Returns the titles of the services still not ready after the timeout.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> WaitForProjectServicesReadyAsync(string projectPath, TimeSpan timeout)
+    {
+        var pendingServices = GetServices()
+            .Where(service => service.IsRunning && service.HasReadinessPattern && !service.IsReady && PathComparer.AreSame(service.ProjectPath, projectPath))
+            .ToList();
+        var readinessResults = await Task.WhenAll(pendingServices.Select(service => service.WaitUntilReadyAsync(timeout)));
+        return pendingServices.Where((_, serviceIndex) => !readinessResults[serviceIndex]).Select(service => service.Command.Title).ToList();
     }
 
     /// <summary>Returns the URL already announced by the web server of the project, or null.</summary>

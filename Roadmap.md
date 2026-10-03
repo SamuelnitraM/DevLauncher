@@ -94,10 +94,10 @@ choisis par assistant et modifiables par profil.
 | 2.2 | ✅ **Plusieurs dossiers racines** (pas seulement `htdocs`) + ajout manuel d'un projet n'importe où + liste d'exclusions (`dashboard`, `img`, `xampp`… de XAMPP) | S |
 | 2.3 | **Docker Compose** : détection de `compose.yaml`, `docker compose up -d` / `down`, état des conteneurs | M |
 | 2.4 | **Virtual hosts Apache automatiques** (`templateSite.test`) avec entrée dans `hosts` | M |
-| 2.5 | **Détection des conflits de ports** avant lancement (qui occupe le 80 / 3306 / 8000 ?) avec proposition d'action | S |
+| 2.5 | ✅ **Détection des conflits de ports** avant lancement (qui occupe le 80 / 3306 / 8000 ?) avec proposition d'action | S |
 | 2.6 | **Base de données par projet** : création si absente (d'après `DATABASE_URL` du `.env`), import d'un dump, ouverture de phpMyAdmin / Adminer / HeidiSQL | M |
-| 2.7 | **Symfony avancé** : détection HTTP/HTTPS et port réel via `symfony server:status`, workers Messenger, `symfony proxy`, Mailpit / Mailer | S |
-| 2.8 | **Commandes « pré-lancement »** par profil : `composer install`, `npm install`, `doctrine:migrations:migrate`, `git pull` | S |
+| 2.7 | ✅ **Symfony avancé** : HTTP/HTTPS et port réels lus dans la sortie du serveur, worker Messenger, Mailpit — reste : `symfony proxy` | S |
+| 2.8 | ✅ **Commandes « pré-lancement »** par profil : `composer install`, `npm install`, `doctrine:migrations:migrate`, `git pull` | S |
 
 ---
 
@@ -111,8 +111,8 @@ DevLauncher, sortie capturée. Les **terminaux interactifs** restent dans Window
 | 3.1 | ✅ **Lancement direct des services** (processus enfants, sortie standard et erreur redirigées, entrée standard maintenue ouverte pour les `--watch`) : DevLauncher connaît chaque PID, arrêt exact, fin du `tasks.json` temporaire et des onglets Windows Terminal orphelins | M |
 | 3.2 | ✅ (base) **Panneau de journaux par service** : un onglet par service, copie, erreurs en rouge — reste : couleurs ANSI, recherche | M |
 | 3.3 | ✅ **Contrôle par service** : démarrer / arrêter / redémarrer individuellement, détection immédiate d'un crash (événement de fin de processus) avec notification | S |
-| 3.4 | **Disponibilité lue dans les journaux** (« Listening on… », « Done in… ») en complément du test de port : ouverture du navigateur au bon moment, port et schéma HTTP/HTTPS réels | S |
-| 3.5 | **Terminal interactif** : bouton « Ouvrir un terminal » conservé dans Windows Terminal (onglet dans le dossier du projet, profil PowerShell / CMD / Git Bash au choix) | S |
+| 3.4 | ✅ **Disponibilité lue dans les journaux** (« Listening on… », « Done in… ») en complément du test de port : ouverture du navigateur au bon moment, port et schéma HTTP/HTTPS réels | S |
+| 3.5 | ✅ **Terminal interactif** : bouton « Ouvrir un terminal » conservé dans Windows Terminal (onglet dans le dossier du projet, profil PowerShell / CMD / Git Bash au choix) | S |
 | 3.7 | ✅ **Objet Job Windows** : les services meurent avec DevLauncher même en cas de plantage ou d'arrêt du débogage ; les instances laissées par une session précédente sont arrêtées avant un nouveau lancement | S |
 | 3.6 | ✅ **Mode « services dans VSCode »** conservé en option pour ceux qui préfèrent les terminaux intégrés de l'éditeur | S |
 
@@ -127,7 +127,7 @@ DevLauncher, sortie capturée. Les **terminaux interactifs** restent dans Window
 | 4.3 | **Jump list de la barre des tâches** : clic droit sur l'icône → projets récents | S |
 | 4.4 | **Raccourci clavier global** + palette de commandes (`Ctrl+K` : « lancer templateSite ») | M |
 | 4.5 | **Notifications Windows** : « Environnement prêt », « MySQL s'est arrêté » | S |
-| 4.6 | **Barre de progression du lancement** étape par étape | S |
+| 4.6 | ✅ **Barre de progression du lancement** étape par étape | S |
 | 4.7 | ✅ **Informations git** dans la liste : branche, modifications en attente, retard sur le distant | S |
 | 4.8 | ✅ **Actions rapides** : ouvrir dans l'Explorateur, copier le chemin, ouvrir l'URL locale | S |
 | 4.9 | **Thème clair / sombre** (suivi du thème Windows) | S |
@@ -143,7 +143,7 @@ DevLauncher, sortie capturée. Les **terminaux interactifs** restent dans Window
 | 5.2 | **Protocole `devlauncher://launch/templateSite`** (liens dans un README, un bookmark, une note) | S |
 | 5.3 | **Menu contextuel de l'Explorateur** : « Lancer avec DevLauncher » sur un dossier | S |
 | 5.4 | ✅ **Import / export des profils et paramètres** (changement de machine) | S |
-| 5.5 | **Statistiques** : temps de démarrage par projet, projets les plus utilisés | S |
+| 5.5 | ✅ **Statistiques** : temps de démarrage par projet, projets les plus utilisés | S |
 
 ---
 

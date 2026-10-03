@@ -10,7 +10,7 @@ namespace DevLauncher.Services.Hosting;
 /// Service process owned by DevLauncher : its output is captured, its exit is notified,
 /// and it is stopped with its whole process tree.
 /// </summary>
-public sealed partial class HostedService
+public sealed class HostedService
 {
     private static readonly TimeSpan ProcessExitTimeout = TimeSpan.FromSeconds(15);
 
@@ -20,6 +20,8 @@ public sealed partial class HostedService
     private bool _isStopRequested;
 
     private readonly KillOnCloseJob? _killOnCloseJob;
+    private readonly Regex? _readinessRegex;
+    private TaskCompletionSource _readinessCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <param name="killOnCloseJob">Job killing the process when DevLauncher exits, null when unavailable.</param>
     public HostedService(string projectPath, ServiceCommand command, KillOnCloseJob? killOnCloseJob)
@@ -27,6 +29,7 @@ public sealed partial class HostedService
         ProjectPath = projectPath;
         Command = command;
         _killOnCloseJob = killOnCloseJob;
+        _readinessRegex = command.ReadinessPattern is null ? null : new Regex(command.ReadinessPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
     public string ProjectPath { get; }
@@ -38,6 +41,38 @@ public sealed partial class HostedService
         get
         {
             lock (_processLock) return _serviceProcess is not null;
+        }
+    }
+
+    /// <summary>True when the service declares a readiness line.</summary>
+    public bool HasReadinessPattern => _readinessRegex is not null;
+
+    /// <summary>True once the readiness line has been printed by the current run.</summary>
+    public bool IsReady
+    {
+        get
+        {
+            lock (_processLock) return _readinessCompletion.Task.IsCompleted;
+        }
+    }
+
+    /// <summary>Raised on any thread when the readiness line is printed.</summary>
+    public event Action? BecameReady;
+
+    /// <summary>Returns true once the service is ready, false when the timeout expires or the service has no readiness line.</summary>
+    public async Task<bool> WaitUntilReadyAsync(TimeSpan timeout)
+    {
+        if (_readinessRegex is null) return false;
+        Task readinessTask;
+        lock (_processLock) readinessTask = _readinessCompletion.Task;
+        try
+        {
+            await readinessTask.WaitAsync(timeout);
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
         }
     }
 
@@ -92,6 +127,7 @@ public sealed partial class HostedService
             if (_killOnCloseJob is not null && !_killOnCloseJob.TryAssign(serviceProcess))
                 OutputReceived?.Invoke("⚠️ Ce service ne pourra pas être arrêté automatiquement si DevLauncher est tué", true);
             _isStopRequested = false;
+            if (_readinessCompletion.Task.IsCompleted) _readinessCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             _serviceProcess = serviceProcess;
             _processExitCompletion = processExitCompletion;
             serviceProcess.BeginOutputReadLine();
@@ -173,13 +209,11 @@ public sealed partial class HostedService
     private void PublishOutputLine(string? outputLine)
     {
         if (outputLine is null) return;
-        var cleanLine = AnsiEscapeSequenceRegex().Replace(outputLine, string.Empty);
-        OutputReceived?.Invoke(cleanLine, ErrorMarkerRegex().IsMatch(cleanLine));
+        var cleanLine = OutputLineClassifier.RemoveAnsiSequences(outputLine);
+        OutputReceived?.Invoke(cleanLine, OutputLineClassifier.LooksLikeError(cleanLine));
+        if (_readinessRegex is null || !_readinessRegex.IsMatch(cleanLine)) return;
+        bool isNowReady;
+        lock (_processLock) isNowReady = _readinessCompletion.TrySetResult();
+        if (isNowReady) BecameReady?.Invoke();
     }
-
-    [GeneratedRegex(@"\x1B\[[0-9;?]*[ -/]*[@-~]")]
-    private static partial Regex AnsiEscapeSequenceRegex();
-
-    [GeneratedRegex(@"\b(error|erreur|exception|fatal|critical|failed)\b", RegexOptions.IgnoreCase)]
-    private static partial Regex ErrorMarkerRegex();
 }

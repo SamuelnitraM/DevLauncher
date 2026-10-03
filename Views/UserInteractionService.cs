@@ -1,4 +1,5 @@
 using System.Windows;
+using DevLauncher.Services;
 using DevLauncher.ViewModels;
 
 namespace DevLauncher.Views;
@@ -50,4 +51,21 @@ public sealed class UserInteractionService : IUserInteractionService
     {
         if (!string.IsNullOrEmpty(text)) Clipboard.SetText(text);
     }
+
+    public PortConflictDecision AskPortConflict(PortConflict portConflict)
+    {
+        var conflictMessage = $"Le port {portConflict.Port} dont {portConflict.ToolName} a besoin est occupé par {portConflict.OwnerProcessName} (PID {portConflict.OwnerProcessId}).\n\n"
+            + $"Oui : arrêter {portConflict.OwnerProcessName} puis lancer\n"
+            + "Non : lancer quand même\n"
+            + "Annuler : ne pas lancer";
+        return MessageBox.Show(_ownerWindow, conflictMessage, "🔌 Port occupé", MessageBoxButton.YesNoCancel, MessageBoxImage.Warning) switch
+        {
+            MessageBoxResult.Yes => PortConflictDecision.StopOwner,
+            MessageBoxResult.No => PortConflictDecision.Ignore,
+            _ => PortConflictDecision.CancelLaunch,
+        };
+    }
+
+    public void ShowStatistics(IReadOnlyList<ProjectLaunchStatistics> projectStatistics)
+        => new StatisticsWindow(projectStatistics) { Owner = _ownerWindow }.ShowDialog();
 }

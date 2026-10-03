@@ -156,6 +156,17 @@ Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à cô
 - 🧭 Plusieurs dossiers de projets, projets ajoutés un par un, dossiers ignorés (pages XAMPP par défaut)
 - 🧩 Détection Symfony, Laravel, WordPress, Node.js, Django, .NET avec leurs serveurs de développement ;
   le navigateur s'ouvre sur l'adresse annoncée par le serveur dans son journal
+- 🔌 Ports vérifiés avant le lancement (Apache, MySQL, FileZilla, Symfony, Mailpit) : le programme qui occupe un port
+  est nommé, avec le choix de l'arrêter, de lancer quand même ou d'annuler
+- 🧰 Commandes avant lancement : git pull, composer / npm / pip install, dotnet restore, migrations Doctrine / Laravel / Django
+  (après démarrage de MySQL), cache:clear, et une commande personnalisée
+- ⏳ Barre de progression du lancement étape par étape
+- ✅ Disponibilité lue dans la sortie des services (« Done in », « ready in », « listening »…) : le navigateur s'ouvre
+  sur l'adresse réelle annoncée par Symfony (http ou https), une fois les assets construits
+- 📨 Worker Symfony Messenger et 📮 Mailpit (si installé) dans les services du projet
+- 🖥️ Terminal : choix du shell (profil par défaut de Windows Terminal, PowerShell, PowerShell 7, invite de commandes, Git Bash),
+  console classique si Windows Terminal est absent
+- 📊 Statistiques : nombre de lancements, dernier lancement, durées par projet
 - 📋 Journal de lancement horodaté, enregistré chaque jour dans `%APPDATA%\DevLauncher\Logs` (10 jours conservés),
   journal détaillé en option (commandes exécutées, sortie des services)
 - 📌 Profils partagés avec le projet : bouton 📤 du bloc Profil, qui les écrit dans `.devlauncher.json`

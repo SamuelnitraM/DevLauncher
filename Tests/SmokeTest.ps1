@@ -76,6 +76,18 @@ function Save-WindowScreenshot {
     }
 }
 
+function Invoke-DialogButton {
+    param([string] $DialogNamePart, [string] $ButtonAutomationId, [int] $TimeoutSeconds = 10)
+    $dialogWindow = Find-TopLevelWindow -NamePart $DialogNamePart -TimeoutSeconds 2
+    if ($null -eq $dialogWindow) { $dialogWindow = Find-AutomationElement $mainWindow $DialogNamePart ([System.Windows.Automation.ControlType]::Window) $TimeoutSeconds }
+    if ($null -eq $dialogWindow) { return $false }
+    $buttonCondition = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::AutomationIdProperty), $ButtonAutomationId
+    $dialogButton = $dialogWindow.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $buttonCondition)
+    if ($null -eq $dialogButton) { return $false }
+    $dialogButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    return $true
+}
+
 function Get-ComboBoxSelectionName {
     param($ComboBoxElement)
     $selectionPattern = $ComboBoxElement.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern)
@@ -90,7 +102,8 @@ $testRootPath = Join-Path $env:RUNNER_TEMP 'DevLauncherSmoke'
 $projectsRootPath = Join-Path $testRootPath 'htdocs'
 $projectPath = Join-Path $projectsRootPath 'highlightforge'
 $laravelProjectPath = Join-Path $projectsRootPath 'boutique'
-New-Item -ItemType Directory -Force -Path $projectPath, $laravelProjectPath, (Join-Path $projectsRootPath 'dashboard') | Out-Null
+$toolProjectPath = Join-Path $projectsRootPath 'outil'
+New-Item -ItemType Directory -Force -Path $projectPath, $laravelProjectPath, $toolProjectPath, (Join-Path $projectsRootPath 'dashboard') | Out-Null
 Set-Content -Path (Join-Path $laravelProjectPath 'artisan') -Value ''
 Set-Content -Path (Join-Path $laravelProjectPath 'package.json') -Value '{"scripts":{"dev":"vite","build":"vite build"}}' 
 Set-Content -Path (Join-Path $projectPath 'symfony.lock') -Value '{}'
@@ -106,6 +119,10 @@ $settings = @{
     )
 }
 $settings | ConvertTo-Json -Depth 6 | Set-Content -Path (Join-Path $dataDirectory 'settings.json') -Encoding UTF8
+# Profile of the « outil » project : only a pre-launch command writing a file, so that a whole launch can run on the runner.
+New-Item -ItemType Directory -Force -Path (Join-Path $dataDirectory 'Profiles') | Out-Null
+$toolProfiles = @(@{ name = 'Défaut'; projectType = 'Other'; tools = @{ 'pre-launch' = @{ isEnabled = $true; options = @{ custom = @('echo devlauncher-smoke> smoke.txt') } } } })
+ConvertTo-Json -InputObject $toolProfiles -Depth 8 | Set-Content -Path (Join-Path $dataDirectory 'Profiles\outil.json') -Encoding UTF8
 
 # ── Start ──
 $devLauncherProcess = Start-Process -FilePath $ExecutablePath -PassThru
@@ -173,6 +190,42 @@ Write-Host "Listes déroulantes Laravel : $($laravelComboBoxSelections -join ' |
 Write-CheckResult 'Script npm run dev proposé' (@($laravelComboBoxSelections | Where-Object { $_ -eq 'npm run dev' }).Count -gt 0)
 Save-WindowScreenshot $mainWindow '3-assistants.png'
 
+# ── Whole launch : pre-launch command, progress, statistics ──
+$toolItem = Find-AutomationElement $mainWindow 'outil' ([System.Windows.Automation.ControlType]::ListItem)
+Write-CheckResult 'Projet outil listé' ($null -ne $toolItem)
+if ($null -ne $toolItem) {
+    $toolItem.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+    Write-CheckResult 'Commande personnalisée affichée' ($null -ne (Find-AutomationElement $mainWindow 'Commande personnalisée' ([System.Windows.Automation.ControlType]::Edit) 5))
+    $launchButton = Find-AutomationElement $mainWindow "Lancer l'environnement" ([System.Windows.Automation.ControlType]::Button) 5
+    Write-CheckResult 'Bouton de lancement' ($null -ne $launchButton)
+    if ($null -ne $launchButton) {
+        $launchButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        $smokeFilePath = Join-Path $toolProjectPath 'smoke.txt'
+        $deadline = (Get-Date).AddSeconds(30)
+        while (-not (Test-Path $smokeFilePath) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
+        Write-CheckResult 'Commande avant lancement exécutée' ((Test-Path $smokeFilePath) -and ((Get-Content -Path $smokeFilePath -Raw) -like '*devlauncher-smoke*'))
+        $statisticsFilePath = Join-Path $dataDirectory 'launch-statistics.json'
+        $deadline = (Get-Date).AddSeconds(15)
+        while (-not (Test-Path $statisticsFilePath) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
+        Write-CheckResult 'Lancement compté dans les statistiques' ((Test-Path $statisticsFilePath) -and ((Get-Content -Path $statisticsFilePath -Raw) -like '*outil*'))
+        Save-WindowScreenshot $mainWindow '5-lancement.png'
+    }
+}
+$statisticsButton = Find-AutomationElement $mainWindow 'Statistiques' ([System.Windows.Automation.ControlType]::Button) 5
+Write-CheckResult 'Bouton statistiques' ($null -ne $statisticsButton)
+if ($null -ne $statisticsButton) {
+    $statisticsButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $statisticsRoot = Find-TopLevelWindow 'Statistiques' 5
+    if ($null -eq $statisticsRoot) { $statisticsRoot = $mainWindow }
+    $statisticsTitle = Find-AutomationElement $statisticsRoot 'Statistiques de lancement' $null 10
+    $statisticsRow = Find-AutomationElement $statisticsRoot 'lancement(s) sur' $null 5
+    Write-CheckResult 'Fenêtre des statistiques' (($null -ne $statisticsTitle) -and ($null -ne $statisticsRow))
+    Save-WindowScreenshot $statisticsRoot '6-statistiques.png'
+    $closeButton = Find-AutomationElement $statisticsRoot 'Fermer' ([System.Windows.Automation.ControlType]::Button) 5
+    if ($null -ne $closeButton) { $closeButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
+    Start-Sleep -Seconds 1
+}
+
 # ── Settings window : Claude Desktop detection ──
 $settingsButton = Find-AutomationElement $mainWindow 'Paramètres' ([System.Windows.Automation.ControlType]::Button) 5
 if ($null -eq $settingsButton) {
@@ -207,6 +260,9 @@ Write-CheckResult 'Journal persistant écrit' $isLogWritten $todayLogPath
 # ── Closing ──
 Write-CheckResult 'DevLauncher toujours actif' (-not $devLauncherProcess.HasExited)
 $mainWindow.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).Close()
+# The launch above left an environment : the exit question is answered « Yes » (button 6 of a message box).
+$isExitQuestionAnswered = Invoke-DialogButton -DialogNamePart 'Quitter DevLauncher' -ButtonAutomationId '6'
+Write-CheckResult "Question de fermeture de l'environnement" $isExitQuestionAnswered
 $hasExited = $devLauncherProcess.WaitForExit(15000)
 Write-CheckResult 'Fermeture propre' $hasExited "(code $(if ($hasExited) { $devLauncherProcess.ExitCode } else { 'en cours' }))"
 if (-not $hasExited) { $devLauncherProcess.Kill() }

@@ -1,3 +1,5 @@
+using DevLauncher.Services;
+
 namespace DevLauncher.ViewModels;
 
 /// <summary>Outcome of the settings window.</summary>
@@ -29,4 +31,10 @@ public interface IUserInteractionService
     SettingsEditResult EditSettings();
 
     void CopyToClipboard(string text);
+
+    /// <summary>Tells which program holds a port needed by the launch and asks what to do.</summary>
+    PortConflictDecision AskPortConflict(PortConflict portConflict);
+
+    /// <summary>Shows the launch figures of the projects.</summary>
+    void ShowStatistics(IReadOnlyList<ProjectLaunchStatistics> projectStatistics);
 }

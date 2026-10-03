@@ -115,6 +115,14 @@
                     <!-- Separator -->
                     <Border Width="1" Background="#444466" Margin="8,0"/>
 
+                    <!-- Statistics button -->
+                    <Button Content="📊"
+                            Style="{StaticResource PrimaryButton}"
+                            FontSize="14" Padding="8,5" Margin="0,0,6,0"
+                            ToolTip="Statistiques de lancement"
+                            AutomationProperties.Name="Statistiques"
+                            Command="{Binding ShowStatisticsCommand}"/>
+
                     <!-- Settings button -->
                     <Button Content="⚙️"
                             Style="{StaticResource PrimaryButton}"
@@ -201,6 +209,7 @@
                 <!-- ── Row 2 : Action buttons ── -->
                 <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
@@ -212,8 +221,27 @@
                             Style="{StaticResource DangerButton}"
                             Command="{Binding StopAllCommand}"/>
 
+                    <!-- Launch progress, step by step -->
+                    <StackPanel Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Margin="24,0"
+                                Visibility="{Binding IsLaunchInProgress, Converter={StaticResource BooleanToVisibility}}">
+                        <TextBlock Text="{Binding LaunchStepText}"
+                                   FontSize="11"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="0,0,0,4"/>
+                        <ProgressBar Height="6"
+                                     Minimum="0" Maximum="100"
+                                     Value="{Binding LaunchProgressValue, Mode=OneWay}"
+                                     Background="#1A1A2E"
+                                     Foreground="{StaticResource AccentGreenBrush}"
+                                     BorderThickness="0"
+                                     AutomationProperties.Name="Progression du lancement"/>
+                    </StackPanel>
+
                     <!-- Split launch button : the profiles menu appears when the project has several profiles -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
                         <Button x:Name="LaunchButton"
                                 Content="{Binding LaunchButtonLabel}"
                                 Command="{Binding LaunchCommand}">
@@ -583,6 +611,14 @@
                                                                                         </DataTemplate>
                                                                                     </ItemsControl.ItemTemplate>
                                                                                 </ItemsControl>
+                                                                                <TextBox Text="{Binding Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                         Background="#2A2A3E"
+                                                                                         Foreground="{StaticResource TextPrimaryBrush}"
+                                                                                         CaretBrush="{StaticResource AccentBlueBrush}"
+                                                                                         BorderBrush="#444466"
+                                                                                         FontFamily="Consolas" FontSize="11" Padding="6,4"
+                                                                                         AutomationProperties.Name="{Binding Label}"
+                                                                                         Visibility="{Binding IsText, Converter={StaticResource BooleanToVisibility}}"/>
                                                                                 <TextBlock Text="Aucun choix disponible (vérifie les paramètres)"
                                                                                            FontSize="11" TextWrapping="Wrap"
                                                                                            Foreground="{StaticResource AccentRedBrush}"

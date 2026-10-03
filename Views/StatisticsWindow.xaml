@@ -1,0 +1,81 @@
+<Window x:Class="DevLauncher.Views.StatisticsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="📊 Statistiques"
+        Width="720" Height="480"
+        MinWidth="520" MinHeight="300"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{StaticResource DarkBgBrush}"
+        FontFamily="Segoe UI">
+    <Window.Resources>
+        <Style x:Key="StatisticsHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+        </Style>
+        <Style x:Key="StatisticsCell" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+        </Style>
+    </Window.Resources>
+    <DockPanel Margin="16">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <TextBlock Text="📊 Statistiques de lancement"
+                       FontSize="18" FontWeight="Bold"
+                       Foreground="{StaticResource AccentBlueBrush}"/>
+            <TextBlock x:Name="SummaryText"
+                       FontSize="12" Margin="0,4,0,0"
+                       Foreground="{StaticResource TextSecondaryBrush}"/>
+        </StackPanel>
+        <Button DockPanel.Dock="Bottom"
+                HorizontalAlignment="Right"
+                Content="Fermer"
+                Style="{StaticResource PrimaryButton}"
+                FontSize="12" Padding="16,6" Margin="0,12,0,0"
+                IsCancel="True" IsDefault="True"/>
+        <Border Background="{StaticResource CardBgBrush}" CornerRadius="12" Padding="12">
+            <DockPanel>
+                <Grid DockPanel.Dock="Top" Margin="8,0,8,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="90"/>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="100"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Projet" Style="{StaticResource StatisticsHeader}"/>
+                    <TextBlock Grid.Column="1" Text="Lancements" Style="{StaticResource StatisticsHeader}"/>
+                    <TextBlock Grid.Column="2" Text="Dernier lancement" Style="{StaticResource StatisticsHeader}"/>
+                    <TextBlock Grid.Column="3" Text="Dernière durée" Style="{StaticResource StatisticsHeader}"/>
+                    <TextBlock Grid.Column="4" Text="Durée moyenne" Style="{StaticResource StatisticsHeader}"/>
+                </Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="StatisticsItemsControl">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#1A1A2E" CornerRadius="6" Padding="8,6" Margin="0,2">
+                                    <Grid ToolTip="{Binding ProjectPath}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="150"/>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="100"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding ProjectName}" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding LaunchCount}" Style="{StaticResource StatisticsCell}"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding LastLaunchTime, StringFormat='dd/MM/yyyy HH:mm'}" Style="{StaticResource StatisticsCell}"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding LastDurationSeconds, StringFormat='{}{0:0.0} s'}" Style="{StaticResource StatisticsCell}"/>
+                                        <TextBlock Grid.Column="4" Text="{Binding AverageDurationSeconds, StringFormat='{}{0:0.0} s'}" Style="{StaticResource StatisticsCell}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+    </DockPanel>
+</Window>

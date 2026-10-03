@@ -4,6 +4,8 @@ public enum ToolOptionKind
 {
     SingleChoice,
     MultipleChoice,
+    /// <summary>Free text typed by the user, without choices.</summary>
+    Text,
 }
 
 public sealed record ToolOptionChoice(string Value, string Label);

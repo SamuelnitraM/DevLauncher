@@ -5,6 +5,7 @@ namespace DevLauncher.Services.Hosting;
 /// <param name="ServiceProcessName">Process started by the command, used to detect that a VSCode task has started.</param>
 /// <param name="AnnouncesApplicationUrl">The command is the web server of the project : the first local URL it prints is the project URL.</param>
 /// <param name="EnvironmentVariables">Variables added to the environment of the command.</param>
+/// <param name="ReadinessPattern">Regular expression matching the output line printed once the service is ready (build done, server listening).</param>
 public sealed record ServiceCommand(
     string ToolId,
     string Title,
@@ -13,4 +14,5 @@ public sealed record ServiceCommand(
     IReadOnlyList<string> Arguments,
     string ServiceProcessName,
     bool AnnouncesApplicationUrl = false,
-    IReadOnlyDictionary<string, string>? EnvironmentVariables = null);
+    IReadOnlyDictionary<string, string>? EnvironmentVariables = null,
+    string? ReadinessPattern = null);

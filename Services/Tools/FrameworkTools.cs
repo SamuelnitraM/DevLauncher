@@ -17,7 +17,8 @@ public sealed class LaravelServerTool : ServiceTool
     public override IReadOnlyCollection<ProjectType>? SupportedProjectTypes => new[] { ProjectType.Laravel };
 
     public override ServiceCommand? BuildServiceCommand(ToolExecutionContext context)
-        => new(Id, DisplayName, context.ProjectPath, AppSettings.PhpExecutable, new[] { "artisan", "serve" }, "php", AnnouncesApplicationUrl: true);
+        => new(Id, DisplayName, context.ProjectPath, AppSettings.PhpExecutable, new[] { "artisan", "serve" }, "php", AnnouncesApplicationUrl: true,
+            ReadinessPattern: "Server running");
 }
 
 /// <summary>Laravel queue worker (php artisan queue:work).</summary>
@@ -66,7 +67,8 @@ public sealed class NpmScriptTool : ServiceTool
         }
         // npm is a command script (npm.cmd) : it goes through cmd.exe, which the process tree stop also covers.
         return new ServiceCommand(Id, $"npm run {scriptName}", context.ProjectPath, "cmd.exe", new[] { "/c", "npm", "run", scriptName }, "node",
-            AnnouncesApplicationUrl: context.Profile.ProjectType == ProjectType.Node);
+            AnnouncesApplicationUrl: context.Profile.ProjectType == ProjectType.Node,
+            ReadinessPattern: @"ready in|built in|compiled|\bDone in\b|watching for|Local:");
     }
 }
 
@@ -81,6 +83,7 @@ public sealed class DjangoServerTool : ServiceTool
 
     public override ServiceCommand? BuildServiceCommand(ToolExecutionContext context)
         => new(Id, DisplayName, context.ProjectPath, "python", new[] { "manage.py", "runserver" }, "python", AnnouncesApplicationUrl: true,
+            ReadinessPattern: "Starting development server",
             EnvironmentVariables: new Dictionary<string, string> { ["PYTHONUNBUFFERED"] = "1" });
 }
 
@@ -104,6 +107,7 @@ public sealed class DotNetWatchTool : ServiceTool
         // DevLauncher opens the browser itself once the URL is announced.
         return new ServiceCommand(Id, DisplayName, Path.GetDirectoryName(dotNetProjectPath) ?? context.ProjectPath, "dotnet", new[] { "watch", "run" }, "dotnet",
             AnnouncesApplicationUrl: true,
-            EnvironmentVariables: new Dictionary<string, string> { ["DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER"] = "1" });
+            EnvironmentVariables: new Dictionary<string, string> { ["DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER"] = "1" },
+            ReadinessPattern: "Now listening|Application started");
     }
 }

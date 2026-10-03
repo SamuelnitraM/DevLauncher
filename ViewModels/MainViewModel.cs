@@ -14,7 +14,7 @@ namespace DevLauncher.ViewModels;
 /// State and actions of the main window : projects lists, options panel built from the tool catalog,
 /// profiles, launch and stop, service indicators, launch log and service logs.
 /// </summary>
-public partial class MainViewModel : ObservableObject, IDisposable
+public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObserver
 {
     private const string DefaultLaunchButtonLabel = "▶ Lancer l'environnement";
     private const string NoProjectStatus = "Sélectionne un projet pour commencer";
@@ -24,6 +24,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly RecentProjectsService _recentProjectsService;
     private readonly FavoriteProjectsService _favoriteProjectsService;
     private readonly GitStatusService _gitStatusService;
+    private readonly LaunchStatisticsService _launchStatisticsService;
     private readonly ProcessLauncher _processLauncher;
     private readonly LaunchService _launchService;
     private readonly ServiceProcessHost _serviceProcessHost;
@@ -42,6 +43,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         RecentProjectsService recentProjectsService,
         FavoriteProjectsService favoriteProjectsService,
         GitStatusService gitStatusService,
+        LaunchStatisticsService launchStatisticsService,
         ProcessLauncher processLauncher,
         ToolCatalog toolCatalog,
         LaunchService launchService,
@@ -56,6 +58,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _recentProjectsService = recentProjectsService;
         _favoriteProjectsService = favoriteProjectsService;
         _gitStatusService = gitStatusService;
+        _launchStatisticsService = launchStatisticsService;
         _processLauncher = processLauncher;
         _launchService = launchService;
         _serviceProcessHost = serviceProcessHost;
@@ -172,6 +175,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _isStopInProgress;
+
+    /// <summary>Advancement of the launch in progress, from 0 to 100.</summary>
+    [ObservableProperty]
+    private double _launchProgressValue;
+
+    [ObservableProperty]
+    private string _launchStepText = string.Empty;
 
     [ObservableProperty]
     private bool _isLaunchMenuOpen;
@@ -661,15 +671,24 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var projectName = Path.GetFileName(projectPath);
         IsLaunchInProgress = true;
         IsLaunchMenuOpen = false;
+        LaunchProgressValue = 0;
+        LaunchStepText = string.Empty;
         StatusText = "⏳ Lancement en cours…";
         _launchLog.Info("═══════════════════════════════");
         _launchLog.Info($"🚀 Lancement de « {projectName} »");
-        RegisterRecentProject(projectPath);
+        var launchTime = DateTime.Now;
+        var launchStopwatch = System.Diagnostics.Stopwatch.StartNew();
         try
         {
-            await _launchService.LaunchAsync(projectPath, CaptureCurrentOptions(ActiveProfileName ?? ProjectProfile.DefaultProfileName));
-            StatusText = $"✅ Environnement lancé — {projectName}";
-            _launchLog.Info("✅ Lancement terminé");
+            if (!await _launchService.LaunchAsync(projectPath, CaptureCurrentOptions(ActiveProfileName ?? ProjectProfile.DefaultProfileName), this))
+            {
+                StatusText = "⏹ Lancement annulé";
+                return;
+            }
+            RegisterRecentProject(projectPath);
+            _launchStatisticsService.RecordLaunch(projectPath, launchTime, launchStopwatch.Elapsed);
+            StatusText = $"✅ Environnement lancé — {projectName} ({launchStopwatch.Elapsed.TotalSeconds:0.0} s)";
+            _launchLog.Info($"✅ Lancement terminé en {launchStopwatch.Elapsed.TotalSeconds:0.0} s");
         }
         catch (Exception exception)
         {
@@ -692,6 +711,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
         ActiveProfileName = profileName;
         await LaunchAsync();
     }
+
+    void ILaunchObserver.ReportProgress(LaunchProgress progress) => RunOnUiThread(() =>
+    {
+        LaunchProgressValue = progress.Percentage;
+        LaunchStepText = $"{progress.StepLabel}  ({Math.Min(progress.CompletedStepCount + 1, progress.TotalStepCount)}/{progress.TotalStepCount})";
+    });
+
+    PortConflictDecision ILaunchObserver.ResolvePortConflict(PortConflict portConflict) => _userInteractionService.AskPortConflict(portConflict);
+
+    [RelayCommand]
+    private void ShowStatistics() => _userInteractionService.ShowStatistics(_launchStatisticsService.GetStatistics());
 
     private bool CanStopAll() => !IsStopInProgress;
 

@@ -37,9 +37,21 @@ public sealed class LaunchService
     //  LAUNCH
     // ════════════════════════════════════════════════════════
 
-    public async Task LaunchAsync(string projectPath, ProjectProfile profile)
+    /// <summary>
+    /// Launches the tools of a profile stage by stage, after checking that the ports they need are free.
+    /// Returns false when the launch is cancelled because of a port conflict.
+    /// </summary>
+    public async Task<bool> LaunchAsync(string projectPath, ProjectProfile profile, ILaunchObserver launchObserver)
     {
         var enabledTools = GetEnabledTools(profile).ToList();
+        var launchSteps = enabledTools.Where(tool => tool is not ServiceTool).Select(tool => (tool.Stage, Label: $"{tool.Icon} {tool.DisplayName}")).ToList();
+        var hasServices = enabledTools.Any(tool => tool is ServiceTool);
+        if (hasServices) launchSteps.Add((LaunchStage.Services, "⚡ Services du projet"));
+        var totalStepCount = launchSteps.Count + 1;
+        var completedStepCount = 0;
+        launchObserver.ReportProgress(new LaunchProgress(completedStepCount, totalStepCount, "🔌 Vérification des ports"));
+        if (!await ResolvePortConflictsAsync(projectPath, profile, enabledTools, launchObserver)) return false;
+        completedStepCount++;
         var serviceCommands = BuildServiceCommands(projectPath, profile, enabledTools);
         var areServicesInVSCode = AppSettings.HostServicesInVSCode && serviceCommands.Count > 0 && enabledTools.Any(tool => tool.Id == ToolIds.VSCode);
         _launchedProjects[projectPath] = new LaunchedProject(profile, areServicesInVSCode);
@@ -49,16 +61,65 @@ public sealed class LaunchService
         {
             if (launchStage == LaunchStage.Services)
             {
-                if (areServicesInVSCode || serviceCommands.Count == 0) continue;
-                await StopStaleServiceInstancesAsync(projectPath, profile, enabledTools, serviceCommands);
-                _serviceProcessHost.StartServices(projectPath, serviceCommands);
+                if (!hasServices) continue;
+                launchObserver.ReportProgress(new LaunchProgress(completedStepCount, totalStepCount, "⚡ Services du projet"));
+                if (!areServicesInVSCode && serviceCommands.Count > 0)
+                {
+                    await StopStaleServiceInstancesAsync(projectPath, profile, enabledTools, serviceCommands);
+                    _serviceProcessHost.StartServices(projectPath, serviceCommands);
+                }
+                completedStepCount++;
                 continue;
             }
-            foreach (var tool in enabledTools.Where(tool => tool.Stage == launchStage))
+            foreach (var tool in enabledTools.Where(tool => tool.Stage == launchStage && tool is not ServiceTool))
             {
+                launchObserver.ReportProgress(new LaunchProgress(completedStepCount, totalStepCount, $"{tool.Icon} {tool.DisplayName}"));
                 var toolStartResult = await tool.StartAsync(CreateContext(projectPath, profile, tool));
                 // A machine tool requested by the profile is managed even when it was already running : « Tout arrêter » stops it.
                 if (toolStartResult != ToolStartResult.Failed && tool.Scope == ToolScope.Machine) _managedMachineToolIds.Add(tool.Id);
+                completedStepCount++;
+            }
+        }
+        launchObserver.ReportProgress(new LaunchProgress(totalStepCount, totalStepCount, "✅ Terminé"));
+        return true;
+    }
+
+    /// <summary>
+    /// Finds the ports needed by the tools that another program holds and lets the observer decide for each of them.
+    /// Returns false when the observer cancels the launch.
+    /// </summary>
+    private async Task<bool> ResolvePortConflictsAsync(string projectPath, ProjectProfile profile, IEnumerable<LaunchTool> enabledTools, ILaunchObserver launchObserver)
+    {
+        foreach (var portConflict in FindPortConflicts(projectPath, profile, enabledTools))
+        {
+            _launchLog.Error($"⚠️ Port {portConflict.Port} ({portConflict.ToolName}) occupé par {portConflict.OwnerProcessName} (PID {portConflict.OwnerProcessId})");
+            switch (launchObserver.ResolvePortConflict(portConflict))
+            {
+                case PortConflictDecision.CancelLaunch:
+                    _launchLog.Info("⏹ Lancement annulé");
+                    return false;
+                case PortConflictDecision.StopOwner:
+                    await _processLauncher.StopProcessByIdAsync(portConflict.OwnerProcessId, portConflict.OwnerProcessName);
+                    break;
+                default:
+                    _launchLog.Info($"   → Lancement malgré le conflit : {portConflict.ToolName} risque de ne pas démarrer");
+                    break;
+            }
+        }
+        return true;
+    }
+
+    private IEnumerable<PortConflict> FindPortConflicts(string projectPath, ProjectProfile profile, IEnumerable<LaunchTool> enabledTools)
+    {
+        var checkedPorts = new HashSet<int>();
+        foreach (var tool in enabledTools)
+        {
+            foreach (var requiredPort in tool.GetRequiredPorts(CreateContext(projectPath, profile, tool)))
+            {
+                if (!checkedPorts.Add(requiredPort.Port) || PortOwnerLocator.FindListeningProcessId(requiredPort.Port) is not { } ownerProcessId) continue;
+                var ownerProcessName = ProcessHelper.TryGetProcessName(ownerProcessId) ?? "processus inconnu";
+                if (requiredPort.AcceptedOwnerProcessNames.Contains(ownerProcessName, StringComparer.OrdinalIgnoreCase)) continue;
+                yield return new PortConflict(tool.DisplayName, requiredPort.Port, ownerProcessId, ownerProcessName);
             }
         }
     }

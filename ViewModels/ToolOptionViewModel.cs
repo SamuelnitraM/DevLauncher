@@ -38,12 +38,17 @@ public partial class ToolOptionViewModel : ObservableObject
     public string Label => _definition.Label;
     public bool IsSingleChoice => _definition.Kind == ToolOptionKind.SingleChoice;
     public bool IsMultipleChoice => _definition.Kind == ToolOptionKind.MultipleChoice;
-    public bool HasNoChoices => Choices.Count == 0;
+    public bool IsText => _definition.Kind == ToolOptionKind.Text;
+    public bool HasNoChoices => !IsText && Choices.Count == 0;
 
     public ObservableCollection<ToolOptionChoiceViewModel> Choices { get; } = new();
 
     [ObservableProperty]
     private ToolOptionChoiceViewModel? _selectedChoice;
+
+    /// <summary>Value of a text option.</summary>
+    [ObservableProperty]
+    private string _text = string.Empty;
 
     /// <summary>Reads the choices again (they can depend on the project and the settings) and keeps the selected values that still exist.</summary>
     public void ReloadChoices(ToolOptionContext optionContext)
@@ -60,6 +65,11 @@ public partial class ToolOptionViewModel : ObservableObject
     public void ApplyValues(IReadOnlyList<string> values)
     {
         var effectiveValues = values.Count > 0 ? values : _definition.GetDefaultValues(_optionContext);
+        if (IsText)
+        {
+            Text = effectiveValues.FirstOrDefault() ?? string.Empty;
+            return;
+        }
         if (IsSingleChoice)
         {
             SelectedChoice = Choices.FirstOrDefault(choice => effectiveValues.Contains(choice.Value)) ?? Choices.FirstOrDefault();
@@ -70,6 +80,7 @@ public partial class ToolOptionViewModel : ObservableObject
 
     public List<string> CaptureValues()
     {
+        if (IsText) return string.IsNullOrWhiteSpace(Text) ? new List<string>() : new List<string> { Text.Trim() };
         if (IsSingleChoice) return SelectedChoice is null ? new List<string>() : new List<string> { SelectedChoice.Value };
         return Choices.Where(choice => choice.IsSelected).Select(choice => choice.Value).ToList();
     }

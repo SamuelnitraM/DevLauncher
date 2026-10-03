@@ -8,9 +8,11 @@ public enum LaunchStage
 {
     Editor = 1,
     Infrastructure = 2,
-    Workspace = 3,
-    Services = 4,
-    Finalization = 5,
+    /// <summary>Commands preparing the project (dependencies, migrations) once the infrastructure is up.</summary>
+    Preparation = 3,
+    Workspace = 4,
+    Services = 5,
+    Finalization = 6,
 }
 
 /// <summary>A project tool is stopped for each launched project, a machine tool once, when a launched profile requested it.</summary>
@@ -19,6 +21,9 @@ public enum ToolScope
     Project,
     Machine,
 }
+
+/// <summary>Local port a tool listens on, and the processes allowed to already hold it (the tool itself, already running).</summary>
+public sealed record RequiredPort(int Port, IReadOnlyCollection<string> AcceptedOwnerProcessNames);
 
 public enum ToolStartResult
 {
@@ -50,6 +55,9 @@ public abstract class LaunchTool
     public virtual bool IsEnabledInSettings => true;
 
     public bool Supports(ProjectType projectType) => IsEnabledInSettings && (SupportedProjectTypes is null || SupportedProjectTypes.Contains(projectType));
+
+    /// <summary>Ports checked before the launch : a port held by another program is reported as a conflict.</summary>
+    public virtual IReadOnlyList<RequiredPort> GetRequiredPorts(ToolExecutionContext context) => Array.Empty<RequiredPort>();
 
     public virtual Task<ToolStartResult> StartAsync(ToolExecutionContext context) => Task.FromResult(ToolStartResult.Started);
 

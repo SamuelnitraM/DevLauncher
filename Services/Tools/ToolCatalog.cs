@@ -5,13 +5,27 @@ namespace DevLauncher.Services.Tools;
 /// <summary>All the tools known by the launcher, in display order inside their category.</summary>
 public sealed class ToolCatalog
 {
-    public IReadOnlyList<LaunchTool> Tools { get; } = new LaunchTool[]
+    public ToolCatalog() : this(CreateDefaultTools())
+    {
+    }
+
+    /// <summary>Catalog limited to the given tools.</summary>
+    public ToolCatalog(IEnumerable<LaunchTool> tools)
+    {
+        Tools = tools.ToList();
+    }
+
+    public IReadOnlyList<LaunchTool> Tools { get; }
+
+    private static IEnumerable<LaunchTool> CreateDefaultTools() => new LaunchTool[]
         {
             new VSCodeTool(),
             new VisualStudioTool(),
             new SymfonyServerTool(),
             new TailwindTool(),
             new MercureTool(),
+            new MessengerWorkerTool(),
+            new MailpitTool(),
             new LaravelServerTool(),
             new LaravelQueueTool(),
             new NpmScriptTool(),
@@ -25,10 +39,10 @@ public sealed class ToolCatalog
         .Concat(AssistantCatalog.Definitions.Select(assistantDefinition => new ChatAssistantTool(assistantDefinition)))
         .Concat(new LaunchTool[]
         {
+            new PreLaunchCommandsTool(),
             new TerminalTool(),
             new BrowserTool(),
-        })
-        .ToList();
+        });
 
     public IEnumerable<LaunchTool> GetCategoryTools(ToolCategory category) => Tools.Where(tool => tool.Category == category);
 }

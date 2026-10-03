@@ -41,6 +41,7 @@ public partial class App : Application
             new RecentProjectsService(),
             new FavoriteProjectsService(),
             new GitStatusService(),
+            new LaunchStatisticsService(),
             processLauncher,
             toolCatalog,
             launchService,
