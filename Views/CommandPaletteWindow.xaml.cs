@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using DevLauncher.ViewModels;
@@ -49,6 +50,13 @@ public partial class CommandPaletteWindow : Window
         }
         if (_paletteViewModel.SelectedCommand is not null) CommandsList.ScrollIntoView(_paletteViewModel.SelectedCommand);
         e.Handled = true;
+    }
+
+    /// <summary>A closing started elsewhere (Alt+F4, close message) must not set the dialog result any more.</summary>
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        _isClosing = true;
+        base.OnClosing(e);
     }
 
     private void CommandsList_MouseDoubleClick(object sender, MouseButtonEventArgs e) => CloseWith(_paletteViewModel.SelectedCommand);
