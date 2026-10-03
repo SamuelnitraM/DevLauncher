@@ -1,4 +1,5 @@
 using DevLauncher.Models;
+using DevLauncher.Services.Elevation;
 using DevLauncher.Services.Hosting;
 using DevLauncher.Services.Tools;
 
@@ -198,5 +199,6 @@ public sealed class LaunchService
         ProcessLauncher = _processLauncher,
         Log = _launchLog,
         ServiceHost = _serviceProcessHost,
+        RunsUnelevated = ElevationPolicy.RunsUnelevated(tool),
     };
 }

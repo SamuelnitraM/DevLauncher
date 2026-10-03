@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using DevLauncher.Models;
 using DevLauncher.Services;
 using DevLauncher.Services.Hosting;
+using DevLauncher.Services.Mcp;
 using DevLauncher.Services.Stacks;
 using DevLauncher.Services.Startup;
 using DevLauncher.Services.Tools;
@@ -16,7 +17,7 @@ namespace DevLauncher.ViewModels;
 /// State and actions of the main window : projects lists, options panel built from the tool catalog,
 /// profiles, launch and stop, service indicators, launch log and service logs.
 /// </summary>
-public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObserver
+public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObserver, IDevLauncherAutomation
 {
     private const string DefaultLaunchButtonLabel = "▶ Lancer l'environnement";
     private const string NoProjectStatus = "Sélectionne un projet pour commencer";
@@ -280,30 +281,41 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
     /// Selects the requested project (folder name or full path, added to the list when it is outside of it),
     /// applies the requested profile, then launches when asked.
     /// </summary>
-    public async Task HandleStartupCommandAsync(StartupCommand startupCommand)
+    /// <returns>Outcome of the request, as shown in the status bar.</returns>
+    public async Task<string> HandleStartupCommandAsync(StartupCommand startupCommand)
     {
-        if (startupCommand.Project is not { } requestedProject) return;
+        if (startupCommand.Project is not { } requestedProject) return "Aucun projet demandé";
         var projectPath = ResolveRequestedProject(requestedProject);
         if (projectPath is null)
         {
-            _launchLog.Error($"❌ Projet « {requestedProject} » introuvable dans les dossiers de projets");
-            return;
+            var notFoundMessage = $"❌ Projet « {requestedProject} » introuvable dans les dossiers de projets";
+            _launchLog.Error(notFoundMessage);
+            return notFoundMessage;
         }
         if (CurrentProjectPath is null || !PathComparer.AreSame(CurrentProjectPath, projectPath)) SelectProject(projectPath);
         SynchronizeListSelections();
+        var profileWarning = string.Empty;
         if (startupCommand.ProfileName is { } requestedProfileName)
         {
             var matchingProfileName = ProfileNames.FirstOrDefault(profileName => profileName.Equals(requestedProfileName, StringComparison.OrdinalIgnoreCase));
-            if (matchingProfileName is null) _launchLog.Error($"❌ Profil « {requestedProfileName} » introuvable : profil « {ActiveProfileName} » utilisé");
-            else ActiveProfileName = matchingProfileName;
+            if (matchingProfileName is null)
+            {
+                profileWarning = $"❌ Profil « {requestedProfileName} » introuvable : profil « {ActiveProfileName} » utilisé. ";
+                _launchLog.Error(profileWarning.Trim());
+            }
+            else
+            {
+                ActiveProfileName = matchingProfileName;
+            }
         }
-        if (!startupCommand.ShouldLaunch) return;
+        if (!startupCommand.ShouldLaunch) return $"{profileWarning}Projet « {Path.GetFileName(projectPath)} » sélectionné";
         if (IsLaunchInProgress)
         {
             _launchLog.Error("⏳ Un lancement est déjà en cours : demande ignorée");
-            return;
+            return "⏳ Un lancement est déjà en cours : demande ignorée";
         }
         await LaunchAsync();
+        return profileWarning + StatusText;
     }
 
     /// <summary>An existing folder is used as is (and listed), a name is looked up among the listed projects.</summary>
@@ -975,6 +987,83 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
 
     /// <summary>Raised once new settings are applied, so that the view applies the theme and the global shortcut again.</summary>
     public event Action? SettingsApplied;
+
+    // ════════════════════════════════════════════════════════════
+    //  AUTOMATION (MCP server)
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>Runs an automation request on the UI thread, where the state of the view model lives.</summary>
+    private Task<T> RunAutomationAsync<T>(Func<Task<T>> automationAction) => _uiDispatcher.InvokeAsync(automationAction).Task.Unwrap();
+
+    Task<IReadOnlyList<AutomationProject>> IDevLauncherAutomation.ListProjectsAsync() => RunAutomationAsync(() =>
+    {
+        IReadOnlyList<string> ReadProfileNames(string projectPath)
+        {
+            try
+            {
+                return _profileService.GetProfiles(projectPath).Select(profile => profile.Name).ToList();
+            }
+            catch (Exception exception) when (IsProfileStorageException(exception))
+            {
+                return Array.Empty<string>();
+            }
+        }
+        var favoriteProjectPaths = _favoriteProjectsService.GetFavoriteProjectPaths();
+        IReadOnlyList<AutomationProject> automationProjects = _projectEntries
+            .Select(projectEntry => new AutomationProject(
+                projectEntry.Name,
+                projectEntry.Path,
+                ProjectTypeLabels.GetName(_projectScanner.DetectProject(projectEntry.Path).ProjectType),
+                ReadProfileNames(projectEntry.Path),
+                favoriteProjectPaths.Any(favoritePath => PathComparer.AreSame(favoritePath, projectEntry.Path))))
+            .ToList();
+        return Task.FromResult(automationProjects);
+    });
+
+    Task<string> IDevLauncherAutomation.LaunchProjectAsync(string project, string? profileName)
+        => RunAutomationAsync(() => HandleStartupCommandAsync(new StartupCommand(project, profileName, true, false)));
+
+    Task<string> IDevLauncherAutomation.StopAllAsync() => RunAutomationAsync(async () =>
+    {
+        if (IsStopInProgress) return "⏳ Un arrêt est déjà en cours";
+        await StopEnvironmentAsync();
+        return StatusText;
+    });
+
+    Task<IReadOnlyList<AutomationService>> IDevLauncherAutomation.GetServiceStatusAsync() => RunAutomationAsync(() =>
+    {
+        IReadOnlyList<AutomationService> automationServices = ServiceIndicators
+            .Select(indicator => new AutomationService(indicator.ServiceName, null, indicator.IsRunning, null))
+            .Concat(LogTabs.OfType<ServiceLogTabViewModel>().Select(serviceTab => new AutomationService(
+                serviceTab.Title,
+                serviceTab.HostedService.ProjectName,
+                serviceTab.IsRunning,
+                serviceTab.HostedService.HasReadinessPattern ? serviceTab.HostedService.IsReady : null)))
+            .ToList();
+        return Task.FromResult(automationServices);
+    });
+
+    Task<IReadOnlyList<string>?> IDevLauncherAutomation.ReadServiceLogsAsync(string serviceName, int lineCount) => RunAutomationAsync(() =>
+    {
+        var logTab = serviceName.Trim().Equals("lancement", StringComparison.OrdinalIgnoreCase) ? LaunchLogTab : FindServiceLogTab(serviceName);
+        return Task.FromResult(logTab?.GetLastLines(lineCount));
+    });
+
+    Task<string> IDevLauncherAutomation.RestartServiceAsync(string serviceName) => RunAutomationAsync(async () =>
+    {
+        if (FindServiceLogTab(serviceName) is not { } serviceTab) return $"❌ Aucun service « {serviceName} » lancé par DevLauncher : voir service_status";
+        _launchLog.Info($"↻ Redémarrage de {serviceTab.Title} demandé par l'IA");
+        await serviceTab.RestartCommand.ExecuteAsync(null);
+        return serviceTab.IsRunning ? $"✅ {serviceTab.Title} redémarré" : $"❌ {serviceTab.Title} ne tourne pas après le redémarrage : voir read_service_logs";
+    });
+
+    /// <summary>The service tab named exactly like the request, or else the first one whose title contains it.</summary>
+    private ServiceLogTabViewModel? FindServiceLogTab(string serviceName)
+    {
+        var serviceTabs = LogTabs.OfType<ServiceLogTabViewModel>().ToList();
+        return serviceTabs.FirstOrDefault(serviceTab => serviceTab.Title.Equals(serviceName.Trim(), StringComparison.OrdinalIgnoreCase))
+            ?? serviceTabs.FirstOrDefault(serviceTab => serviceTab.Title.Contains(serviceName.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
 
     // ════════════════════════════════════════════════════════════
     //  LOG AND SERVICE STATUS

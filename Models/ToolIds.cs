@@ -25,6 +25,12 @@ public static class ToolIds
     public const string Database = "database";
     public const string Browser = "browser";
 
+    /// <summary>Tool of a command line agent of the agent catalog.</summary>
+    public static string CliAgent(string agentId) => $"cli-agent-{agentId}";
+
+    /// <summary>Option of a command line agent : new conversation or the last one of the folder.</summary>
+    public const string CliAgentSessionOption = "session";
+
     /// <summary>Tool of a chat assistant of the assistant catalog.</summary>
     public static string ChatAssistant(string assistantId) => $"assistant-{assistantId}";
 

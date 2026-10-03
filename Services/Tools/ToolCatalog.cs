@@ -38,6 +38,7 @@ public sealed class ToolCatalog
             XamppComponentTool.Panel,
         }
         .Concat(AssistantCatalog.Definitions.Select(assistantDefinition => new ChatAssistantTool(assistantDefinition)))
+        .Concat(CliAgentCatalog.Definitions.Select(agentDefinition => new CliAgentTool(agentDefinition)))
         .Concat(new LaunchTool[]
         {
             new DatabaseTool(),

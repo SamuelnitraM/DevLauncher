@@ -559,6 +559,102 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ── Command line agents ── -->
+                <Border Background="{DynamicResource CardBgBrush}"
+                        CornerRadius="12" Padding="16" Margin="0,12,0,0">
+                    <StackPanel>
+                        <TextBlock Text="⌨️ Agents en ligne de commande"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   Margin="0,0,0,4"/>
+                        <TextBlock Text="Les agents cochés apparaissent dans les assistants de chaque projet et s'ouvrent dans un onglet de terminal, dans le dossier du projet."
+                                   Style="{StaticResource SettingsCaption}"/>
+                        <ItemsControl x:Name="CliAgentsItemsControl" Margin="0,6,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type views:CliAgentSettingsRow}">
+                                    <Border Background="{DynamicResource InputBgBrush}" CornerRadius="8" Padding="10,6" Margin="0,0,0,6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <CheckBox Content="{Binding Label}"
+                                                          IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                                          FontWeight="SemiBold"
+                                                          Style="{StaticResource ModernCheckBox}"/>
+                                                <TextBlock Text="{Binding InstallationHint}"
+                                                           Style="{StaticResource SettingsCaption}"
+                                                           Margin="22,0,0,0"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="1"
+                                                    Content="📥 Installer…"
+                                                    VerticalAlignment="Center"
+                                                    Style="{StaticResource PrimaryButton}"
+                                                    FontSize="11" Padding="10,5"
+                                                    ToolTip="{Binding AgentDefinition.InstallUrl}"
+                                                    Visibility="{Binding IsInstalled, Converter={StaticResource InverseBooleanToVisibility}}"
+                                                    Click="InstallCliAgent_Click"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── MCP server ── -->
+                <Border Background="{DynamicResource CardBgBrush}"
+                        CornerRadius="12" Padding="16" Margin="0,12,0,0">
+                    <StackPanel>
+                        <TextBlock Text="🧩 Serveur MCP (DevLauncher pilotable par l'IA)"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   Margin="0,0,0,4"/>
+                        <TextBlock Text="Une IA compatible MCP (Claude Code, Claude Desktop…) peut lister les projets, lancer un projet, tout arrêter, lire les journaux des services et les redémarrer. Le serveur n'écoute que sur cet ordinateur."
+                                   Style="{StaticResource SettingsCaption}"/>
+                        <CheckBox x:Name="McpServerEnabledBox"
+                                  Style="{StaticResource ModernCheckBox}"
+                                  Content="Activer le serveur MCP local"/>
+                        <Grid Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="120"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Port" Style="{StaticResource SettingsLabel}"/>
+                            <TextBox x:Name="McpServerPortBox" Grid.Column="1"
+                                     Style="{StaticResource SettingsTextBox}"
+                                     MaxLength="5"/>
+                        </Grid>
+                        <TextBlock Text="Ajout dans Claude Code :" Style="{StaticResource SettingsCaption}"/>
+                        <TextBox x:Name="McpCommandBox"
+                                 Style="{StaticResource SettingsTextBox}"
+                                 IsReadOnly="True"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Administrator rights ── -->
+                <Border Background="{DynamicResource CardBgBrush}"
+                        CornerRadius="12" Padding="16" Margin="0,12,0,0">
+                    <StackPanel>
+                        <TextBlock Text="🛡️ Droits administrateur"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   Margin="0,0,0,4"/>
+                        <TextBlock Text="DevLauncher garde ses droits administrateur. Les applications cochées sont lancées avec les droits de l'utilisateur : glisser-déposer depuis l'Explorateur possible, pas de mention « Administrateur »."
+                                   Style="{StaticResource SettingsCaption}"/>
+                        <ItemsControl x:Name="UnelevatedFamiliesItemsControl" Margin="0,6,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type views:UnelevatedFamilyRow}">
+                                    <CheckBox Content="{Binding Label}"
+                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                              Style="{StaticResource ModernCheckBox}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
                 <!-- ── Persistent log ── -->
                 <Border Background="{DynamicResource CardBgBrush}"
                         CornerRadius="12" Padding="16" Margin="0,12,0,0">

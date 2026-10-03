@@ -80,6 +80,18 @@ public static class AppSettings
     /// <summary>Color theme : system (follows Windows), light or dark</summary>
     public static string Theme { get; set; } = ThemeNames.System;
 
+    /// <summary>Local MCP server letting an AI list, launch and stop the projects</summary>
+    public static bool McpServerEnabled { get; set; }
+
+    /// <summary>Port of the local MCP server</summary>
+    public static int McpServerPort { get; set; } = 8765;
+
+    /// <summary>Families of applications started with the rights of the standard user (see ElevationPolicy)</summary>
+    public static List<string> UnelevatedApplications { get; set; } = new();
+
+    /// <summary>Settings of the command line agents, one entry per agent of the catalog</summary>
+    public static List<CliAgentSettings> CliAgents { get; set; } = CliAgentCatalog.MergeWithDefaults(null);
+
     /// <summary>Settings of the AI assistants, one entry per assistant of the catalog</summary>
     public static List<AssistantSettings> Assistants { get; set; } = AssistantCatalog.MergeWithDefaults(null);
 }

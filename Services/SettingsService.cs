@@ -49,7 +49,11 @@ public static class SettingsService
             ShowNotifications = AppSettings.ShowNotifications,
             GlobalHotkey = AppSettings.GlobalHotkey,
             Theme = AppSettings.Theme,
+            UnelevatedApplications = AppSettings.UnelevatedApplications,
+            McpServerEnabled = AppSettings.McpServerEnabled,
+            McpServerPort = AppSettings.McpServerPort,
             Assistants = AppSettings.Assistants,
+            CliAgents = AppSettings.CliAgents,
         };
         File.WriteAllText(StoragePaths.SettingsFilePath, JsonSerializer.Serialize(settingsData, _jsonOptions));
     }
@@ -95,8 +99,12 @@ public static class SettingsService
         AppSettings.MinimizeToTray = settingsData.MinimizeToTray ?? AppSettings.MinimizeToTray;
         AppSettings.ShowNotifications = settingsData.ShowNotifications ?? AppSettings.ShowNotifications;
         AppSettings.GlobalHotkey = settingsData.GlobalHotkey?.Trim() ?? AppSettings.GlobalHotkey;
+        AppSettings.McpServerEnabled = settingsData.McpServerEnabled;
+        AppSettings.McpServerPort = IsValidPort(settingsData.McpServerPort) ? settingsData.McpServerPort : AppSettings.McpServerPort;
+        AppSettings.UnelevatedApplications = CleanPaths(settingsData.UnelevatedApplications) ?? AppSettings.UnelevatedApplications;
         AppSettings.Theme = settingsData.Theme is ThemeNames.System or ThemeNames.Light or ThemeNames.Dark ? settingsData.Theme : AppSettings.Theme;
         AppSettings.Assistants = AssistantCatalog.MergeWithDefaults(settingsData.Assistants);
+        AppSettings.CliAgents = CliAgentCatalog.MergeWithDefaults(settingsData.CliAgents);
     }
 
     /// <summary>Returns true when the value is a usable TCP port.</summary>
@@ -140,6 +148,10 @@ public static class SettingsService
         /// <summary>An empty string disables the global shortcut, a missing value keeps the default one.</summary>
         public string? GlobalHotkey { get; set; }
         public string? Theme { get; set; }
+        public List<string>? UnelevatedApplications { get; set; }
+        public bool McpServerEnabled { get; set; }
+        public int McpServerPort { get; set; }
         public List<AssistantSettings>? Assistants { get; set; }
+        public List<CliAgentSettings>? CliAgents { get; set; }
     }
 }

@@ -15,7 +15,7 @@ public sealed class VSCodeTool : LaunchTool
     public override Task<ToolStartResult> StartAsync(ToolExecutionContext context)
     {
         context.Log.Info("💻 Ouverture de VSCode…");
-        return Task.FromResult(context.ProcessLauncher.StartVSCode(context.ProjectPath) ? ToolStartResult.Started : ToolStartResult.Failed);
+        return Task.FromResult(context.ProcessLauncher.StartVSCode(context.ProjectPath, context.RunsUnelevated) ? ToolStartResult.Started : ToolStartResult.Failed);
     }
 
     public override Task StopAsync(ToolExecutionContext context)
@@ -41,7 +41,7 @@ public sealed class VisualStudioTool : LaunchTool
         context.Log.Info(solutionFilePath is not null
             ? $"   → Solution : {Path.GetFileName(solutionFilePath)}"
             : "   → Pas de solution, ouverture du dossier…");
-        var isStarted = context.ProcessLauncher.StartShellProcess(AppSettings.VisualStudioExecutable, $"\"{solutionFilePath ?? context.ProjectPath}\"");
+        var isStarted = context.ProcessLauncher.StartShellProcess(AppSettings.VisualStudioExecutable, $"\"{solutionFilePath ?? context.ProjectPath}\"", context.RunsUnelevated);
         return Task.FromResult(isStarted ? ToolStartResult.Started : ToolStartResult.Failed);
     }
 

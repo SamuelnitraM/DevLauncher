@@ -32,7 +32,7 @@ Rien n'est figé : chaque bloc est à valider avant d'être développé.
 | 0.3 | ✅ **Données dans `%APPDATA%\DevLauncher`** avec migration automatique des fichiers existants | S | `settings.json` et `Profiles/` sont à côté de l'exe : perdus à chaque changement Debug/Release/publication, et non inscriptibles si l'exe est dans `Program Files`. |
 | 0.4 | ✅ **Profils versionnables dans le projet** (`.devlauncher.json` à la racine, optionnel) | S | Partager la config d'un projet avec l'équipe via git. |
 | 0.5 | ✅ **Tests unitaires** (scanner, profils, paramètres, génération `tasks.json`) + ✅ **CI GitHub Actions** (build + publication de l'exe en artefact de release) | M | Le projet compile aussi sous Linux (`EnableWindowsTargeting`) : la CI est triviale à mettre en place. |
-| 0.6 | **Option « Lancer les applications sans élévation »** (par outil) : DevLauncher reste administrateur, mais peut démarrer VSCode, le navigateur ou une IA avec le jeton de l'utilisateur standard | S | Les droits administrateur sont conservés (accès total au système, traces WMI). Les applications enfants en héritent : VSCode affiche « Administrator », le navigateur tourne élevé, le glisser-déposer depuis l'Explorateur vers ces fenêtres est bloqué. L'option permet de choisir outil par outil. |
+| 0.6 | ✅ **Option « Lancer les applications sans élévation »** (par outil) : DevLauncher reste administrateur, mais peut démarrer VSCode, le navigateur ou une IA avec le jeton de l'utilisateur standard | S | Les droits administrateur sont conservés (accès total au système, traces WMI). Les applications enfants en héritent : VSCode affiche « Administrator », le navigateur tourne élevé, le glisser-déposer depuis l'Explorateur vers ces fenêtres est bloqué. L'option permet de choisir outil par outil. |
 | 0.7 | ✅ **Journal persistant** (fichier tournant) + niveau de détail | S | Diagnostiquer un lancement raté après coup. |
 | 0.8 | ✅ **Validation des paramètres** : pastille rouge sur les chemins introuvables, bouton « Détecter automatiquement » (registre, `where code`, emplacements XAMPP usuels) | S | Évite de découvrir un mauvais chemin au moment du lancement. |
 
@@ -68,15 +68,16 @@ choisis par assistant et modifiables par profil.
 - État actuel connu : ni Claude Desktop ni ChatGPT Desktop n'exposent de moyen documenté de lister les projets.
   Ils démarreront donc sur une nouvelle discussion, et la liste s'activera d'elle-même si un éditeur l'ouvre un jour.
 
-### 1.4 Agents en ligne de commande (Claude Code, Codex CLI, Gemini CLI, Aider) — M
+### 1.4 ✅ Agents en ligne de commande (Claude Code, Codex CLI, Gemini CLI, Aider) — M
 
-> Essayé avec Claude Code puis retiré : il suppose l'outil en ligne de commande installé, ce qui n'est pas le cas
-> sur le poste cible. À reprendre avec une vérification de présence dans le PATH et un lien d'installation.
+- Agents activés dans les paramètres, où leur présence dans le PATH est vérifiée, avec un lien d'installation.
+- Ouverture dans un onglet de Windows Terminal, dans le dossier du projet, sur une nouvelle conversation
+  ou sur la dernière (Claude Code, Codex CLI).
 
-### 1.5 DevLauncher pilotable par l'IA (serveur MCP) — L
+### 1.5 ✅ DevLauncher pilotable par l'IA (serveur MCP) — L
 
-- DevLauncher expose un **serveur MCP local** : `list_projects`, `launch_project(profile)`, `stop_all`,
-  `service_status`, `read_service_logs`, `restart_service`.
+- DevLauncher expose un **serveur MCP local** (HTTP, `http://127.0.0.1:8765/mcp`, option des paramètres) :
+  `list_projects`, `launch_project(project, profile)`, `stop_all`, `service_status`, `read_service_logs`, `restart_service`.
 - Une IA peut alors démarrer l'environnement, lire les erreurs d'un service et le redémarrer depuis la conversation.
 
 ### 1.6 ✅ Contexte projet pour l'IA — S

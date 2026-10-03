@@ -13,6 +13,9 @@ public sealed class ToolExecutionContext
     public required LaunchLog Log { get; init; }
     public required Hosting.ServiceProcessHost ServiceHost { get; init; }
 
+    /// <summary>The applications of this tool start with the rights of the standard user.</summary>
+    public bool RunsUnelevated { get; init; }
+
     public string ProjectName => Path.GetFileName(ProjectPath);
 
     public IReadOnlyList<string> GetOptionValues(string optionKey) => Selection.GetOptionValues(optionKey);

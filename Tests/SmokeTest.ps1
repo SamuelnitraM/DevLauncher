@@ -136,6 +136,8 @@ $dataDirectory = Join-Path $env:APPDATA 'DevLauncher'
 New-Item -ItemType Directory -Force -Path $dataDirectory | Out-Null
 $settings = @{
     projectRoots = @($projectsRootPath)
+    mcpServerEnabled = $true
+    mcpServerPort = 8765
     assistants = @(
         @{ id = 'claude'; isEnabled = $true; defaultMode = 'browser'; webUrl = 'https://claude.ai/new'; applicationTarget = '';
            projects = @(@{ name = 'highlightforge'; url = 'https://claude.ai/project/smoke-test' }) }
@@ -256,6 +258,20 @@ if ($null -ne $statisticsButton) {
     Close-DialogWindow 'Statistiques'
 }
 
+# ── MCP server : an AI lists the projects and the services over HTTP ──
+$mcpEndpoint = 'http://127.0.0.1:8765/mcp'
+try {
+    $initializeResponse = Invoke-RestMethod -Method Post -Uri $mcpEndpoint -ContentType 'application/json' -Body '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke-test","version":"1"}}}'
+    Write-CheckResult 'Serveur MCP initialisé' ($initializeResponse.result.serverInfo.name -eq 'devlauncher')
+    $projectsResponse = Invoke-RestMethod -Method Post -Uri $mcpEndpoint -ContentType 'application/json' -Body '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_projects","arguments":{}}}'
+    Write-CheckResult 'Projets listés par MCP' ($projectsResponse.result.content[0].text -like '*highlightforge*')
+    $logsResponse = Invoke-RestMethod -Method Post -Uri $mcpEndpoint -ContentType 'application/json' -Body '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_service_logs","arguments":{"service":"lancement","lines":50}}}'
+    Write-CheckResult 'Journal de lancement lu par MCP' ($logsResponse.result.content[0].text -like '*outil*')
+}
+catch {
+    Write-CheckResult 'Serveur MCP joignable' $false $_.Exception.Message
+}
+
 # ── Single instance : a second start hands its request over to the open window ──
 $secondProcess = Start-Process -FilePath $ExecutablePath -ArgumentList '--open', 'boutique' -PassThru
 Write-CheckResult 'Seconde instance transmise puis fermée' ($secondProcess.WaitForExit(30000))
@@ -323,17 +339,26 @@ else {
     # Light theme : chosen in the settings, applied to the open windows once saved.
     $themeComboBox = Find-AutomationElement $settingsRoot 'Thème' ([System.Windows.Automation.ControlType]::ComboBox) 5
     $isThemeSaved = $false
-    if ($null -ne $themeComboBox) {
-        $themeComboBox.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
-        $lightThemeItem = Find-AutomationElement $settingsRoot 'Clair' ([System.Windows.Automation.ControlType]::ListItem) 5
-        if ($null -ne $lightThemeItem) { $lightThemeItem.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() }
-        $themeComboBox.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Collapse()
-        $saveButton = Find-AutomationElement $settingsRoot 'Sauvegarder' ([System.Windows.Automation.ControlType]::Button) 5
-        if ($null -ne $saveButton) {
-            $saveButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-            Start-Sleep -Seconds 2
-            $isThemeSaved = (Get-Content -Path (Join-Path $dataDirectory 'settings.json') -Raw) -like '*"theme": "light"*'
+    try {
+        if ($null -ne $themeComboBox) {
+            $expandCollapsePattern = $null
+            if ($themeComboBox.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern, [ref] $expandCollapsePattern)) { $expandCollapsePattern.Expand() }
+            else { Write-Host 'Liste des thèmes : pas de motif ExpandCollapse' }
+            $lightThemeItem = Find-AutomationElement $settingsRoot 'Clair' ([System.Windows.Automation.ControlType]::ListItem) 5
+            $selectionItemPattern = $null
+            if ($null -ne $lightThemeItem -and $lightThemeItem.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref] $selectionItemPattern)) { $selectionItemPattern.Select() }
+            else { Write-Host "Thème clair : élément introuvable ou non sélectionnable ($($null -ne $lightThemeItem))" }
+            if ($null -ne $expandCollapsePattern) { $expandCollapsePattern.Collapse() }
+            $saveButton = Find-AutomationElement $settingsRoot 'Sauvegarder' ([System.Windows.Automation.ControlType]::Button) 5
+            if ($null -ne $saveButton) {
+                $saveButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+                Start-Sleep -Seconds 2
+                $isThemeSaved = (Get-Content -Path (Join-Path $dataDirectory 'settings.json') -Raw) -like '*"theme": "light"*'
+            }
         }
+    }
+    catch {
+        Write-Host "Choix du thème impossible : $($_.Exception.Message)"
     }
     Write-CheckResult 'Thème clair enregistré' $isThemeSaved
     Save-WindowScreenshot $mainWindow '9-theme-clair.png'

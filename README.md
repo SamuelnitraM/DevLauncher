@@ -185,6 +185,12 @@ Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à cô
   à la création, ouverture dans phpMyAdmin ou HeidiSQL
 - 🌐 Hôtes virtuels `projet.test` (clic droit sur un projet) : Apache et fichier `hosts` configurés, Apache redémarré,
   le navigateur ouvre alors `http://projet.test/`
+- ⌨️ Agents en ligne de commande (Claude Code, Codex CLI, Gemini CLI, Aider) : activés dans les paramètres
+  (présence vérifiée, lien d'installation), ouverts dans un onglet de terminal du projet, nouvelle conversation ou reprise
+- 🛡️ Applications lancées sans les droits administrateur au choix (VSCode, Visual Studio, terminal, navigateur, assistants) :
+  glisser-déposer depuis l'Explorateur retrouvé
+- 🧩 Serveur MCP local (option) : une IA liste les projets, lance un projet, arrête tout, lit les journaux des services
+  et les redémarre — `claude mcp add --transport http devlauncher http://127.0.0.1:8765/mcp`
 - 📋 Journal de lancement horodaté, enregistré chaque jour dans `%APPDATA%\DevLauncher\Logs` (10 jours conservés),
   journal détaillé en option (commandes exécutées, sortie des services)
 - 📌 Profils partagés avec le projet : bouton 📤 du bloc Profil, qui les écrit dans `.devlauncher.json`

@@ -31,25 +31,8 @@ public sealed class TerminalTool : LaunchTool
     public override Task<ToolStartResult> StartAsync(ToolExecutionContext context)
     {
         var shellChoice = context.GetOptionValues(ToolIds.TerminalShellOption).FirstOrDefault() ?? DefaultShell;
-        var shellCommandLine = GetShellCommandLine(shellChoice);
         context.Log.Info("🖥️ Ouverture d'un terminal…");
-        bool isStarted;
-        if (IsWindowsTerminalInstalled())
-        {
-            var windowsTerminalArguments = new List<string>
-            {
-                "-w", ProcessLauncher.WindowsTerminalWindowName, "new-tab", "--title", context.ProjectName,
-                "--suppressApplicationTitle", "-d", context.ProjectPath,
-            };
-            windowsTerminalArguments.AddRange(shellCommandLine);
-            isStarted = context.ProcessLauncher.StartWindowsTerminal(windowsTerminalArguments);
-        }
-        else
-        {
-            var consoleCommandLine = shellCommandLine.Count > 0 ? shellCommandLine : new[] { "powershell.exe" };
-            context.Log.Info("   ℹ️ Windows Terminal absent : ouverture d'une console");
-            isStarted = context.ProcessLauncher.StartConsole(consoleCommandLine[0], consoleCommandLine.Skip(1).ToList(), context.ProjectPath);
-        }
+        var isStarted = TerminalTabLauncher.OpenTab(context, context.ProjectName, GetShellCommandLine(shellChoice));
         if (isStarted) context.Log.Info("   ✅ Terminal ouvert");
         return Task.FromResult(isStarted ? ToolStartResult.Started : ToolStartResult.Failed);
     }
@@ -78,17 +61,42 @@ public sealed class TerminalTool : LaunchTool
         _ => Array.Empty<string>(),
     };
 
-    /// <summary>Windows Terminal is reached through its execution alias, in the PATH or in the WindowsApps folder of the user.</summary>
-    private static bool IsWindowsTerminalInstalled()
-        => ExecutableLocator.FindInPath("wt") is not null
-           || File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "WindowsApps", "wt.exe"));
-
     private static string? FindGitBash()
         => new[] { Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86 }
             .Select(Environment.GetFolderPath)
             .Where(programFilesDirectory => !string.IsNullOrEmpty(programFilesDirectory))
             .Select(programFilesDirectory => Path.Combine(programFilesDirectory, "Git", "bin", "bash.exe"))
             .FirstOrDefault(File.Exists);
+}
+
+/// <summary>
+/// Opens a tab of the DevLauncher window of Windows Terminal in the project folder, running a command line or the default
+/// profile ; a console window when Windows Terminal is not installed.
+/// </summary>
+public static class TerminalTabLauncher
+{
+    /// <param name="commandLine">Program and arguments run in the tab, empty for the default profile of Windows Terminal.</param>
+    public static bool OpenTab(ToolExecutionContext context, string tabTitle, IReadOnlyList<string> commandLine)
+    {
+        if (IsWindowsTerminalInstalled())
+        {
+            var windowsTerminalArguments = new List<string>
+            {
+                "-w", ProcessLauncher.WindowsTerminalWindowName, "new-tab", "--title", tabTitle,
+                "--suppressApplicationTitle", "-d", context.ProjectPath,
+            };
+            windowsTerminalArguments.AddRange(commandLine);
+            return context.ProcessLauncher.StartWindowsTerminal(windowsTerminalArguments, context.RunsUnelevated);
+        }
+        var consoleCommandLine = commandLine.Count > 0 ? commandLine : new[] { "powershell.exe" };
+        context.Log.Info("   ℹ️ Windows Terminal absent : ouverture d'une console");
+        return context.ProcessLauncher.StartConsole(consoleCommandLine[0], consoleCommandLine.Skip(1).ToList(), context.ProjectPath, context.RunsUnelevated);
+    }
+
+    /// <summary>Windows Terminal is reached through its execution alias, in the PATH or in the WindowsApps folder of the user.</summary>
+    public static bool IsWindowsTerminalInstalled()
+        => ExecutableLocator.FindInPath("wt") is not null
+           || File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "WindowsApps", "wt.exe"));
 }
 
 /// <summary>Opens the project URL in the selected browsers once its web server answers.</summary>
@@ -233,7 +241,7 @@ public sealed class BrowserTool : LaunchTool
         {
             isAnyBrowserStarted |= browserTarget switch
             {
-                ToolIds.DefaultBrowser => context.ProcessLauncher.StartShellProcess(url),
+                ToolIds.DefaultBrowser => context.ProcessLauncher.StartShellProcess(url, null, context.RunsUnelevated),
                 ToolIds.ChromeBrowser => StartBrowser(context, "Chrome", AppSettings.ChromeExe, url),
                 ToolIds.FirefoxBrowser => StartBrowser(context, "Firefox", AppSettings.FirefoxExe, url),
                 _ => false,
@@ -244,7 +252,7 @@ public sealed class BrowserTool : LaunchTool
 
     private static bool StartBrowser(ToolExecutionContext context, string browserName, string browserExecutablePath, string url)
     {
-        if (File.Exists(browserExecutablePath)) return context.ProcessLauncher.StartShellProcess(browserExecutablePath, url);
+        if (File.Exists(browserExecutablePath)) return context.ProcessLauncher.StartShellProcess(browserExecutablePath, url, context.RunsUnelevated);
         context.Log.Error($"❌ {browserName} introuvable : {browserExecutablePath}");
         return false;
     }

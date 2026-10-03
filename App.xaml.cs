@@ -1,6 +1,7 @@
 using System.Windows;
 using DevLauncher.Services;
 using DevLauncher.Services.Hosting;
+using DevLauncher.Services.Mcp;
 using DevLauncher.Services.Stacks;
 using DevLauncher.Services.Startup;
 using DevLauncher.Services.Tools;
@@ -17,6 +18,7 @@ public partial class App : Application
     private SingleInstanceCoordinator? _singleInstanceCoordinator;
     private TrayIcon? _trayIcon;
     private GlobalHotkey? _globalHotkey;
+    private McpHttpServer? _mcpHttpServer;
 
     /// <summary>
     /// Composition root : hands the request over to the running instance when there is one, otherwise prepares
@@ -82,10 +84,13 @@ public partial class App : Application
             _mainViewModel.OpenCommandPaletteCommand.Execute(null);
         };
         ApplyGlobalHotkey(launchLog);
+        _mcpHttpServer = new McpHttpServer(new McpRequestHandler(_mainViewModel, typeof(App).Assembly.GetName().Version?.ToString(3) ?? "1.0.0"), launchLog);
+        ApplyMcpServer();
         _mainViewModel.SettingsApplied += () =>
         {
             ThemeService.Apply(AppSettings.Theme);
             ApplyGlobalHotkey(launchLog);
+            ApplyMcpServer();
         };
         RefreshMovedShellIntegration(launchLog);
         _singleInstanceCoordinator.ArgumentsReceived += forwardedArguments => Dispatcher.BeginInvoke(() => OnArgumentsForwarded(forwardedArguments));
@@ -107,6 +112,14 @@ public partial class App : Application
         }
         if (!_globalHotkey.Register(AppSettings.GlobalHotkey))
             launchLog.Error($"⚠️ Raccourci global « {AppSettings.GlobalHotkey} » indisponible (invalide ou déjà pris par une autre application)");
+    }
+
+    /// <summary>Starts, restarts on its new port or stops the MCP server according to the settings.</summary>
+    private void ApplyMcpServer()
+    {
+        if (_mcpHttpServer is null) return;
+        if (AppSettings.McpServerEnabled) _mcpHttpServer.Start(AppSettings.McpServerPort);
+        else _mcpHttpServer.Stop();
     }
 
     /// <summary>A second instance was started (jump list, link, Explorer, command line) : this window comes forward and runs its request.</summary>
@@ -136,6 +149,7 @@ public partial class App : Application
     {
         _singleInstanceCoordinator?.Dispose();
         _globalHotkey?.Dispose();
+        _mcpHttpServer?.Dispose();
         _trayIcon?.Dispose();
         _mainViewModel?.Dispose();
         _persistentLogWriter?.Dispose();

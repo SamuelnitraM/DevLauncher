@@ -5,6 +5,8 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using DevLauncher.Services;
 using DevLauncher.Services.Assistants;
+using DevLauncher.Services.Elevation;
+using DevLauncher.Services.Mcp;
 using DevLauncher.Services.Startup;
 using Microsoft.Win32;
 
@@ -14,6 +16,19 @@ public partial class SettingsWindow : Window
 {
     private readonly List<AssistantSettingsRow> _assistantSettingsRows = AssistantCatalog.Definitions
         .Select(assistantDefinition => new AssistantSettingsRow(assistantDefinition, AssistantCatalog.GetSettings(assistantDefinition.Id)))
+        .ToList();
+
+    private readonly List<CliAgentSettingsRow> _cliAgentSettingsRows = CliAgentCatalog.Definitions
+        .Select(agentDefinition => new CliAgentSettingsRow(agentDefinition, CliAgentCatalog.IsEnabled(agentDefinition.Id)))
+        .ToList();
+
+    private readonly List<UnelevatedFamilyRow> _unelevatedFamilyRows = ElevationPolicy.Families
+        .Select(family => new UnelevatedFamilyRow
+        {
+            Family = family.Family,
+            Label = family.Label,
+            IsSelected = AppSettings.UnelevatedApplications.Contains(family.Family, StringComparer.OrdinalIgnoreCase),
+        })
         .ToList();
 
     private readonly Dictionary<DetectableSetting, TextBox> _pathBoxesBySetting;
@@ -87,6 +102,12 @@ public partial class SettingsWindow : Window
         StartAtLogonBox.IsChecked = _wasStartAtLogonEnabled;
         ShellIntegrationBox.IsChecked = _wasShellIntegrationRegistered;
         AssistantsItemsControl.ItemsSource = _assistantSettingsRows;
+        CliAgentsItemsControl.ItemsSource = _cliAgentSettingsRows;
+        McpServerEnabledBox.IsChecked = AppSettings.McpServerEnabled;
+        McpServerPortBox.Text = AppSettings.McpServerPort.ToString();
+        McpServerPortBox.TextChanged += (_, _) => UpdateMcpCommand();
+        UpdateMcpCommand();
+        UnelevatedFamiliesItemsControl.ItemsSource = _unelevatedFamilyRows;
     }
 
     // ════════════════════════════════════════════════════════
@@ -95,7 +116,8 @@ public partial class SettingsWindow : Window
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
-        if (!TryReadPort(SymfonyPortBox, "Symfony", out var symfonyPort) || !TryReadPort(LocalWebPortBox, "Apache", out var localWebPort)) return;
+        if (!TryReadPort(SymfonyPortBox, "Symfony", out var symfonyPort) || !TryReadPort(LocalWebPortBox, "Apache", out var localWebPort)
+            || !TryReadPort(McpServerPortBox, "MCP", out var mcpServerPort)) return;
         var globalHotkey = GlobalHotkeyBox.Text.Trim();
         if (globalHotkey.Length > 0 && !HotkeyGesture.TryParse(globalHotkey, out _))
         {
@@ -125,6 +147,10 @@ public partial class SettingsWindow : Window
         AppSettings.MinimizeToTray = MinimizeToTrayBox.IsChecked == true;
         AppSettings.ShowNotifications = ShowNotificationsBox.IsChecked == true;
         AppSettings.Assistants = _assistantSettingsRows.Select(assistantSettingsRow => assistantSettingsRow.ToSettings()).ToList();
+        AppSettings.McpServerEnabled = McpServerEnabledBox.IsChecked == true;
+        AppSettings.McpServerPort = mcpServerPort;
+        AppSettings.CliAgents = _cliAgentSettingsRows.Select(cliAgentSettingsRow => cliAgentSettingsRow.ToSettings()).ToList();
+        AppSettings.UnelevatedApplications = _unelevatedFamilyRows.Where(familyRow => familyRow.IsSelected).Select(familyRow => familyRow.Family).ToList();
         try
         {
             SettingsService.Save();
@@ -245,6 +271,20 @@ public partial class SettingsWindow : Window
     // ════════════════════════════════════════════════════════
     //  LOG AND DATA TRANSFER
     // ════════════════════════════════════════════════════════
+
+    /// <summary>Shows the command registering the MCP server of the typed port in Claude Code.</summary>
+    private void UpdateMcpCommand()
+    {
+        var port = int.TryParse(McpServerPortBox.Text, out var typedPort) && SettingsService.IsValidPort(typedPort) ? typedPort : AppSettings.McpServerPort;
+        McpCommandBox.Text = $"claude mcp add --transport http devlauncher {McpHttpServer.BuildEndpointUrl(port)}";
+    }
+
+    /// <summary>Opens the installation page of a command line agent.</summary>
+    private void InstallCliAgent_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: CliAgentSettingsRow cliAgentSettingsRow })
+            Process.Start(new ProcessStartInfo(cliAgentSettingsRow.AgentDefinition.InstallUrl) { UseShellExecute = true })?.Dispose();
+    }
 
     private void OpenLogsFolder_Click(object sender, RoutedEventArgs e)
     {

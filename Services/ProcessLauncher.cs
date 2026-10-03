@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using DevLauncher.Services.Elevation;
 
 namespace DevLauncher.Services;
 
@@ -56,8 +57,14 @@ public sealed class ProcessLauncher
     }
 
     /// <summary>Opens a file, an URL or a GUI application through the Windows shell.</summary>
-    public bool StartShellProcess(string target, string? arguments = null)
+    /// <param name="runsUnelevated">Starts it with the rights of the standard user when DevLauncher runs as administrator.</param>
+    public bool StartShellProcess(string target, string? arguments = null, bool runsUnelevated = false)
     {
+        // Without arguments, the Explorer opens the target for the standard user : URLs, files, applications and shell: links alike.
+        var unelevatedCommandLine = arguments is null
+            ? UnelevatedProcessStarter.BuildCommandLine("explorer.exe", new[] { target })
+            : $"{UnelevatedProcessStarter.QuoteArgument(target)} {arguments}";
+        if (TryStartUnelevated(runsUnelevated, unelevatedCommandLine, null, target)) return true;
         try
         {
             var processStartInfo = new ProcessStartInfo(target) { UseShellExecute = true };
@@ -74,12 +81,14 @@ public sealed class ProcessLauncher
     }
 
     /// <summary>Starts Windows Terminal with the given command line arguments.</summary>
-    public bool StartWindowsTerminal(IEnumerable<string> windowsTerminalArguments)
+    public bool StartWindowsTerminal(IEnumerable<string> windowsTerminalArguments, bool runsUnelevated = false)
     {
+        var argumentList = windowsTerminalArguments.ToList();
+        if (TryStartUnelevated(runsUnelevated, UnelevatedProcessStarter.BuildCommandLine("wt.exe", argumentList), null, "Windows Terminal")) return true;
         try
         {
             var processStartInfo = new ProcessStartInfo("wt.exe") { UseShellExecute = false };
-            foreach (var argument in windowsTerminalArguments) processStartInfo.ArgumentList.Add(argument);
+            foreach (var argument in argumentList) processStartInfo.ArgumentList.Add(argument);
             _launchLog.Detail($"Windows Terminal : wt.exe {string.Join(' ', processStartInfo.ArgumentList)}");
             Process.Start(processStartInfo)?.Dispose();
             return true;
@@ -92,8 +101,9 @@ public sealed class ProcessLauncher
     }
 
     /// <summary>Opens an interactive console program in its own window, in the given folder.</summary>
-    public bool StartConsole(string executable, IReadOnlyList<string> arguments, string workingDirectory)
+    public bool StartConsole(string executable, IReadOnlyList<string> arguments, string workingDirectory, bool runsUnelevated = false)
     {
+        if (TryStartUnelevated(runsUnelevated, UnelevatedProcessStarter.BuildCommandLine(executable, arguments), workingDirectory, executable)) return true;
         try
         {
             var processStartInfo = new ProcessStartInfo(executable) { UseShellExecute = true, WorkingDirectory = workingDirectory };
@@ -113,12 +123,17 @@ public sealed class ProcessLauncher
     /// Opens a folder in VSCode. A path to an executable is started directly,
     /// a command name (code) goes through cmd.exe to resolve code.cmd without a console window.
     /// </summary>
-    public bool StartVSCode(string projectPath)
+    public bool StartVSCode(string projectPath, bool runsUnelevated = false)
     {
         var vscodeExecutable = AppSettings.VSCodeExecutable;
+        var isExecutablePath = vscodeExecutable.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
+        var unelevatedCommandLine = isExecutablePath
+            ? UnelevatedProcessStarter.BuildCommandLine(vscodeExecutable, new[] { projectPath })
+            : $"cmd.exe /c \"\"{vscodeExecutable}\" \"{projectPath}\"\"";
+        if (TryStartUnelevated(runsUnelevated, unelevatedCommandLine, null, "VSCode")) return true;
         try
         {
-            var processStartInfo = vscodeExecutable.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            var processStartInfo = isExecutablePath
                 ? new ProcessStartInfo(vscodeExecutable, $"\"{projectPath}\"") { UseShellExecute = false }
                 : new ProcessStartInfo("cmd.exe", $"/c \"\"{vscodeExecutable}\" \"{projectPath}\"\"") { UseShellExecute = false, CreateNoWindow = true };
             _launchLog.Detail($"VSCode : {processStartInfo.FileName} {processStartInfo.Arguments}");
@@ -128,6 +143,26 @@ public sealed class ProcessLauncher
         catch (Win32Exception exception)
         {
             _launchLog.Error($"❌ VSCode ({vscodeExecutable}) : {exception.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Starts the command line with the rights of the standard user when asked and DevLauncher is elevated.
+    /// Returns false when the normal start must happen instead : not asked, not elevated, or refused by Windows (logged).
+    /// </summary>
+    private bool TryStartUnelevated(bool runsUnelevated, string commandLine, string? workingDirectory, string displayName)
+    {
+        if (!runsUnelevated || !UnelevatedProcessStarter.IsCurrentProcessElevated) return false;
+        try
+        {
+            _launchLog.Detail($"Sans élévation : {commandLine}");
+            UnelevatedProcessStarter.StartCommandLine(commandLine, workingDirectory);
+            return true;
+        }
+        catch (Win32Exception exception)
+        {
+            _launchLog.Error($"⚠️ {displayName} : lancement sans élévation refusé ({exception.Message}), lancement avec les droits administrateur");
             return false;
         }
     }

@@ -97,6 +97,12 @@ public partial class LogTabViewModel : ObservableObject
         OnPropertyChanged(nameof(FilterSummary));
     }
 
+    /// <summary>Text of the last lines, whatever the filter.</summary>
+    public IReadOnlyList<string> GetLastLines(int lineCount)
+    {
+        lock (_linesLock) return Lines.Skip(Math.Max(0, Lines.Count - lineCount)).Select(logEntry => logEntry.Text).ToList();
+    }
+
     /// <summary>Text of the lines shown : the filtered lines when a filter is active.</summary>
     public string GetText()
     {
