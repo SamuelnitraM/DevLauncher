@@ -38,6 +38,12 @@ public interface IUserInteractionService
     /// <summary>Replaces the favorite and recent projects of the jump list of the taskbar icon.</summary>
     void UpdateJumpList(IReadOnlyList<Models.ProjectListEntry> favoriteProjects, IReadOnlyList<Models.ProjectListEntry> recentProjects);
 
+    /// <summary>Shows a Windows notification when they are enabled, optionally only while DevLauncher is not the active window.</summary>
+    void ShowNotification(string title, string message, bool isWarning, bool onlyWhenInBackground);
+
+    /// <summary>Shows the command palette and returns the chosen command, null when dismissed.</summary>
+    PaletteCommand? ShowCommandPalette(CommandPaletteViewModel paletteViewModel);
+
     /// <summary>Shows the launch figures of the projects.</summary>
     void ShowStatistics(IReadOnlyList<ProjectLaunchStatistics> projectStatistics);
 }

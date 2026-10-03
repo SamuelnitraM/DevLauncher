@@ -3,6 +3,7 @@ using System.Windows.Shell;
 using DevLauncher.Models;
 using DevLauncher.Services;
 using DevLauncher.ViewModels;
+using DevLauncher.Views.Shell;
 
 namespace DevLauncher.Views;
 
@@ -10,10 +11,13 @@ namespace DevLauncher.Views;
 public sealed class UserInteractionService : IUserInteractionService
 {
     private readonly Window _ownerWindow;
+    private readonly TrayIcon? _trayIcon;
 
-    public UserInteractionService(Window ownerWindow)
+    /// <param name="trayIcon">Icon of the notification area showing the notifications, null when unavailable.</param>
+    public UserInteractionService(Window ownerWindow, TrayIcon? trayIcon)
     {
         _ownerWindow = ownerWindow;
+        _trayIcon = trayIcon;
     }
 
     public bool Confirm(string message, string title)
@@ -88,6 +92,19 @@ public sealed class UserInteractionService : IUserInteractionService
             jumpList.JumpItems.Add(CreateProjectTask(recentProject, "🕘 Récemment lancés"));
         JumpList.SetJumpList(Application.Current, jumpList);
         jumpList.Apply();
+    }
+
+    public void ShowNotification(string title, string message, bool isWarning, bool onlyWhenInBackground)
+    {
+        if (!AppSettings.ShowNotifications || _trayIcon is null) return;
+        if (onlyWhenInBackground && _ownerWindow.IsActive) return;
+        _trayIcon.ShowNotification(title, message, isWarning);
+    }
+
+    public PaletteCommand? ShowCommandPalette(CommandPaletteViewModel paletteViewModel)
+    {
+        var paletteWindow = new CommandPaletteWindow(paletteViewModel, _ownerWindow);
+        return paletteWindow.ShowDialog() == true ? paletteWindow.ChosenCommand : null;
     }
 
     public void ShowStatistics(IReadOnlyList<ProjectLaunchStatistics> projectStatistics)

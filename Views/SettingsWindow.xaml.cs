@@ -72,6 +72,16 @@ public partial class SettingsWindow : Window
         LocalWebPortBox.Text = AppSettings.LocalWebPort.ToString();
         HostServicesInVSCodeBox.IsChecked = AppSettings.HostServicesInVSCode;
         DetailedLoggingBox.IsChecked = AppSettings.DetailedLogging;
+        ThemeBox.ItemsSource = new[]
+        {
+            new { Value = ThemeNames.System, Label = "🖥️ Comme Windows" },
+            new { Value = ThemeNames.Dark, Label = "🌙 Sombre" },
+            new { Value = ThemeNames.Light, Label = "☀️ Clair" },
+        };
+        ThemeBox.SelectedValue = AppSettings.Theme;
+        GlobalHotkeyBox.Text = AppSettings.GlobalHotkey;
+        MinimizeToTrayBox.IsChecked = AppSettings.MinimizeToTray;
+        ShowNotificationsBox.IsChecked = AppSettings.ShowNotifications;
         _wasStartAtLogonEnabled = _windowsIntegrationService.IsStartAtLogonEnabled();
         _wasShellIntegrationRegistered = _windowsIntegrationService.IsShellIntegrationRegistered();
         StartAtLogonBox.IsChecked = _wasStartAtLogonEnabled;
@@ -86,6 +96,12 @@ public partial class SettingsWindow : Window
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         if (!TryReadPort(SymfonyPortBox, "Symfony", out var symfonyPort) || !TryReadPort(LocalWebPortBox, "Apache", out var localWebPort)) return;
+        var globalHotkey = GlobalHotkeyBox.Text.Trim();
+        if (globalHotkey.Length > 0 && !HotkeyGesture.TryParse(globalHotkey, out _))
+        {
+            ShowValidationError("❌ Raccourci global invalide : modificateurs Ctrl, Alt, Shift, Win puis une lettre, un chiffre, F1-F24 ou Space");
+            return;
+        }
         AppSettings.ProjectRoots = SplitEntries(ProjectRootsBox.Text, '\n');
         AppSettings.ExtraProjectPaths = SplitEntries(ExtraProjectsBox.Text, '\n');
         AppSettings.ExcludedFolderNames = SplitEntries(ExcludedFoldersBox.Text, ',');
@@ -104,6 +120,10 @@ public partial class SettingsWindow : Window
         AppSettings.LocalWebPort = localWebPort;
         AppSettings.HostServicesInVSCode = HostServicesInVSCodeBox.IsChecked == true;
         AppSettings.DetailedLogging = DetailedLoggingBox.IsChecked == true;
+        AppSettings.Theme = ThemeBox.SelectedValue as string ?? ThemeNames.System;
+        AppSettings.GlobalHotkey = globalHotkey;
+        AppSettings.MinimizeToTray = MinimizeToTrayBox.IsChecked == true;
+        AppSettings.ShowNotifications = ShowNotificationsBox.IsChecked == true;
         AppSettings.Assistants = _assistantSettingsRows.Select(assistantSettingsRow => assistantSettingsRow.ToSettings()).ToList();
         try
         {

@@ -761,11 +761,13 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
             _launchStatisticsService.RecordLaunch(projectPath, launchTime, launchStopwatch.Elapsed);
             StatusText = $"✅ Environnement lancé — {projectName} ({launchStopwatch.Elapsed.TotalSeconds:0.0} s)";
             _launchLog.Info($"✅ Lancement terminé en {launchStopwatch.Elapsed.TotalSeconds:0.0} s");
+            _userInteractionService.ShowNotification("✅ Environnement prêt", $"{projectName} lancé en {launchStopwatch.Elapsed.TotalSeconds:0.0} s", isWarning: false, onlyWhenInBackground: true);
         }
         catch (Exception exception)
         {
             StatusText = "❌ Erreur lors du lancement";
             _launchLog.Error($"❌ Erreur : {exception.Message}");
+            _userInteractionService.ShowNotification("❌ Lancement en erreur", $"{projectName} : {exception.Message}", isWarning: true, onlyWhenInBackground: true);
         }
         finally
         {
@@ -791,6 +793,60 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
     });
 
     PortConflictDecision ILaunchObserver.ResolvePortConflict(PortConflict portConflict) => _userInteractionService.AskPortConflict(portConflict);
+
+    /// <summary>Favorite then recent projects, without duplicates : the quick launch list of the notification area.</summary>
+    public IReadOnlyList<ProjectListEntry> GetQuickLaunchProjects()
+        => BuildFavoriteProjectEntries()
+            .Concat(BuildRecentProjectEntries())
+            .DistinctBy(projectEntry => projectEntry.Path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    /// <summary>Opens the command palette and runs the chosen command.</summary>
+    [RelayCommand]
+    private async Task OpenCommandPaletteAsync()
+    {
+        var chosenCommand = _userInteractionService.ShowCommandPalette(new CommandPaletteViewModel(BuildPaletteCommands()));
+        if (chosenCommand is not null) await chosenCommand.ExecuteAsync();
+    }
+
+    /// <summary>Every action reachable from the palette : the actions of the current project, the general actions, then each project.</summary>
+    private List<PaletteCommand> BuildPaletteCommands()
+    {
+        var paletteCommands = new List<PaletteCommand>();
+        Task RunCommand(Action action)
+        {
+            action();
+            return Task.CompletedTask;
+        }
+        if (CurrentProjectName is { } currentProjectName)
+        {
+            const string currentProjectCategory = "Projet actuel";
+            if (CanLaunch()) paletteCommands.Add(new PaletteCommand($"▶ Lancer {currentProjectName}", currentProjectCategory, LaunchAsync));
+            foreach (var profileName in ProfileNames.Where(_ => HasSeveralProfiles && CanLaunch()))
+                paletteCommands.Add(new PaletteCommand($"▶ Lancer {currentProjectName} avec le profil {profileName}", currentProjectCategory, () => LaunchProfileAsync(profileName)));
+            paletteCommands.Add(new PaletteCommand("🌍 Ouvrir l'URL locale", currentProjectCategory, () => RunCommand(() => OpenLocalUrl(null))));
+            paletteCommands.Add(new PaletteCommand("🧠 Copier le contexte pour l'IA", currentProjectCategory, () => CopyProjectContextAsync(null)));
+            paletteCommands.Add(new PaletteCommand("📂 Ouvrir dans l'Explorateur", currentProjectCategory, () => RunCommand(() => OpenInExplorer(null))));
+            paletteCommands.Add(new PaletteCommand("📋 Copier le chemin", currentProjectCategory, () => RunCommand(() => CopyProjectPath(null))));
+            paletteCommands.Add(new PaletteCommand("🔗 Copier le lien de lancement", currentProjectCategory, () => RunCommand(() => CopyLaunchLink(null))));
+            paletteCommands.Add(new PaletteCommand(IsCurrentProjectFavorite ? "☆ Retirer des favoris" : "★ Épingler dans les favoris", currentProjectCategory, () => RunCommand(() => ToggleFavorite(null))));
+            paletteCommands.Add(new PaletteCommand("⟳ git fetch", currentProjectCategory, FetchGitAsync));
+        }
+        const string generalCategory = "Général";
+        if (CanStopAll()) paletteCommands.Add(new PaletteCommand("⏹ Tout arrêter", generalCategory, StopAllAsync));
+        paletteCommands.Add(new PaletteCommand("⚙️ Paramètres", generalCategory, () => RunCommand(OpenSettings)));
+        paletteCommands.Add(new PaletteCommand("📊 Statistiques", generalCategory, () => RunCommand(ShowStatistics)));
+        paletteCommands.Add(new PaletteCommand("↻ Rafraîchir les projets", generalCategory, () => RunCommand(RefreshProjects)));
+        paletteCommands.Add(new PaletteCommand("➕ Ajouter un projet", generalCategory, () => RunCommand(AddProject)));
+        var quickLaunchProjects = GetQuickLaunchProjects();
+        var orderedProjects = quickLaunchProjects.Concat(_projectEntries).DistinctBy(projectEntry => projectEntry.Path, StringComparer.OrdinalIgnoreCase);
+        foreach (var projectEntry in orderedProjects)
+        {
+            paletteCommands.Add(new PaletteCommand($"🚀 Lancer {projectEntry.Name}", "Projets", () => HandleStartupCommandAsync(new StartupCommand(projectEntry.Path, null, true, false))));
+            paletteCommands.Add(new PaletteCommand($"📁 Ouvrir {projectEntry.Name}", "Projets", () => HandleStartupCommandAsync(new StartupCommand(projectEntry.Path, null, false, false))));
+        }
+        return paletteCommands;
+    }
 
     [RelayCommand]
     private void ShowStatistics() => _userInteractionService.ShowStatistics(_launchStatisticsService.GetStatistics());
@@ -869,7 +925,11 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
         if (settingsEditResult == SettingsEditResult.Imported && CurrentProjectPath is { } projectPath)
             LoadProfilesForProject(projectPath, _projectScanner.DetectProject(projectPath));
         UpdateJumpList();
+        SettingsApplied?.Invoke();
     }
+
+    /// <summary>Raised once new settings are applied, so that the view applies the theme and the global shortcut again.</summary>
+    public event Action? SettingsApplied;
 
     // ════════════════════════════════════════════════════════════
     //  LOG AND SERVICE STATUS
@@ -887,9 +947,17 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
         RunOnUiThread(() => LaunchLogTab.AppendLine(level == LogLevel.Detail ? $"🔍 {message}" : message, level == LogLevel.Error));
     }
 
-    /// <summary>Adds a log tab for each new service run by DevLauncher.</summary>
-    private void OnServiceCreated(HostedService hostedService) => RunOnUiThread(() =>
-        LogTabs.Add(new ServiceLogTabViewModel(hostedService, _launchLog, RunOnUiThread, CloseServiceLogTab)));
+    /// <summary>Adds a log tab for each new service run by DevLauncher, and notifies when it stops by itself.</summary>
+    private void OnServiceCreated(HostedService hostedService)
+    {
+        hostedService.Exited += (exitCode, isStopRequested) =>
+        {
+            if (isStopRequested) return;
+            RunOnUiThread(() => _userInteractionService.ShowNotification("💥 Service arrêté",
+                $"{hostedService.Command.Title} ({hostedService.ProjectName}) s'est arrêté de lui-même (code {exitCode})", isWarning: true, onlyWhenInBackground: false));
+        };
+        RunOnUiThread(() => LogTabs.Add(new ServiceLogTabViewModel(hostedService, _launchLog, RunOnUiThread, CloseServiceLogTab)));
+    }
 
     private void CloseServiceLogTab(ServiceLogTabViewModel serviceLogTab)
     {
@@ -898,10 +966,15 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
         _serviceProcessHost.Remove(serviceLogTab.HostedService);
     }
 
+    /// <summary>Updates the indicator, and notifies when a XAMPP service stops outside of « Tout arrêter ».</summary>
     private void OnServiceStatusChanged(string serviceName, bool isRunning) => RunOnUiThread(() =>
     {
         var serviceIndicator = ServiceIndicators.FirstOrDefault(indicator => indicator.ServiceName == serviceName);
-        if (serviceIndicator is not null) serviceIndicator.IsRunning = isRunning;
+        if (serviceIndicator is null) return;
+        var hasStoppedUnexpectedly = serviceIndicator.IsRunning && !isRunning && !IsStopInProgress;
+        serviceIndicator.IsRunning = isRunning;
+        if (hasStoppedUnexpectedly)
+            _userInteractionService.ShowNotification($"⚠️ {serviceName} s'est arrêté", $"{serviceName} ne tourne plus.", isWarning: true, onlyWhenInBackground: false);
     });
 
     /// <summary>Runs the action on the UI thread : immediately when already on it, queued otherwise.</summary>

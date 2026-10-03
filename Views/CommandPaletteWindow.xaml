@@ -1,0 +1,58 @@
+<Window x:Class="DevLauncher.Views.CommandPaletteWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Palette de commandes"
+        Width="600" SizeToContent="Height"
+        WindowStyle="None" ResizeMode="NoResize"
+        AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="False"
+        WindowStartupLocation="Manual"
+        FontFamily="Segoe UI">
+    <Border Background="{DynamicResource CardBgBrush}"
+            BorderBrush="{DynamicResource AccentBlueBrush}"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="12"
+            Margin="12">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="18" ShadowDepth="2" Opacity="0.5"/>
+        </Border.Effect>
+        <StackPanel>
+            <Border Background="{DynamicResource InputBgBrush}" CornerRadius="8" Padding="10,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Left" Text="⚡" FontSize="15" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox x:Name="SearchBox"
+                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             Background="Transparent" BorderThickness="0"
+                             Foreground="{DynamicResource TextPrimaryBrush}"
+                             CaretBrush="{DynamicResource AccentBlueBrush}"
+                             FontSize="15" Padding="0,10"
+                             AutomationProperties.Name="Rechercher une commande"
+                             PreviewKeyDown="SearchBox_PreviewKeyDown"/>
+                </DockPanel>
+            </Border>
+            <ListBox x:Name="CommandsList"
+                     ItemsSource="{Binding FilteredCommands}"
+                     SelectedItem="{Binding SelectedCommand, Mode=TwoWay}"
+                     Background="Transparent" BorderThickness="0"
+                     MaxHeight="380" Margin="0,8,0,0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ItemContainerStyle="{StaticResource ProjectListItem}"
+                     MouseDoubleClick="CommandsList_MouseDoubleClick"
+                     AutomationProperties.Name="Commandes">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding Category}" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
+                        </DockPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock Text="↑ ↓ pour choisir · Entrée pour exécuter · Échap pour fermer"
+                       FontSize="11" Margin="4,8,0,0"
+                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+        </StackPanel>
+    </Border>
+</Window>

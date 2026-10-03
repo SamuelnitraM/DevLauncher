@@ -238,6 +238,25 @@ $secondProcess = Start-Process -FilePath $ExecutablePath -ArgumentList '--open',
 Write-CheckResult 'Seconde instance transmise puis fermée' ($secondProcess.WaitForExit(30000))
 Write-CheckResult 'Projet demandé ouvert dans la fenêtre existante' ($null -ne (Find-AutomationElement $mainWindow 'Laravel détecté' $null 10))
 
+# ── Command palette ──
+$paletteButton = Find-AutomationElement $mainWindow 'Palette de commandes' ([System.Windows.Automation.ControlType]::Button) 5
+Write-CheckResult 'Bouton palette de commandes' ($null -ne $paletteButton)
+if ($null -ne $paletteButton) {
+    $paletteButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $paletteWindow = Find-TopLevelWindow 'Palette de commandes' 10
+    if ($null -eq $paletteWindow) { $paletteWindow = $mainWindow }
+    $paletteSearchBox = Find-AutomationElement $paletteWindow 'Rechercher une commande' ([System.Windows.Automation.ControlType]::Edit) 10
+    Write-CheckResult 'Palette de commandes ouverte' ($null -ne $paletteSearchBox)
+    if ($null -ne $paletteSearchBox) {
+        $paletteSearchBox.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('lancer boutique')
+        Write-CheckResult 'Palette filtrée' ($null -ne (Find-AutomationElement $paletteWindow 'Lancer boutique' ([System.Windows.Automation.ControlType]::ListItem) 5))
+        Save-WindowScreenshot $paletteWindow '8-palette.png'
+    }
+    $remainingPaletteWindow = Find-TopLevelWindow 'Palette de commandes' 1
+    if ($null -ne $remainingPaletteWindow) { $remainingPaletteWindow.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).Close() }
+    Start-Sleep -Seconds 1
+}
+
 # ── Log search ──
 $logSearchBox = Find-AutomationElement $mainWindow 'Rechercher dans le journal' ([System.Windows.Automation.ControlType]::Edit) 5
 Write-CheckResult 'Recherche dans le journal' ($null -ne $logSearchBox)
@@ -280,8 +299,28 @@ else {
     Write-CheckResult 'Bouton de détection automatique' ($null -ne (Find-AutomationElement $settingsRoot 'Détecter automatiquement' ([System.Windows.Automation.ControlType]::Button) 5))
     Write-CheckResult 'Section import / export' ($null -ne (Find-AutomationElement $settingsRoot 'Exporter' ([System.Windows.Automation.ControlType]::Button) 5))
     Save-WindowScreenshot $settingsRoot '4-parametres.png'
-    $cancelButton = Find-AutomationElement $settingsRoot 'Annuler' ([System.Windows.Automation.ControlType]::Button) 5
-    if ($null -ne $cancelButton) { $cancelButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
+    # Light theme : chosen in the settings, applied to the open windows once saved.
+    $themeComboBox = Find-AutomationElement $settingsRoot 'Thème' ([System.Windows.Automation.ControlType]::ComboBox) 5
+    $isThemeSaved = $false
+    if ($null -ne $themeComboBox -and $settingsRoot -ne $mainWindow) {
+        $themeComboBox.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+        $lightThemeItem = Find-AutomationElement $settingsRoot 'Clair' ([System.Windows.Automation.ControlType]::ListItem) 5
+        if ($null -ne $lightThemeItem) { $lightThemeItem.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() }
+        $themeComboBox.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Collapse()
+        $saveButton = Find-AutomationElement $settingsRoot 'Sauvegarder' ([System.Windows.Automation.ControlType]::Button) 5
+        if ($null -ne $saveButton) {
+            $saveButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+            Start-Sleep -Seconds 2
+            $isThemeSaved = (Get-Content -Path (Join-Path $dataDirectory 'settings.json') -Raw) -like '*"theme": "light"*'
+        }
+    }
+    Write-CheckResult 'Thème clair enregistré' $isThemeSaved
+    Save-WindowScreenshot $mainWindow '9-theme-clair.png'
+    $remainingSettingsWindow = Find-TopLevelWindow 'Paramètres' 1
+    if ($null -ne $remainingSettingsWindow) {
+        $cancelButton = Find-AutomationElement $remainingSettingsWindow 'Annuler' ([System.Windows.Automation.ControlType]::Button) 5
+        if ($null -ne $cancelButton) { $cancelButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
+    }
     Start-Sleep -Seconds 1
 }
 

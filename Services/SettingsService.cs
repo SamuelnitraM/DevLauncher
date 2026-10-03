@@ -45,6 +45,10 @@ public static class SettingsService
             LocalWebPort = AppSettings.LocalWebPort,
             HostServicesInVSCode = AppSettings.HostServicesInVSCode,
             DetailedLogging = AppSettings.DetailedLogging,
+            MinimizeToTray = AppSettings.MinimizeToTray,
+            ShowNotifications = AppSettings.ShowNotifications,
+            GlobalHotkey = AppSettings.GlobalHotkey,
+            Theme = AppSettings.Theme,
             Assistants = AppSettings.Assistants,
         };
         File.WriteAllText(StoragePaths.SettingsFilePath, JsonSerializer.Serialize(settingsData, _jsonOptions));
@@ -88,6 +92,10 @@ public static class SettingsService
         AppSettings.LocalWebPort = IsValidPort(settingsData.LocalWebPort) ? settingsData.LocalWebPort : AppSettings.LocalWebPort;
         AppSettings.HostServicesInVSCode = settingsData.HostServicesInVSCode;
         AppSettings.DetailedLogging = settingsData.DetailedLogging;
+        AppSettings.MinimizeToTray = settingsData.MinimizeToTray ?? AppSettings.MinimizeToTray;
+        AppSettings.ShowNotifications = settingsData.ShowNotifications ?? AppSettings.ShowNotifications;
+        AppSettings.GlobalHotkey = settingsData.GlobalHotkey?.Trim() ?? AppSettings.GlobalHotkey;
+        AppSettings.Theme = settingsData.Theme is ThemeNames.System or ThemeNames.Light or ThemeNames.Dark ? settingsData.Theme : AppSettings.Theme;
         AppSettings.Assistants = AssistantCatalog.MergeWithDefaults(settingsData.Assistants);
     }
 
@@ -127,6 +135,11 @@ public static class SettingsService
         public int LocalWebPort { get; set; }
         public bool HostServicesInVSCode { get; set; }
         public bool DetailedLogging { get; set; }
+        public bool? MinimizeToTray { get; set; }
+        public bool? ShowNotifications { get; set; }
+        /// <summary>An empty string disables the global shortcut, a missing value keeps the default one.</summary>
+        public string? GlobalHotkey { get; set; }
+        public string? Theme { get; set; }
         public List<AssistantSettings>? Assistants { get; set; }
     }
 }

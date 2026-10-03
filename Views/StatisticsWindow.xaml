@@ -6,27 +6,27 @@
         MinWidth="520" MinHeight="300"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
-        Background="{StaticResource DarkBgBrush}"
+        Background="{DynamicResource WindowBgBrush}"
         FontFamily="Segoe UI">
     <Window.Resources>
         <Style x:Key="StatisticsHeader" TargetType="TextBlock">
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
         </Style>
         <Style x:Key="StatisticsCell" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
         </Style>
     </Window.Resources>
     <DockPanel Margin="16">
         <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
             <TextBlock Text="📊 Statistiques de lancement"
                        FontSize="18" FontWeight="Bold"
-                       Foreground="{StaticResource AccentBlueBrush}"/>
+                       Foreground="{DynamicResource AccentBlueBrush}"/>
             <TextBlock x:Name="SummaryText"
                        FontSize="12" Margin="0,4,0,0"
-                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                       Foreground="{DynamicResource TextSecondaryBrush}"/>
         </StackPanel>
         <Button DockPanel.Dock="Bottom"
                 HorizontalAlignment="Right"
@@ -34,7 +34,7 @@
                 Style="{StaticResource PrimaryButton}"
                 FontSize="12" Padding="16,6" Margin="0,12,0,0"
                 IsCancel="True" IsDefault="True"/>
-        <Border Background="{StaticResource CardBgBrush}" CornerRadius="12" Padding="12">
+        <Border Background="{DynamicResource CardBgBrush}" CornerRadius="12" Padding="12">
             <DockPanel>
                 <Grid DockPanel.Dock="Top" Margin="8,0,8,6">
                     <Grid.ColumnDefinitions>
@@ -54,7 +54,7 @@
                     <ItemsControl x:Name="StatisticsItemsControl">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="#1A1A2E" CornerRadius="6" Padding="8,6" Margin="0,2">
+                                <Border Background="{DynamicResource InputBgBrush}" CornerRadius="6" Padding="8,6" Margin="0,2">
                                     <Grid ToolTip="{Binding ProjectPath}">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -64,7 +64,7 @@
                                             <ColumnDefinition Width="100"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="{Binding ProjectName}" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
                                         <TextBlock Grid.Column="1" Text="{Binding LaunchCount}" Style="{StaticResource StatisticsCell}"/>
                                         <TextBlock Grid.Column="2" Text="{Binding LastLaunchTime, StringFormat='dd/MM/yyyy HH:mm'}" Style="{StaticResource StatisticsCell}"/>
                                         <TextBlock Grid.Column="3" Text="{Binding LastDurationSeconds, StringFormat='{}{0:0.0} s'}" Style="{StaticResource StatisticsCell}"/>

@@ -174,6 +174,11 @@ Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à cô
   et entrée « Lancer avec DevLauncher » du clic droit sur un dossier dans l'Explorateur (option des paramètres)
 - 📌 Liste de l'icône de la barre des tâches : favoris et projets récents, lancés en un clic
 - 🚀 Démarrage avec Windows (option des paramètres), réduit et sans confirmation UAC
+- 🔔 Icône dans la zone de notification : réduire y range la fenêtre ; clic droit pour lancer un favori ou un projet récent,
+  tout arrêter, quitter ; notifications Windows (environnement prêt, service arrêté de lui-même)
+- ⚡ Palette de commandes (Ctrl+K ou bouton ⚡) : lancer / ouvrir n'importe quel projet, actions du projet, paramètres…
+  et raccourci global (Ctrl+Alt+D par défaut) qui l'ouvre depuis n'importe quelle application
+- 🎨 Thème clair, sombre ou comme Windows (suivi en direct), barres de titre comprises
 - 📋 Journal de lancement horodaté, enregistré chaque jour dans `%APPDATA%\DevLauncher\Logs` (10 jours conservés),
   journal détaillé en option (commandes exécutées, sortie des services)
 - 📌 Profils partagés avec le projet : bouton 📤 du bloc Profil, qui les écrit dans `.devlauncher.json`

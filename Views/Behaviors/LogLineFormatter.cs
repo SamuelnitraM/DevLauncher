@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using DevLauncher.Models;
+using DevLauncher.Views.Shell;
 
 namespace DevLauncher.Views.Behaviors;
 
@@ -41,13 +42,21 @@ public static class LogLineFormatter
         }
     }
 
-    /// <summary>Brushes are shared and frozen : a busy service prints thousands of lines with a handful of colors.</summary>
+    /// <summary>
+    /// Brushes are shared and frozen : a busy service prints thousands of lines with a handful of colors.
+    /// On the light theme, the light colors meant for a dark terminal are darkened to stay readable.
+    /// </summary>
     private static Brush GetBrush(string color)
     {
-        if (_brushesByColor.TryGetValue(color, out var cachedBrush)) return cachedBrush;
-        var colorBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+        var cacheKey = $"{(ThemeService.IsDarkThemeActive ? "dark" : "light")}{color}";
+        if (_brushesByColor.TryGetValue(cacheKey, out var cachedBrush)) return cachedBrush;
+        var lineColor = (Color)ColorConverter.ConvertFromString(color);
+        var relativeLuminance = (0.2126 * lineColor.R + 0.7152 * lineColor.G + 0.0722 * lineColor.B) / 255;
+        if (!ThemeService.IsDarkThemeActive && relativeLuminance > 0.6)
+            lineColor = Color.FromRgb((byte)(lineColor.R * 0.55), (byte)(lineColor.G * 0.55), (byte)(lineColor.B * 0.55));
+        var colorBrush = new SolidColorBrush(lineColor);
         colorBrush.Freeze();
-        _brushesByColor[color] = colorBrush;
+        _brushesByColor[cacheKey] = colorBrush;
         return colorBrush;
     }
 }

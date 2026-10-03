@@ -6,7 +6,7 @@
         Height="780" Width="720"
         MinHeight="500" MinWidth="600"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource DarkBgBrush}"
+        Background="{DynamicResource WindowBgBrush}"
         FontFamily="Segoe UI"
         ResizeMode="CanResize"
         ShowInTaskbar="False">
@@ -15,22 +15,22 @@
         <!-- Shared styles of the setting rows -->
         <Style x:Key="SettingsLabel" TargetType="TextBlock">
             <Setter Property="FontSize"      Value="13"/>
-            <Setter Property="Foreground"    Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Foreground"    Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Width"         Value="160"/>
             <Setter Property="TextWrapping"  Value="Wrap"/>
         </Style>
         <Style x:Key="SettingsTextBox" TargetType="TextBox">
-            <Setter Property="Background"    Value="#1A1A2E"/>
-            <Setter Property="Foreground"    Value="{StaticResource TextPrimaryBrush}"/>
-            <Setter Property="BorderBrush"   Value="#444466"/>
+            <Setter Property="Background"    Value="{DynamicResource InputBgBrush}"/>
+            <Setter Property="Foreground"    Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush"   Value="{DynamicResource BorderLineBrush}"/>
             <Setter Property="FontSize"      Value="12"/>
             <Setter Property="FontFamily"    Value="Consolas"/>
             <Setter Property="Padding"       Value="8,6"/>
         </Style>
         <Style x:Key="SettingsCaption" TargetType="TextBlock">
             <Setter Property="FontSize"     Value="11"/>
-            <Setter Property="Foreground"   Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="Foreground"   Value="{DynamicResource TextSecondaryBrush}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Margin"       Value="0,8,0,3"/>
         </Style>
@@ -46,7 +46,7 @@
 
         <!-- Header -->
         <Border DockPanel.Dock="Top"
-                Background="{StaticResource CardBgBrush}"
+                Background="{DynamicResource CardBgBrush}"
                 Padding="24,16">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -56,14 +56,14 @@
                 <StackPanel>
                     <TextBlock Text="⚙️ Paramètres"
                                FontSize="20" FontWeight="Bold"
-                               Foreground="{StaticResource AccentBlueBrush}"/>
+                               Foreground="{DynamicResource AccentBlueBrush}"/>
                     <TextBlock Text="Configure les chemins et options de DevLauncher"
                                FontSize="12"
-                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
                                Margin="0,2,0,0"/>
                     <TextBlock x:Name="ValidationSummaryText"
                                FontSize="11"
-                               Foreground="{StaticResource AccentRedBrush}"
+                               Foreground="{DynamicResource AccentRedBrush}"
                                TextWrapping="Wrap"
                                Margin="0,4,0,0"/>
                 </StackPanel>
@@ -80,7 +80,7 @@
 
         <!-- Footer -->
         <Border DockPanel.Dock="Bottom"
-                Background="{StaticResource CardBgBrush}"
+                Background="{DynamicResource CardBgBrush}"
                 Padding="24,12">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -90,7 +90,7 @@
                 <TextBlock x:Name="StatusText"
                            Grid.Column="0"
                            FontSize="12"
-                           Foreground="{StaticResource TextSecondaryBrush}"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
                            VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <Button Content="Annuler"
@@ -110,12 +110,12 @@
             <StackPanel>
 
                 <!-- ── Projects ── -->
-                <Border Background="{StaticResource CardBgBrush}"
+                <Border Background="{DynamicResource CardBgBrush}"
                         CornerRadius="12" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="📁 Projets"
                                    FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,0,0,4"/>
                         <TextBlock Text="Dossiers contenant des projets (un par ligne) : chaque sous-dossier est un projet."
                                    Style="{StaticResource SettingsCaption}"/>
@@ -159,12 +159,12 @@
                 </Border>
 
                 <!-- ── XAMPP ── -->
-                <Border Background="{StaticResource CardBgBrush}"
+                <Border Background="{DynamicResource CardBgBrush}"
                         CornerRadius="12" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="🗄️ XAMPP"
                                    FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,0,0,12"/>
 
                         <!-- XamppDir -->
@@ -266,12 +266,12 @@
                 </Border>
 
                 <!-- ── Mercure ── -->
-                <Border Background="{StaticResource CardBgBrush}"
+                <Border Background="{DynamicResource CardBgBrush}"
                         CornerRadius="12" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="📡 Mercure"
                                    FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,0,0,12"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -291,12 +291,12 @@
                 </Border>
 
                 <!-- ── Editors ── -->
-                <Border Background="{StaticResource CardBgBrush}"
+                <Border Background="{DynamicResource CardBgBrush}"
                         CornerRadius="12" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="💻 Éditeurs de code"
                                    FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,0,0,12"/>
 
                         <!-- VSCode -->
@@ -334,12 +334,12 @@
                 </Border>
 
                 <!-- ── Browsers ── -->
-                <Border Background="{StaticResource CardBgBrush}"
+                <Border Background="{DynamicResource CardBgBrush}"
                         CornerRadius="12" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="🌍 Navigateurs"
                                    FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,0,0,12"/>
 
                         <!-- Chrome -->
@@ -377,12 +377,12 @@
                 </Border>
 
                 <!-- ── Local servers ── -->
-                <Border Background="{StaticResource CardBgBrush}"
+                <Border Background="{DynamicResource CardBgBrush}"
                         CornerRadius="12" Padding="16">
                     <StackPanel>
                         <TextBlock Text="⚡ Serveurs locaux"
                                    FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,0,0,12"/>
                         <Grid Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
@@ -410,12 +410,12 @@
                 </Border>
 
                 <!-- ── Services ── -->
-                <Border Background="{StaticResource CardBgBrush}"
+                <Border Background="{DynamicResource CardBgBrush}"
                         CornerRadius="12" Padding="16" Margin="0,12,0,0">
                     <StackPanel>
                         <TextBlock Text="🧩 Services"
                                    FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,0,0,12"/>
                         <CheckBox x:Name="HostServicesInVSCodeBox"
                                   Style="{StaticResource ModernCheckBox}">
@@ -426,21 +426,21 @@
                 </Border>
 
                 <!-- ── AI assistants ── -->
-                <Border Background="{StaticResource CardBgBrush}"
+                <Border Background="{DynamicResource CardBgBrush}"
                         CornerRadius="12" Padding="16" Margin="0,12,0,0">
                     <StackPanel>
                         <TextBlock Text="🤖 Assistants IA"
                                    FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,0,0,4"/>
                         <TextBlock Text="Les assistants cochés apparaissent dans les outils de chaque projet."
                                    FontSize="11" TextWrapping="Wrap"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                    Margin="0,0,0,10"/>
                         <ItemsControl x:Name="AssistantsItemsControl">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="{x:Type views:AssistantSettingsRow}">
-                                    <Border Background="#1A1A2E" CornerRadius="8" Padding="10" Margin="0,0,0,8">
+                                    <Border Background="{DynamicResource InputBgBrush}" CornerRadius="8" Padding="10" Margin="0,0,0,8">
                                         <StackPanel>
                                             <CheckBox Content="{Binding Label}"
                                                       IsChecked="{Binding IsEnabled, Mode=TwoWay}"
@@ -488,13 +488,58 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ── Appearance and background ── -->
+                <Border Background="{DynamicResource CardBgBrush}"
+                        CornerRadius="12" Padding="16" Margin="0,12,0,0">
+                    <StackPanel>
+                        <TextBlock Text="🎨 Apparence et arrière-plan"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   Margin="0,0,0,12"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="200"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Thème"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <ComboBox x:Name="ThemeBox" Grid.Column="1"
+                                      Style="{StaticResource DarkComboBox}"
+                                      DisplayMemberPath="Label"
+                                      SelectedValuePath="Value"
+                                      AutomationProperties.Name="Thème"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Raccourci global"
+                                       Style="{StaticResource SettingsLabel}"/>
+                            <TextBox x:Name="GlobalHotkeyBox" Grid.Column="1"
+                                     Style="{StaticResource SettingsTextBox}"
+                                     AutomationProperties.Name="Raccourci global"/>
+                            <TextBlock Grid.Column="2" Margin="10,0,0,0"
+                                       Text="Ex. Ctrl+Alt+D, vide pour désactiver : affiche DevLauncher et sa palette depuis n'importe quelle application"
+                                       Style="{StaticResource SettingsCaption}"/>
+                        </Grid>
+                        <CheckBox x:Name="MinimizeToTrayBox"
+                                  Style="{StaticResource ModernCheckBox}"
+                                  Content="Réduire dans la zone de notification (clic droit sur l'icône : lancer, tout arrêter, quitter)"/>
+                        <CheckBox x:Name="ShowNotificationsBox"
+                                  Style="{StaticResource ModernCheckBox}"
+                                  Content="Notifications Windows : environnement prêt, service arrêté de lui-même"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- ── Windows integration ── -->
-                <Border Background="{StaticResource CardBgBrush}"
+                <Border Background="{DynamicResource CardBgBrush}"
                         CornerRadius="12" Padding="16" Margin="0,12,0,0">
                     <StackPanel>
                         <TextBlock Text="🪟 Intégration Windows"
                                    FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,0,0,4"/>
                         <TextBlock Text="Une seule fenêtre DevLauncher : un nouveau démarrage (raccourci, liste de l'icône de la barre des tâches, lien, ligne de commande) est transmis à la fenêtre ouverte."
                                    Style="{StaticResource SettingsCaption}"/>
@@ -515,12 +560,12 @@
                 </Border>
 
                 <!-- ── Persistent log ── -->
-                <Border Background="{StaticResource CardBgBrush}"
+                <Border Background="{DynamicResource CardBgBrush}"
                         CornerRadius="12" Padding="16" Margin="0,12,0,0">
                     <StackPanel>
                         <TextBlock Text="📝 Journal"
                                    FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,0,0,4"/>
                         <TextBlock Text="Le journal de lancement est enregistré chaque jour dans un fichier (10 derniers jours conservés)."
                                    Style="{StaticResource SettingsCaption}"/>
@@ -538,12 +583,12 @@
                 </Border>
 
                 <!-- ── Import / export ── -->
-                <Border Background="{StaticResource CardBgBrush}"
+                <Border Background="{DynamicResource CardBgBrush}"
                         CornerRadius="12" Padding="16" Margin="0,12,0,0">
                     <StackPanel>
                         <TextBlock Text="💼 Sauvegarde et changement de machine"
                                    FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,0,0,4"/>
                         <TextBlock Text="L'export réunit dans un seul fichier les paramètres enregistrés, les profils de tous les projets, les projets récents et les favoris. L'import remplace les éléments du même nom et garde les autres."
                                    Style="{StaticResource SettingsCaption}"/>

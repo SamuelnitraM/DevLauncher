@@ -7,17 +7,17 @@
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        Background="{StaticResource DarkBgBrush}"
+        Background="{DynamicResource WindowBgBrush}"
         FontFamily="Segoe UI">
     <StackPanel Margin="20">
         <TextBlock Text="Nom du profil :"
-                   Foreground="{StaticResource TextPrimaryBrush}"
+                   Foreground="{DynamicResource TextPrimaryBrush}"
                    FontSize="13" Margin="0,0,0,8"/>
         <TextBox x:Name="NameBox"
-                 Background="#2A2A3E"
-                 Foreground="{StaticResource TextPrimaryBrush}"
-                 CaretBrush="{StaticResource AccentBlueBrush}"
-                 BorderBrush="#444466"
+                 Background="{DynamicResource CardBgBrush}"
+                 Foreground="{DynamicResource TextPrimaryBrush}"
+                 CaretBrush="{DynamicResource AccentBlueBrush}"
+                 BorderBrush="{DynamicResource BorderLineBrush}"
                  FontSize="13" Padding="8,6"/>
         <StackPanel Orientation="Horizontal"
                     HorizontalAlignment="Right"

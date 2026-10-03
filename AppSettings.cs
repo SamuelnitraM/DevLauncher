@@ -68,6 +68,26 @@ public static class AppSettings
     /// <summary>Shows the detail messages in the launch log and saves them, with the output of the services, in the persistent log</summary>
     public static bool DetailedLogging { get; set; }
 
+    /// <summary>Minimizing the main window hides it in the notification area</summary>
+    public static bool MinimizeToTray { get; set; } = true;
+
+    /// <summary>Windows notifications : environment ready, service stopped unexpectedly</summary>
+    public static bool ShowNotifications { get; set; } = true;
+
+    /// <summary>Shortcut bringing DevLauncher forward with its command palette from any application, empty when disabled</summary>
+    public static string GlobalHotkey { get; set; } = "Ctrl+Alt+D";
+
+    /// <summary>Color theme : system (follows Windows), light or dark</summary>
+    public static string Theme { get; set; } = ThemeNames.System;
+
     /// <summary>Settings of the AI assistants, one entry per assistant of the catalog</summary>
     public static List<AssistantSettings> Assistants { get; set; } = AssistantCatalog.MergeWithDefaults(null);
+}
+
+/// <summary>Values of the theme setting.</summary>
+public static class ThemeNames
+{
+    public const string System = "system";
+    public const string Light = "light";
+    public const string Dark = "dark";
 }

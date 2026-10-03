@@ -11,8 +11,12 @@
         Height="936" Width="1196"
         MinHeight="600" MinWidth="820"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource DarkBgBrush}"
+        Background="{DynamicResource WindowBgBrush}"
         FontFamily="Segoe UI">
+
+    <Window.InputBindings>
+        <KeyBinding Key="K" Modifiers="Control" Command="{Binding OpenCommandPaletteCommand}"/>
+    </Window.InputBindings>
 
     <Window.Resources>
         <!-- Quick actions of a project, opened by a right click on any project list -->
@@ -55,7 +59,7 @@
     <DockPanel LastChildFill="True">
 
         <!-- ═══════════════════ HEADER ═══════════════════ -->
-        <Border DockPanel.Dock="Top" Background="{StaticResource CardBgBrush}" Padding="24,16">
+        <Border DockPanel.Dock="Top" Background="{DynamicResource CardBgBrush}" Padding="24,16">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -66,10 +70,10 @@
                 <StackPanel Grid.Column="0">
                     <TextBlock Text="⚡ Dev Launcher"
                                FontSize="22" FontWeight="Bold"
-                               Foreground="{StaticResource AccentBlueBrush}"/>
+                               Foreground="{DynamicResource AccentBlueBrush}"/>
                     <TextBlock Text="Lance ton environnement de développement en un clic"
                                FontSize="12"
-                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
                                Margin="0,2,0,0"/>
                 </StackPanel>
 
@@ -86,10 +90,10 @@
                                 <Border CornerRadius="12" Padding="10,5" Margin="4,0">
                                     <Border.Style>
                                         <Style TargetType="Border">
-                                            <Setter Property="Background" Value="#3A1A24"/>
+                                            <Setter Property="Background" Value="{DynamicResource ServiceStoppedBgBrush}"/>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsRunning}" Value="True">
-                                                    <Setter Property="Background" Value="#1A3A1A"/>
+                                                    <Setter Property="Background" Value="{DynamicResource ServiceRunningBgBrush}"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -98,17 +102,17 @@
                                         <Ellipse Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,6,0">
                                             <Ellipse.Style>
                                                 <Style TargetType="Ellipse">
-                                                    <Setter Property="Fill" Value="{StaticResource AccentRedBrush}"/>
+                                                    <Setter Property="Fill" Value="{DynamicResource AccentRedBrush}"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsRunning}" Value="True">
-                                                            <Setter Property="Fill" Value="{StaticResource AccentGreenBrush}"/>
+                                                            <Setter Property="Fill" Value="{DynamicResource AccentGreenBrush}"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </Ellipse.Style>
                                         </Ellipse>
                                         <TextBlock Text="{Binding ServiceName}" FontSize="11"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
@@ -116,7 +120,15 @@
                     </ItemsControl>
 
                     <!-- Separator -->
-                    <Border Width="1" Background="#444466" Margin="8,0"/>
+                    <Border Width="1" Background="{DynamicResource BorderLineBrush}" Margin="8,0"/>
+
+                    <!-- Command palette button -->
+                    <Button Content="⚡"
+                            Style="{StaticResource PrimaryButton}"
+                            FontSize="14" Padding="8,5" Margin="0,0,6,0"
+                            ToolTip="Palette de commandes (Ctrl+K)"
+                            AutomationProperties.Name="Palette de commandes"
+                            Command="{Binding OpenCommandPaletteCommand}"/>
 
                     <!-- Statistics button -->
                     <Button Content="📊"
@@ -138,7 +150,7 @@
 
         <!-- ═══════════════════ FOOTER / BUTTONS ═══════════════════ -->
         <Border DockPanel.Dock="Bottom"
-                Background="{StaticResource CardBgBrush}"
+                Background="{DynamicResource CardBgBrush}"
                 Padding="24,14" Margin="0,4,0,0">
             <Grid>
                 <Grid.RowDefinitions>
@@ -158,7 +170,7 @@
                     <TextBlock Grid.Column="0"
                                Text="Profil :"
                                FontSize="12"
-                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
                                VerticalAlignment="Center"
                                Margin="0,0,10,0"/>
 
@@ -203,7 +215,7 @@
                     <TextBlock Grid.Column="3"
                                Text="{Binding StatusText}"
                                FontSize="12"
-                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
                                TextTrimming="CharacterEllipsis"
                                Margin="12,0,0,0"
                                VerticalAlignment="Center"/>
@@ -231,14 +243,14 @@
                                 Visibility="{Binding IsLaunchInProgress, Converter={StaticResource BooleanToVisibility}}">
                         <TextBlock Text="{Binding LaunchStepText}"
                                    FontSize="11"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                    TextTrimming="CharacterEllipsis"
                                    Margin="0,0,0,4"/>
                         <ProgressBar Height="6"
                                      Minimum="0" Maximum="100"
                                      Value="{Binding LaunchProgressValue, Mode=OneWay}"
-                                     Background="#1A1A2E"
-                                     Foreground="{StaticResource AccentGreenBrush}"
+                                     Background="{DynamicResource InputBgBrush}"
+                                     Foreground="{DynamicResource AccentGreenBrush}"
                                      BorderThickness="0"
                                      AutomationProperties.Name="Progression du lancement"/>
                     </StackPanel>
@@ -260,7 +272,7 @@
                         </Button>
 
                         <Border Width="1"
-                                Background="#2ABB77"
+                                Background="{DynamicResource SuccessPressedBrush}"
                                 Visibility="{Binding HasSeveralProfiles, Converter={StaticResource BooleanToVisibility}}"/>
 
                         <ToggleButton Content="▾"
@@ -287,8 +299,8 @@
                                StaysOpen="False"
                                AllowsTransparency="True"
                                IsOpen="{Binding IsLaunchMenuOpen, Mode=TwoWay}">
-                            <Border Background="#2A2A3E"
-                                    BorderBrush="#444466"
+                            <Border Background="{DynamicResource CardBgBrush}"
+                                    BorderBrush="{DynamicResource BorderLineBrush}"
                                     BorderThickness="1"
                                     CornerRadius="8"
                                     Padding="4"
@@ -328,7 +340,7 @@
 
                 <!-- ── Left column : projects list ── -->
                 <Border Grid.Column="0"
-                        Background="{StaticResource CardBgBrush}"
+                        Background="{DynamicResource CardBgBrush}"
                         CornerRadius="12" Padding="16">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -349,7 +361,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="📁 Projets"
                                        FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
                             <StackPanel Grid.Column="1" Orientation="Horizontal">
                                 <Button Content="➕ Ajouter"
                                         Style="{StaticResource PrimaryButton}"
@@ -365,7 +377,7 @@
 
                         <!-- Search bar -->
                         <Border Grid.Row="1"
-                                Background="#1A1A2E" CornerRadius="6"
+                                Background="{DynamicResource InputBgBrush}" CornerRadius="6"
                                 Margin="0,0,0,10" Padding="8,0">
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -378,8 +390,8 @@
                                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                          AutomationProperties.Name="Rechercher un projet"
                                          BorderThickness="0"
-                                         Foreground="{StaticResource TextPrimaryBrush}"
-                                         CaretBrush="{StaticResource AccentBlueBrush}"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                         CaretBrush="{DynamicResource AccentBlueBrush}"
                                          FontSize="13" Padding="0,8">
                                     <TextBox.Style>
                                         <Style TargetType="TextBox">
@@ -390,7 +402,7 @@
                                                              AlignmentX="Left">
                                                     <VisualBrush.Visual>
                                                         <TextBlock Text="Rechercher un projet..."
-                                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                                                    FontSize="13"/>
                                                     </VisualBrush.Visual>
                                                 </VisualBrush>
@@ -408,8 +420,8 @@
 
                         <StackPanel Grid.Row="2">
                             <!-- Favorite projects : pinned by the user -->
-                            <Border Background="#14FFC107"
-                                    BorderBrush="#55FFC107"
+                            <Border Background="{DynamicResource FavoriteBgBrush}"
+                                    BorderBrush="{DynamicResource FavoriteBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="8"
                                     Padding="8,6"
@@ -418,7 +430,7 @@
                                 <StackPanel>
                                     <TextBlock Text="★ Favoris"
                                                FontSize="12" FontWeight="SemiBold"
-                                               Foreground="#FFC107"
+                                               Foreground="{DynamicResource FavoriteBrush}"
                                                Margin="4,0,0,4"/>
                                     <ListBox Background="Transparent"
                                              BorderThickness="0"
@@ -439,8 +451,8 @@
 
                             <!-- Recent projects : separate highlighted block, updated only after a launch -->
                             <Border
-                                    Background="#144F9EFF"
-                                    BorderBrush="#554F9EFF"
+                                    Background="{DynamicResource RecentBgBrush}"
+                                    BorderBrush="{DynamicResource RecentBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="8"
                                     Padding="8,6"
@@ -449,7 +461,7 @@
                                 <StackPanel>
                                     <TextBlock Text="🕘 Récemment lancés"
                                                FontSize="12" FontWeight="SemiBold"
-                                               Foreground="{StaticResource AccentBlueBrush}"
+                                               Foreground="{DynamicResource AccentBlueBrush}"
                                                Margin="4,0,0,4"/>
                                     <ListBox Background="Transparent"
                                              BorderThickness="0"
@@ -472,7 +484,7 @@
                         <TextBlock Grid.Row="3"
                                    Text="📁 Tous les projets"
                                    FontSize="12" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                    Margin="4,0,0,4"/>
                         <ListBox x:Name="ProjectListBox"
                                  Grid.Row="4"
@@ -488,12 +500,12 @@
 
                         <!-- Current project : path, git state and quick actions -->
                         <Border Grid.Row="5"
-                                Background="#1A1A2E" CornerRadius="6"
+                                Background="{DynamicResource InputBgBrush}" CornerRadius="6"
                                 Padding="10,6" Margin="0,10,0,0">
                             <StackPanel>
                                 <TextBlock Text="{Binding CurrentProjectDisplayPath}"
                                            FontSize="11" FontFamily="Consolas"
-                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                            TextTrimming="CharacterEllipsis"/>
                                 <Grid Margin="0,6,0,0"
                                       Visibility="{Binding HasGitStatus, Converter={StaticResource BooleanToVisibility}}">
@@ -504,7 +516,7 @@
                                     <TextBlock Text="{Binding GitStatusText}"
                                                FontSize="11"
                                                VerticalAlignment="Center"
-                                               Foreground="{StaticResource AccentGreenBrush}"
+                                               Foreground="{DynamicResource AccentGreenBrush}"
                                                TextTrimming="CharacterEllipsis"/>
                                     <Button Grid.Column="1"
                                             Content="⟳ git fetch"
@@ -556,12 +568,12 @@
                                           SelectedValuePath="ProjectType"
                                           SelectedValue="{Binding SelectedProjectType, Mode=TwoWay}"
                                           IsEnabled="{Binding HasProject}"/>
-                                <Border Background="#2A4A2A" CornerRadius="6"
+                                <Border Background="{DynamicResource DetectedBgBrush}" CornerRadius="6"
                                         Padding="8,5" Margin="0,8,0,0"
                                         Visibility="{Binding HasDetectedProjectType, Converter={StaticResource BooleanToVisibility}}">
                                     <TextBlock Text="{Binding DetectedProjectTypeText}"
                                                FontSize="11"
-                                               Foreground="{StaticResource AccentGreenBrush}"
+                                               Foreground="{DynamicResource AccentGreenBrush}"
                                                TextWrapping="Wrap"/>
                                 </Border>
                             </StackPanel>
@@ -594,11 +606,11 @@
                                                                           Visibility="{Binding ShowOptions, Converter={StaticResource BooleanToVisibility}}">
                                                                 <ItemsControl.ItemTemplate>
                                                                     <DataTemplate DataType="{x:Type viewModels:ToolOptionViewModel}">
-                                                                        <Border Background="#1A1A2E" CornerRadius="6" Padding="10,8" Margin="0,2">
+                                                                        <Border Background="{DynamicResource InputBgBrush}" CornerRadius="6" Padding="10,8" Margin="0,2">
                                                                             <StackPanel>
                                                                                 <TextBlock Text="{Binding Label}"
                                                                                            FontSize="11"
-                                                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                                                                            Margin="0,0,0,6"/>
                                                                                 <ComboBox Style="{StaticResource DarkComboBox}"
                                                                                           ItemsSource="{Binding Choices}"
@@ -616,16 +628,16 @@
                                                                                     </ItemsControl.ItemTemplate>
                                                                                 </ItemsControl>
                                                                                 <TextBox Text="{Binding Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                                         Background="#2A2A3E"
-                                                                                         Foreground="{StaticResource TextPrimaryBrush}"
-                                                                                         CaretBrush="{StaticResource AccentBlueBrush}"
-                                                                                         BorderBrush="#444466"
+                                                                                         Background="{DynamicResource CardBgBrush}"
+                                                                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                                         CaretBrush="{DynamicResource AccentBlueBrush}"
+                                                                                         BorderBrush="{DynamicResource BorderLineBrush}"
                                                                                          FontFamily="Consolas" FontSize="11" Padding="6,4"
                                                                                          AutomationProperties.Name="{Binding Label}"
                                                                                          Visibility="{Binding IsText, Converter={StaticResource BooleanToVisibility}}"/>
                                                                                 <TextBlock Text="Aucun choix disponible (vérifie les paramètres)"
                                                                                            FontSize="11" TextWrapping="Wrap"
-                                                                                           Foreground="{StaticResource AccentRedBrush}"
+                                                                                           Foreground="{DynamicResource AccentRedBrush}"
                                                                                            Visibility="{Binding HasNoChoices, Converter={StaticResource BooleanToVisibility}}"/>
                                                                             </StackPanel>
                                                                         </Border>
@@ -651,7 +663,7 @@
                           Height="6"
                           HorizontalAlignment="Stretch"
                           VerticalAlignment="Stretch"
-                          Background="#333355"
+                          Background="{DynamicResource SplitterBrush}"
                           Margin="16,0,16,0"
                           ResizeDirection="Rows"
                           ResizeBehavior="PreviousAndNext"
@@ -659,7 +671,7 @@
 
             <!-- ── Log area : launch log + one tab per service run by DevLauncher ── -->
             <Border Grid.Row="2" Margin="16,0,16,8"
-                    Background="{StaticResource CardBgBrush}"
+                    Background="{DynamicResource CardBgBrush}"
                     CornerRadius="12" Padding="12,8,12,12">
                 <Grid>
                     <TabControl ItemsSource="{Binding LogTabs}"
@@ -673,10 +685,10 @@
                                              Visibility="{Binding IsService, Converter={StaticResource BooleanToVisibility}}">
                                         <Ellipse.Style>
                                             <Style TargetType="Ellipse">
-                                                <Setter Property="Fill" Value="{StaticResource AccentRedBrush}"/>
+                                                <Setter Property="Fill" Value="{DynamicResource AccentRedBrush}"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding IsRunning}" Value="True">
-                                                        <Setter Property="Fill" Value="{StaticResource AccentGreenBrush}"/>
+                                                        <Setter Property="Fill" Value="{DynamicResource AccentGreenBrush}"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -714,13 +726,13 @@
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <Border Background="#1A1A2E" CornerRadius="6" Padding="6,0">
+                                        <Border Background="{DynamicResource InputBgBrush}" CornerRadius="6" Padding="6,0">
                                             <DockPanel>
                                                 <TextBlock DockPanel.Dock="Left" Text="🔍" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                                 <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                                          Background="Transparent" BorderThickness="0"
-                                                         Foreground="{StaticResource TextPrimaryBrush}"
-                                                         CaretBrush="{StaticResource AccentBlueBrush}"
+                                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                                         CaretBrush="{DynamicResource AccentBlueBrush}"
                                                          FontFamily="Consolas" FontSize="11" Padding="0,4"
                                                          AutomationProperties.Name="Rechercher dans le journal"
                                                          ToolTip="Rechercher dans le journal (Échap pour effacer)">
@@ -740,7 +752,7 @@
                                                    Text="{Binding FilterSummary}"
                                                    FontSize="11" Margin="10,0,0,0"
                                                    VerticalAlignment="Center"
-                                                   Foreground="{StaticResource AccentBlueBrush}"
+                                                   Foreground="{DynamicResource AccentBlueBrush}"
                                                    Visibility="{Binding IsFiltered, Converter={StaticResource BooleanToVisibility}}"/>
                                     </Grid>
                                     <ListBox ItemsSource="{Binding VisibleLines}"
@@ -767,10 +779,10 @@
                                                            TextWrapping="Wrap">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding IsError}" Value="True">
-                                                                    <Setter Property="Foreground" Value="{StaticResource AccentRedBrush}"/>
+                                                                    <Setter Property="Foreground" Value="{DynamicResource AccentRedBrush}"/>
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>

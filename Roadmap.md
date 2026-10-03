@@ -122,15 +122,15 @@ DevLauncher, sortie capturée. Les **terminaux interactifs** restent dans Window
 
 | # | Évolution | Effort |
 |---|---|---|
-| 4.1 | **Icône dans la zone de notification** : lancer / arrêter un projet sans ouvrir la fenêtre | M |
+| 4.1 | ✅ **Icône dans la zone de notification** : lancer / arrêter un projet sans ouvrir la fenêtre | M |
 | 4.2 | ✅ **Projets récents** en tête de liste (mis à jour au lancement, jamais au clic : la liste ne bouge plus sous le curseur) + ✅ **favoris épinglés** | S |
 | 4.3 | ✅ **Jump list de la barre des tâches** : clic droit sur l'icône → projets récents | S |
-| 4.4 | **Raccourci clavier global** + palette de commandes (`Ctrl+K` : « lancer templateSite ») | M |
-| 4.5 | **Notifications Windows** : « Environnement prêt », « MySQL s'est arrêté » | S |
+| 4.4 | ✅ **Raccourci clavier global** + palette de commandes (`Ctrl+K` : « lancer templateSite ») | M |
+| 4.5 | ✅ **Notifications Windows** : « Environnement prêt », « MySQL s'est arrêté » | S |
 | 4.6 | ✅ **Barre de progression du lancement** étape par étape | S |
 | 4.7 | ✅ **Informations git** dans la liste : branche, modifications en attente, retard sur le distant | S |
 | 4.8 | ✅ **Actions rapides** : ouvrir dans l'Explorateur, copier le chemin, ouvrir l'URL locale | S |
-| 4.9 | **Thème clair / sombre** (suivi du thème Windows) | S |
+| 4.9 | ✅ **Thème clair / sombre** (suivi du thème Windows) | S |
 | 4.10 | ✅ **Démarrage avec Windows** et **instance unique** (réactive la fenêtre existante) | S |
 
 ---

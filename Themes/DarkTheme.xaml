@@ -1,0 +1,62 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Dark theme : every color of the interface, referenced as dynamic resources -->
+    <!-- Window background -->
+    <SolidColorBrush x:Key="WindowBgBrush" Color="#1E1E2E"/>
+    <!-- Cards, header, footer, popups -->
+    <SolidColorBrush x:Key="CardBgBrush" Color="#2A2A3E"/>
+    <!-- Inputs, inner blocks, log lines -->
+    <SolidColorBrush x:Key="InputBgBrush" Color="#1A1A2E"/>
+    <!-- Borders and separators -->
+    <SolidColorBrush x:Key="BorderLineBrush" Color="#444466"/>
+    <!-- Splitter and tab underline -->
+    <SolidColorBrush x:Key="SplitterBrush" Color="#333355"/>
+    <!-- Main text -->
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E8E8F0"/>
+    <!-- Secondary text -->
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#8888AA"/>
+    <!-- Accent : primary buttons, titles -->
+    <SolidColorBrush x:Key="AccentBlueBrush" Color="#4F9EFF"/>
+    <!-- Accent : success, running -->
+    <SolidColorBrush x:Key="AccentGreenBrush" Color="#3DDC84"/>
+    <!-- Accent : errors, danger -->
+    <SolidColorBrush x:Key="AccentRedBrush" Color="#FF5C5C"/>
+    <!-- Favorites title -->
+    <SolidColorBrush x:Key="FavoriteBrush" Color="#FFC107"/>
+    <!-- Favorites block background -->
+    <SolidColorBrush x:Key="FavoriteBgBrush" Color="#14FFC107"/>
+    <!-- Favorites block border -->
+    <SolidColorBrush x:Key="FavoriteBorderBrush" Color="#55FFC107"/>
+    <!-- Recent projects block background -->
+    <SolidColorBrush x:Key="RecentBgBrush" Color="#144F9EFF"/>
+    <!-- Recent projects block border -->
+    <SolidColorBrush x:Key="RecentBorderBrush" Color="#554F9EFF"/>
+    <!-- Hovered item -->
+    <SolidColorBrush x:Key="HoverBrush" Color="#33445577"/>
+    <!-- Selected item -->
+    <SolidColorBrush x:Key="SelectionBrush" Color="#334F9EFF"/>
+    <!-- Pressed item -->
+    <SolidColorBrush x:Key="SelectionStrongBrush" Color="#554F9EFF"/>
+    <!-- Hovered primary button -->
+    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#6AADFF"/>
+    <!-- Pressed primary button -->
+    <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#3A8AEE"/>
+    <!-- Hovered danger button -->
+    <SolidColorBrush x:Key="DangerHoverBrush" Color="#FF7777"/>
+    <!-- Hovered success button -->
+    <SolidColorBrush x:Key="SuccessHoverBrush" Color="#55EE99"/>
+    <!-- Pressed success button, launch split line -->
+    <SolidColorBrush x:Key="SuccessPressedBrush" Color="#2ABB77"/>
+    <!-- Text of the success buttons -->
+    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#1A1A2E"/>
+    <!-- Disabled button background -->
+    <SolidColorBrush x:Key="DisabledBgBrush" Color="#444466"/>
+    <!-- Disabled button text -->
+    <SolidColorBrush x:Key="DisabledFgBrush" Color="#666688"/>
+    <!-- Stopped service indicator -->
+    <SolidColorBrush x:Key="ServiceStoppedBgBrush" Color="#3A1A24"/>
+    <!-- Running service indicator -->
+    <SolidColorBrush x:Key="ServiceRunningBgBrush" Color="#1A3A1A"/>
+    <!-- Detected project type badge -->
+    <SolidColorBrush x:Key="DetectedBgBrush" Color="#2A4A2A"/>
+</ResourceDictionary>

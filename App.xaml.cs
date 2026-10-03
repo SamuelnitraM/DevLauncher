@@ -5,6 +5,7 @@ using DevLauncher.Services.Startup;
 using DevLauncher.Services.Tools;
 using DevLauncher.ViewModels;
 using DevLauncher.Views;
+using DevLauncher.Views.Shell;
 
 namespace DevLauncher;
 
@@ -13,6 +14,8 @@ public partial class App : Application
     private MainViewModel? _mainViewModel;
     private PersistentLogWriter? _persistentLogWriter;
     private SingleInstanceCoordinator? _singleInstanceCoordinator;
+    private TrayIcon? _trayIcon;
+    private GlobalHotkey? _globalHotkey;
 
     /// <summary>
     /// Composition root : hands the request over to the running instance when there is one, otherwise prepares
@@ -33,6 +36,7 @@ public partial class App : Application
         }
         StoragePaths.InitializeDataDirectory();
         SettingsService.Load();
+        ThemeService.Apply(AppSettings.Theme);
         var launchLog = new LaunchLog();
         _persistentLogWriter = new PersistentLogWriter(StoragePaths.LogsDirectory, launchLog, () => AppSettings.DetailedLogging);
         launchLog.Info($"⚡ DevLauncher {typeof(App).Assembly.GetName().Version} démarré");
@@ -50,6 +54,7 @@ public partial class App : Application
             serviceProcessHost,
             launchLog);
         var mainWindow = new MainWindow();
+        _trayIcon = new TrayIcon("DevLauncher");
         _mainViewModel = new MainViewModel(
             new ProjectScanner(),
             new ProfileService(),
@@ -64,15 +69,42 @@ public partial class App : Application
             new ServiceMonitor(processEventWatcher),
             processEventWatcher,
             launchLog,
-            new UserInteractionService(mainWindow));
+            new UserInteractionService(mainWindow, _trayIcon));
         mainWindow.DataContext = _mainViewModel;
         MainWindow = mainWindow;
+        _ = new TrayController(_trayIcon, mainWindow, _mainViewModel);
+        _globalHotkey = new GlobalHotkey(mainWindow);
+        _globalHotkey.Pressed += () =>
+        {
+            mainWindow.BringToFront();
+            _mainViewModel.OpenCommandPaletteCommand.Execute(null);
+        };
+        ApplyGlobalHotkey(launchLog);
+        _mainViewModel.SettingsApplied += () =>
+        {
+            ThemeService.Apply(AppSettings.Theme);
+            ApplyGlobalHotkey(launchLog);
+        };
         RefreshMovedShellIntegration(launchLog);
         _singleInstanceCoordinator.ArgumentsReceived += forwardedArguments => Dispatcher.BeginInvoke(() => OnArgumentsForwarded(forwardedArguments));
         _singleInstanceCoordinator.StartListening();
-        if (startupCommand.StartsMinimized) mainWindow.WindowState = WindowState.Minimized;
-        mainWindow.Show();
+        // Started minimized : the window stays in the notification area when the option allows it.
+        if (!startupCommand.StartsMinimized || !AppSettings.MinimizeToTray) mainWindow.Show();
+        if (startupCommand.StartsMinimized && !AppSettings.MinimizeToTray) mainWindow.WindowState = WindowState.Minimized;
         _ = _mainViewModel.HandleStartupCommandAsync(startupCommand);
+    }
+
+    /// <summary>Registers the global shortcut of the settings, empty meaning disabled.</summary>
+    private void ApplyGlobalHotkey(LaunchLog launchLog)
+    {
+        if (_globalHotkey is null) return;
+        if (string.IsNullOrWhiteSpace(AppSettings.GlobalHotkey))
+        {
+            _globalHotkey.Unregister();
+            return;
+        }
+        if (!_globalHotkey.Register(AppSettings.GlobalHotkey))
+            launchLog.Error($"⚠️ Raccourci global « {AppSettings.GlobalHotkey} » indisponible (invalide ou déjà pris par une autre application)");
     }
 
     /// <summary>A second instance was started (jump list, link, Explorer, command line) : this window comes forward and runs its request.</summary>
@@ -101,6 +133,8 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _singleInstanceCoordinator?.Dispose();
+        _globalHotkey?.Dispose();
+        _trayIcon?.Dispose();
         _mainViewModel?.Dispose();
         _persistentLogWriter?.Dispose();
         base.OnExit(e);
