@@ -1,5 +1,5 @@
 using DevLauncher.Services.Hosting;
-using DevLauncher.Services.Tools;
+using DevLauncher.Services;
 using Xunit;
 
 namespace DevLauncher.Tests;
@@ -25,8 +25,8 @@ public class BrowserUrlTests
     [Fact]
     public void ApacheUrlIsTheProjectPathInsideTheDocumentRoot()
     {
-        Assert.Equal("http://localhost/templateSite/", BrowserTool.BuildApacheUrl(@"C:\xampp\htdocs\templateSite", @"C:\xampp\htdocs", 80));
-        Assert.Equal("http://localhost:8080/clients/mon%20site/", BrowserTool.BuildApacheUrl(@"C:\xampp\htdocs\clients\mon site", @"C:\xampp\htdocs\", 8080));
-        Assert.Null(BrowserTool.BuildApacheUrl(@"D:\dev\api", @"C:\xampp\htdocs", 80));
+        Assert.Equal("http://localhost/templateSite/", ProjectUrlResolver.BuildApacheUrl(@"C:\xampp\htdocs\templateSite", @"C:\xampp\htdocs", 80));
+        Assert.Equal("http://localhost:8080/clients/mon%20site/", ProjectUrlResolver.BuildApacheUrl(@"C:\xampp\htdocs\clients\mon site", @"C:\xampp\htdocs\", 8080));
+        Assert.Null(ProjectUrlResolver.BuildApacheUrl(@"D:\dev\api", @"C:\xampp\htdocs", 80));
     }
 }

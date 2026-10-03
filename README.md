@@ -136,7 +136,11 @@ Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à cô
 ## ✨ Fonctionnalités
 
 - 📁 Liste automatique des projets, avec recherche
-- ⭐ Bloc « Récemment lancés » distinct, au-dessus de la liste complète (5 derniers projets lancés)
+- 🕘 Bloc « Récemment lancés » distinct, au-dessus de la liste complète (5 derniers projets lancés)
+- ★ Favoris épinglés en tête de liste (bouton ☆ sous le projet ou clic droit sur un projet)
+- 🌿 État git du projet sélectionné : branche, modifications, commits à pousser / en retard (bouton « git fetch »)
+- ⚡ Actions rapides (barre sous le projet et clic droit) : Explorateur, copie du chemin, ouverture de l'URL locale,
+  copie du contexte pour l'IA (stack, arborescence, commandes utiles, URL, git) en Markdown
 - ✅ Détection automatique Symfony (`symfony.lock`, `bin/console`, `composer.json`) et Tailwind bundle
 - 💾 Profils de lancement par projet (création, renommage, suppression, mémorisation du dernier utilisé)
 - 💻 VSCode / Visual Studio, avec services Symfony dans les terminaux intégrés de VSCode

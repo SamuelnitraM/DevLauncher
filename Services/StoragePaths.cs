@@ -17,6 +17,8 @@ public static class StoragePaths
 
     public static string RecentProjectsFilePath { get; } = Path.Combine(DataDirectory, "recent-projects.json");
 
+    public static string FavoriteProjectsFilePath { get; } = Path.Combine(DataDirectory, "favorite-projects.json");
+
     /// <summary>Folder of the persistent log, one file per day.</summary>
     public static string LogsDirectory { get; } = Path.Combine(DataDirectory, "Logs");
 

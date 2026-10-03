@@ -22,6 +22,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly ProjectScanner _projectScanner;
     private readonly ProfileService _profileService;
     private readonly RecentProjectsService _recentProjectsService;
+    private readonly FavoriteProjectsService _favoriteProjectsService;
+    private readonly GitStatusService _gitStatusService;
+    private readonly ProcessLauncher _processLauncher;
     private readonly LaunchService _launchService;
     private readonly ServiceProcessHost _serviceProcessHost;
     private readonly ServiceMonitor _serviceMonitor;
@@ -37,6 +40,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         ProjectScanner projectScanner,
         ProfileService profileService,
         RecentProjectsService recentProjectsService,
+        FavoriteProjectsService favoriteProjectsService,
+        GitStatusService gitStatusService,
+        ProcessLauncher processLauncher,
         ToolCatalog toolCatalog,
         LaunchService launchService,
         ServiceProcessHost serviceProcessHost,
@@ -48,6 +54,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _projectScanner = projectScanner;
         _profileService = profileService;
         _recentProjectsService = recentProjectsService;
+        _favoriteProjectsService = favoriteProjectsService;
+        _gitStatusService = gitStatusService;
+        _processLauncher = processLauncher;
         _launchService = launchService;
         _serviceProcessHost = serviceProcessHost;
         _serviceMonitor = serviceMonitor;
@@ -76,6 +85,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     //  BOUND STATE
     // ════════════════════════════════════════════════════════════
 
+    public ObservableCollection<ProjectListEntry> FavoriteProjects { get; } = new();
     public ObservableCollection<ProjectListEntry> RecentProjects { get; } = new();
     public ObservableCollection<ProjectListEntry> VisibleProjects { get; } = new();
     public ObservableCollection<ToolCategoryViewModel> ToolCategoryViewModels { get; } = new();
@@ -91,6 +101,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _searchText = string.Empty;
 
+    /// <summary>Item selected in the favorite projects list. Kept in sync with the current project.</summary>
+    [ObservableProperty]
+    private ProjectListEntry? _selectedFavoriteProject;
+
     /// <summary>Item selected in the recent projects list. Kept in sync with the current project.</summary>
     [ObservableProperty]
     private ProjectListEntry? _selectedRecentProject;
@@ -105,6 +119,24 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasProject), nameof(CurrentProjectDisplayPath), nameof(HasSeveralProfiles), nameof(LaunchButtonLabel))]
     private string? _currentProjectPath;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FavoriteToggleLabel), nameof(FavoriteToggleToolTip))]
+    private bool _isCurrentProjectFavorite;
+
+    public string FavoriteToggleLabel => IsCurrentProjectFavorite ? "★" : "☆";
+
+    public string FavoriteToggleToolTip => IsCurrentProjectFavorite ? "Retirer des favoris" : "Épingler dans les favoris";
+
+    /// <summary>Git state of the current project, null when it is not a git repository or not read yet.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasGitStatus))]
+    private string? _gitStatusText;
+
+    public bool HasGitStatus => GitStatusText is not null;
+
+    [ObservableProperty]
+    private bool _isGitFetchInProgress;
 
     /// <summary>Framework detected in the selected project, null when none is recognized.</summary>
     [ObservableProperty]
@@ -147,6 +179,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool HasProject => CurrentProjectPath is not null;
     public bool HasActiveEnvironment => _launchService.HasActiveEnvironment;
     public bool HasRecentProjects => RecentProjects.Count > 0;
+    public bool HasFavoriteProjects => FavoriteProjects.Count > 0;
     public bool IsIdle => !IsLaunchInProgress;
     public bool HasSeveralProfiles => HasProject && ProfileNames.Count > 1;
     public string CurrentProjectDisplayPath => CurrentProjectPath ?? "Aucun projet sélectionné";
@@ -154,6 +187,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private string? CurrentProjectName => CurrentProjectPath is null ? null : Path.GetFileName(CurrentProjectPath);
 
     partial void OnSearchTextChanged(string value) => ApplyProjectFilter();
+
+    partial void OnSelectedFavoriteProjectChanged(ProjectListEntry? value) => OnProjectEntryPicked(value);
 
     partial void OnSelectedRecentProjectChanged(ProjectListEntry? value) => OnProjectEntryPicked(value);
 
@@ -184,7 +219,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         var projectPaths = _projectScanner.GetProjects();
         _projectEntries = BuildProjectEntries(projectPaths);
-        if (CurrentProjectPath is not null && !_projectEntries.Any(entry => IsSamePath(entry.Path, CurrentProjectPath)))
+        if (CurrentProjectPath is not null && !_projectEntries.Any(entry => PathComparer.AreSame(entry.Path, CurrentProjectPath)))
             ClearProjectSelection();
         ApplyProjectFilter();
         foreach (var missingFolder in AppSettings.ProjectRoots.Concat(AppSettings.ExtraProjectPaths).Where(folder => !Directory.Exists(folder)))
@@ -198,14 +233,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         var projectPath = _userInteractionService.PickFolder("Choisis le dossier du projet à ajouter");
         if (projectPath is null) return;
-        if (!_projectEntries.Any(entry => IsSamePath(entry.Path, projectPath)))
+        if (!_projectEntries.Any(entry => PathComparer.AreSame(entry.Path, projectPath)))
         {
             AppSettings.ExtraProjectPaths.Add(projectPath);
             SettingsService.Save();
             _launchLog.Info($"➕ Projet ajouté : {projectPath}");
             RefreshProjects();
         }
-        SelectProject(_projectEntries.FirstOrDefault(entry => IsSamePath(entry.Path, projectPath))?.Path ?? projectPath);
+        SelectProject(_projectEntries.FirstOrDefault(entry => PathComparer.AreSame(entry.Path, projectPath))?.Path ?? projectPath);
         SynchronizeListSelections();
     }
 
@@ -229,6 +264,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
             .Select(projectPath => CreateProjectEntry(projectPath, isNameDuplicated: false))
             .ToList();
 
+    private List<ProjectListEntry> BuildFavoriteProjectEntries()
+        => _favoriteProjectsService.GetFavoriteProjectPaths()
+            .Where(Directory.Exists)
+            .Select(projectPath => CreateProjectEntry(projectPath, isNameDuplicated: false))
+            .ToList();
+
     /// <summary>Projects with the same name in different folders are told apart by their parent folder.</summary>
     private static ProjectListEntry CreateProjectEntry(string projectPath, bool isNameDuplicated)
     {
@@ -241,23 +282,27 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void ApplyProjectFilter()
     {
         bool MatchesSearch(ProjectListEntry entry) => string.IsNullOrWhiteSpace(SearchText) || entry.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
+        FavoriteProjects.Clear();
+        foreach (var favoriteProjectEntry in BuildFavoriteProjectEntries().Where(MatchesSearch)) FavoriteProjects.Add(favoriteProjectEntry);
         RecentProjects.Clear();
         foreach (var recentProjectEntry in BuildRecentProjectEntries().Where(MatchesSearch)) RecentProjects.Add(recentProjectEntry);
         VisibleProjects.Clear();
         foreach (var projectEntry in _projectEntries.Where(MatchesSearch)) VisibleProjects.Add(projectEntry);
         OnPropertyChanged(nameof(HasRecentProjects));
+        OnPropertyChanged(nameof(HasFavoriteProjects));
         SynchronizeListSelections();
     }
 
     private void SynchronizeListSelections()
     {
-        SelectedRecentProject = RecentProjects.FirstOrDefault(entry => CurrentProjectPath is not null && IsSamePath(entry.Path, CurrentProjectPath));
-        SelectedProjectEntry = VisibleProjects.FirstOrDefault(entry => CurrentProjectPath is not null && IsSamePath(entry.Path, CurrentProjectPath));
+        SelectedFavoriteProject = FavoriteProjects.FirstOrDefault(entry => CurrentProjectPath is not null && PathComparer.AreSame(entry.Path, CurrentProjectPath));
+        SelectedRecentProject = RecentProjects.FirstOrDefault(entry => CurrentProjectPath is not null && PathComparer.AreSame(entry.Path, CurrentProjectPath));
+        SelectedProjectEntry = VisibleProjects.FirstOrDefault(entry => CurrentProjectPath is not null && PathComparer.AreSame(entry.Path, CurrentProjectPath));
     }
 
     private void OnProjectEntryPicked(ProjectListEntry? projectEntry)
     {
-        if (projectEntry is null || (CurrentProjectPath is not null && IsSamePath(projectEntry.Path, CurrentProjectPath))) return;
+        if (projectEntry is null || (CurrentProjectPath is not null && PathComparer.AreSame(projectEntry.Path, CurrentProjectPath))) return;
         SelectProject(projectEntry.Path);
         SynchronizeListSelections();
     }
@@ -274,7 +319,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // The choices can depend on the project (sessions of an assistant) : they are read before the profile is applied.
         ReloadOptionChoices();
         LoadProfilesForProject(projectPath, projectDetection);
+        IsCurrentProjectFavorite = _favoriteProjectsService.IsFavorite(projectPath);
         StatusText = $"Prêt à lancer : {projectName}";
+        _ = RefreshGitStatusAsync();
     }
 
     private void ClearProjectSelection()
@@ -282,6 +329,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         CurrentProjectPath = null;
         DetectedProjectTypeText = null;
         IsProfileSharedInProject = false;
+        IsCurrentProjectFavorite = false;
+        GitStatusText = null;
         StatusText = NoProjectStatus;
         UpdateProfileList(Array.Empty<string>(), null);
     }
@@ -292,8 +341,113 @@ public partial class MainViewModel : ObservableObject, IDisposable
         ApplyProjectFilter();
     }
 
-    private static bool IsSamePath(string firstPath, string secondPath)
-        => string.Equals(Path.TrimEndingDirectorySeparator(firstPath), Path.TrimEndingDirectorySeparator(secondPath), StringComparison.OrdinalIgnoreCase);
+
+    // ════════════════════════════════════════════════════════════
+    //  FAVORITES, GIT AND QUICK ACTIONS
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>Project targeted by a quick action : the item of a context menu, or else the current project.</summary>
+    private string? GetTargetProjectPath(ProjectListEntry? projectEntry) => projectEntry?.Path ?? CurrentProjectPath;
+
+    [RelayCommand]
+    private void ToggleFavorite(ProjectListEntry? projectEntry)
+    {
+        if (GetTargetProjectPath(projectEntry) is not { } projectPath) return;
+        try
+        {
+            var isNowFavorite = _favoriteProjectsService.ToggleFavorite(projectPath);
+            _launchLog.Info(isNowFavorite ? $"★ « {Path.GetFileName(projectPath)} » épinglé dans les favoris" : $"☆ « {Path.GetFileName(projectPath)} » retiré des favoris");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _launchLog.Error($"❌ Favoris : {exception.Message}");
+        }
+        if (CurrentProjectPath is not null) IsCurrentProjectFavorite = _favoriteProjectsService.IsFavorite(CurrentProjectPath);
+        ApplyProjectFilter();
+    }
+
+    [RelayCommand]
+    private void OpenInExplorer(ProjectListEntry? projectEntry)
+    {
+        if (GetTargetProjectPath(projectEntry) is { } projectPath) _processLauncher.StartShellProcess("explorer.exe", $"\"{projectPath}\"");
+    }
+
+    [RelayCommand]
+    private void CopyProjectPath(ProjectListEntry? projectEntry)
+    {
+        if (GetTargetProjectPath(projectEntry) is not { } projectPath) return;
+        _userInteractionService.CopyToClipboard(projectPath);
+        StatusText = "📋 Chemin copié";
+    }
+
+    /// <summary>Opens the local URL of the project : the one of its configuration, or the one announced by its running server.</summary>
+    [RelayCommand]
+    private void OpenLocalUrl(ProjectListEntry? projectEntry)
+    {
+        if (GetTargetProjectPath(projectEntry) is not { } projectPath) return;
+        var localUrl = ProjectUrlResolver.GetKnownUrl(projectPath, GetProjectType(projectPath), _serviceProcessHost.TryGetAnnouncedUrl(projectPath));
+        if (localUrl is null)
+        {
+            _launchLog.Error($"❌ URL locale de « {Path.GetFileName(projectPath)} » inconnue : elle est annoncée par son serveur de développement, à lancer d'abord");
+            return;
+        }
+        _launchLog.Info($"🌍 Ouverture de {localUrl}");
+        _processLauncher.StartShellProcess(localUrl);
+    }
+
+    /// <summary>Copies a Markdown description of the project (stack, tree, commands, URL, git) to paste into an AI conversation.</summary>
+    [RelayCommand]
+    private async Task CopyProjectContextAsync(ProjectListEntry? projectEntry)
+    {
+        if (GetTargetProjectPath(projectEntry) is not { } projectPath) return;
+        var projectDetection = _projectScanner.DetectProject(projectPath);
+        var projectType = GetProjectType(projectPath);
+        var gitStatus = await _gitStatusService.GetStatusAsync(projectPath);
+        var projectContext = ProjectContextBuilder.Build(new ProjectContextBuilder.ProjectContextInput(
+            projectPath,
+            projectType,
+            projectDetection.UsesTailwindBundle,
+            ProjectScanner.GetNpmScripts(projectPath),
+            ProjectUrlResolver.GetKnownUrl(projectPath, projectType, _serviceProcessHost.TryGetAnnouncedUrl(projectPath)),
+            gitStatus));
+        _userInteractionService.CopyToClipboard(projectContext);
+        StatusText = "🧠 Contexte du projet copié : prêt à coller dans une discussion";
+        _launchLog.Info($"🧠 Contexte de « {Path.GetFileName(projectPath)} » copié dans le presse-papiers");
+    }
+
+    /// <summary>The type chosen in the options panel for the current project, the detected type for another one.</summary>
+    private ProjectType GetProjectType(string projectPath)
+        => CurrentProjectPath is not null && PathComparer.AreSame(projectPath, CurrentProjectPath)
+            ? SelectedProjectType
+            : _projectScanner.DetectProject(projectPath).ProjectType;
+
+    [RelayCommand]
+    private async Task RefreshGitStatusAsync()
+    {
+        if (CurrentProjectPath is not { } projectPath) return;
+        var gitStatus = await _gitStatusService.GetStatusAsync(projectPath);
+        // Another project may have been selected while git was running.
+        if (CurrentProjectPath is null || !PathComparer.AreSame(CurrentProjectPath, projectPath)) return;
+        GitStatusText = gitStatus?.Summary;
+    }
+
+    /// <summary>Downloads the remote state of the repository, then shows how many commits are behind.</summary>
+    [RelayCommand]
+    private async Task FetchGitAsync()
+    {
+        if (CurrentProjectPath is not { } projectPath || IsGitFetchInProgress) return;
+        IsGitFetchInProgress = true;
+        try
+        {
+            _launchLog.Info($"🌿 git fetch de « {Path.GetFileName(projectPath)} »…");
+            if (!await _gitStatusService.FetchAsync(projectPath)) _launchLog.Error("❌ git fetch a échoué (pas de dépôt distant, pas de réseau ou authentification requise)");
+            await RefreshGitStatusAsync();
+        }
+        finally
+        {
+            IsGitFetchInProgress = false;
+        }
+    }
 
     // ════════════════════════════════════════════════════════════
     //  OPTIONS PANEL
@@ -527,6 +681,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             IsLaunchInProgress = false;
             _serviceMonitor.RefreshStatus();
         }
+        await RefreshGitStatusAsync();
     }
 
     /// <summary>Selects a profile from the launch menu, then launches it.</summary>

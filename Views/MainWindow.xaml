@@ -14,6 +14,41 @@
         Background="{StaticResource DarkBgBrush}"
         FontFamily="Segoe UI">
 
+    <Window.Resources>
+        <!-- Quick actions of a project, opened by a right click on any project list -->
+        <ContextMenu x:Key="ProjectContextMenu" x:Shared="False">
+            <MenuItem Header="★ Épingler / retirer des favoris"
+                      Command="{Binding PlacementTarget.Tag.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding}"/>
+            <Separator/>
+            <MenuItem Header="📂 Ouvrir dans l'Explorateur"
+                      Command="{Binding PlacementTarget.Tag.OpenInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding}"/>
+            <MenuItem Header="📋 Copier le chemin"
+                      Command="{Binding PlacementTarget.Tag.CopyProjectPathCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding}"/>
+            <MenuItem Header="🌍 Ouvrir l'URL locale"
+                      Command="{Binding PlacementTarget.Tag.OpenLocalUrlCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding}"/>
+            <MenuItem Header="🧠 Copier le contexte pour l'IA"
+                      Command="{Binding PlacementTarget.Tag.CopyProjectContextCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding}"/>
+        </ContextMenu>
+
+        <!-- Project item carrying the main view model in its Tag, for the context menu commands -->
+        <Style x:Key="ProjectListItemWithMenu" TargetType="ListBoxItem" BasedOn="{StaticResource ProjectListItem}">
+            <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+            <Setter Property="ContextMenu" Value="{StaticResource ProjectContextMenu}"/>
+        </Style>
+
+        <!-- Small action button of the project bar -->
+        <Style x:Key="QuickActionButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding"  Value="8,4"/>
+            <Setter Property="Margin"   Value="0,0,6,0"/>
+        </Style>
+    </Window.Resources>
+
     <DockPanel LastChildFill="True">
 
         <!-- ═══════════════════ HEADER ═══════════════════ -->
@@ -273,6 +308,7 @@
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
+                        <!-- Rows : title, search, pinned and recent blocks, list title, list, project bar -->
 
                         <!-- Title + refresh button -->
                         <Grid Grid.Row="0" Margin="0,0,0,12">
@@ -338,35 +374,67 @@
                             </Grid>
                         </Border>
 
-                        <!-- Recent projects : separate highlighted block, updated only after a launch -->
-                        <Border Grid.Row="2"
-                                Background="#4F9EFF14"
-                                BorderBrush="#4F9EFF55"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="8,6"
-                                Margin="0,0,0,12"
-                                Visibility="{Binding HasRecentProjects, Converter={StaticResource BooleanToVisibility}}">
-                            <StackPanel>
-                                <TextBlock Text="⭐ Récemment lancés"
-                                           FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{StaticResource AccentBlueBrush}"
-                                           Margin="4,0,0,4"/>
-                                <ListBox Background="Transparent"
-                                         BorderThickness="0"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                                         ItemsSource="{Binding RecentProjects}"
-                                         SelectedItem="{Binding SelectedRecentProject, Mode=TwoWay}"
-                                         ItemContainerStyle="{StaticResource ProjectListItem}">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Name, StringFormat='🕘  {0}'}" FontWeight="SemiBold"/>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
-                            </StackPanel>
-                        </Border>
+                        <StackPanel Grid.Row="2">
+                            <!-- Favorite projects : pinned by the user -->
+                            <Border Background="#14FFC107"
+                                    BorderBrush="#55FFC107"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="8,6"
+                                    Margin="0,0,0,8"
+                                    Visibility="{Binding HasFavoriteProjects, Converter={StaticResource BooleanToVisibility}}">
+                                <StackPanel>
+                                    <TextBlock Text="★ Favoris"
+                                               FontSize="12" FontWeight="SemiBold"
+                                               Foreground="#FFC107"
+                                               Margin="4,0,0,4"/>
+                                    <ListBox Background="Transparent"
+                                             BorderThickness="0"
+                                             AutomationProperties.Name="Projets favoris"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                             ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                             ItemsSource="{Binding FavoriteProjects}"
+                                             SelectedItem="{Binding SelectedFavoriteProject, Mode=TwoWay}"
+                                             ItemContainerStyle="{StaticResource ProjectListItemWithMenu}">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Name, StringFormat='★  {0}'}" FontWeight="SemiBold"/>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Recent projects : separate highlighted block, updated only after a launch -->
+                            <Border
+                                    Background="#144F9EFF"
+                                    BorderBrush="#554F9EFF"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="8,6"
+                                    Margin="0,0,0,12"
+                                    Visibility="{Binding HasRecentProjects, Converter={StaticResource BooleanToVisibility}}">
+                                <StackPanel>
+                                    <TextBlock Text="🕘 Récemment lancés"
+                                               FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{StaticResource AccentBlueBrush}"
+                                               Margin="4,0,0,4"/>
+                                    <ListBox Background="Transparent"
+                                             BorderThickness="0"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                             ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                             ItemsSource="{Binding RecentProjects}"
+                                             SelectedItem="{Binding SelectedRecentProject, Mode=TwoWay}"
+                                             ItemContainerStyle="{StaticResource ProjectListItemWithMenu}">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Name, StringFormat='🕘  {0}'}" FontWeight="SemiBold"/>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
 
                         <!-- All projects -->
                         <TextBlock Grid.Row="3"
@@ -382,17 +450,60 @@
                                  ItemsSource="{Binding VisibleProjects}"
                                  SelectedItem="{Binding SelectedProjectEntry, Mode=TwoWay}"
                                  DisplayMemberPath="Name"
-                                 ItemContainerStyle="{StaticResource ProjectListItem}"
+                                 ToolTip="Clic droit sur un projet : favoris, Explorateur, chemin, URL locale, contexte pour l'IA"
+                                 ItemContainerStyle="{StaticResource ProjectListItemWithMenu}"
                                  SelectionChanged="ProjectListBox_SelectionChanged"/>
 
-                        <!-- Current project path -->
+                        <!-- Current project : path, git state and quick actions -->
                         <Border Grid.Row="5"
                                 Background="#1A1A2E" CornerRadius="6"
                                 Padding="10,6" Margin="0,10,0,0">
-                            <TextBlock Text="{Binding CurrentProjectDisplayPath}"
-                                       FontSize="11" FontFamily="Consolas"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       TextTrimming="CharacterEllipsis"/>
+                            <StackPanel>
+                                <TextBlock Text="{Binding CurrentProjectDisplayPath}"
+                                           FontSize="11" FontFamily="Consolas"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <Grid Margin="0,6,0,0"
+                                      Visibility="{Binding HasGitStatus, Converter={StaticResource BooleanToVisibility}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding GitStatusText}"
+                                               FontSize="11"
+                                               VerticalAlignment="Center"
+                                               Foreground="{StaticResource AccentGreenBrush}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <Button Grid.Column="1"
+                                            Content="⟳ git fetch"
+                                            Style="{StaticResource QuickActionButton}"
+                                            Margin="6,0,0,0"
+                                            ToolTip="Récupère l'état du dépôt distant pour connaître les commits en retard"
+                                            Command="{Binding FetchGitCommand}"/>
+                                </Grid>
+                                <WrapPanel Margin="0,6,0,0" IsEnabled="{Binding HasProject}">
+                                    <Button Content="{Binding FavoriteToggleLabel}"
+                                            Style="{StaticResource QuickActionButton}"
+                                            ToolTip="{Binding FavoriteToggleToolTip}"
+                                            AutomationProperties.Name="Favori"
+                                            Command="{Binding ToggleFavoriteCommand}"/>
+                                    <Button Content="📂 Explorateur"
+                                            Style="{StaticResource QuickActionButton}"
+                                            Command="{Binding OpenInExplorerCommand}"/>
+                                    <Button Content="📋 Chemin"
+                                            Style="{StaticResource QuickActionButton}"
+                                            ToolTip="Copier le chemin du projet"
+                                            Command="{Binding CopyProjectPathCommand}"/>
+                                    <Button Content="🌍 URL locale"
+                                            Style="{StaticResource QuickActionButton}"
+                                            ToolTip="Ouvrir l'adresse locale du projet"
+                                            Command="{Binding OpenLocalUrlCommand}"/>
+                                    <Button Content="🧠 Contexte IA"
+                                            Style="{StaticResource QuickActionButton}"
+                                            ToolTip="Copier la description du projet (stack, arborescence, commandes, URL, git) pour une discussion avec une IA"
+                                            Command="{Binding CopyProjectContextCommand}"/>
+                                </WrapPanel>
+                            </StackPanel>
                         </Border>
                     </Grid>
                 </Border>

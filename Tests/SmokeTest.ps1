@@ -142,6 +142,19 @@ $comboBoxSelections = @($mainWindow.FindAll([System.Windows.Automation.TreeScope
 Write-Host "Listes déroulantes : $($comboBoxSelections -join ' | ')"
 Write-CheckResult 'Projet Claude présélectionné' (@($comboBoxSelections | Where-Object { $_ -like '*highlightforge*' }).Count -gt 0)
 
+# ── Favorites and quick actions ──
+$favoriteButton = Find-AutomationElement $mainWindow 'Favori' ([System.Windows.Automation.ControlType]::Button) 5
+Write-CheckResult 'Bouton favori' ($null -ne $favoriteButton)
+if ($null -ne $favoriteButton) {
+    $favoriteButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $favoritesList = Find-AutomationElement $mainWindow 'Projets favoris' ([System.Windows.Automation.ControlType]::List) 5
+    $favoriteItem = if ($null -ne $favoritesList) { Find-AutomationElement $favoritesList 'highlightforge' ([System.Windows.Automation.ControlType]::ListItem) 5 } else { $null }
+    Write-CheckResult 'Projet épinglé dans les favoris' ($null -ne $favoriteItem)
+    $favoritesFilePath = Join-Path $dataDirectory 'favorite-projects.json'
+    Write-CheckResult 'Favoris enregistrés' ((Test-Path $favoritesFilePath) -and ((Get-Content -Path $favoritesFilePath -Raw) -like '*highlightforge*'))
+}
+Write-CheckResult 'Bouton contexte IA' ($null -ne (Find-AutomationElement $mainWindow 'Contexte IA' ([System.Windows.Automation.ControlType]::Button) 5))
+
 # ── Profiles shared with the project ──
 Write-CheckResult 'Bouton de partage des profils' ($null -ne (Find-AutomationElement $mainWindow 'Partage des profils' ([System.Windows.Automation.ControlType]::Button) 5))
 

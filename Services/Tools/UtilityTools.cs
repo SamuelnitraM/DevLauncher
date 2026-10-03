@@ -62,21 +62,9 @@ public sealed class BrowserTool : LaunchTool
         return OpenInBrowsers(context, projectUrl) ? ToolStartResult.Started : ToolStartResult.Failed;
     }
 
-    /// <summary>
-    /// Returns the URL of a project served by Apache : its path relative to the Apache document root.
-    /// Returns null for a project located outside of it.
-    /// </summary>
-    public static string? BuildApacheUrl(string projectPath, string apacheDocumentRoot, int apachePort)
-    {
-        var relativeProjectPath = Path.GetRelativePath(Path.GetFullPath(apacheDocumentRoot), Path.GetFullPath(projectPath));
-        if (relativeProjectPath.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relativeProjectPath)) return null;
-        var urlPath = string.Join('/', relativeProjectPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Select(Uri.EscapeDataString));
-        return $"http://localhost{(apachePort == 80 ? string.Empty : $":{apachePort}")}/{urlPath}/";
-    }
-
     private static async Task<string?> WaitForApacheAsync(ToolExecutionContext context)
     {
-        var apacheUrl = BuildApacheUrl(context.ProjectPath, AppSettings.ApacheDocumentRoot, AppSettings.LocalWebPort);
+        var apacheUrl = ProjectUrlResolver.BuildApacheUrl(context.ProjectPath, AppSettings.ApacheDocumentRoot, AppSettings.LocalWebPort);
         if (apacheUrl is null)
         {
             context.Log.Error($"❌ Le projet n'est pas dans {AppSettings.ApacheDocumentRoot} : Apache ne le sert pas, la page ne peut pas s'ouvrir.");

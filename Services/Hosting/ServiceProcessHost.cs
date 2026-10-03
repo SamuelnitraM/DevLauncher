@@ -63,7 +63,7 @@ public sealed class ServiceProcessHost
 
     public async Task StopProjectServicesAsync(string projectPath)
     {
-        foreach (var hostedService in GetServices().Where(service => service.IsRunning && IsSamePath(service.ProjectPath, projectPath)))
+        foreach (var hostedService in GetServices().Where(service => service.IsRunning && PathComparer.AreSame(service.ProjectPath, projectPath)))
         {
             _launchLog.Info($"⏹ Arrêt de {hostedService.Command.Title} ({hostedService.ProjectName})…");
             await hostedService.StopAsync();
@@ -95,6 +95,12 @@ public sealed class ServiceProcessHost
         {
             return null;
         }
+    }
+
+    /// <summary>Returns the URL already announced by the web server of the project, or null.</summary>
+    public string? TryGetAnnouncedUrl(string projectPath)
+    {
+        lock (_announcedUrlsLock) return _announcedUrlsByProject.GetValueOrDefault(projectPath);
     }
 
     private void OnWebServerOutput(string projectPath, string outputLine)
@@ -130,13 +136,11 @@ public sealed class ServiceProcessHost
     }
 
     private HostedService? FindService(string projectPath, string toolId)
-        => GetServices().FirstOrDefault(service => service.Command.ToolId == toolId && IsSamePath(service.ProjectPath, projectPath));
+        => GetServices().FirstOrDefault(service => service.Command.ToolId == toolId && PathComparer.AreSame(service.ProjectPath, projectPath));
 
     private List<HostedService> GetServices()
     {
         lock (_hostedServicesLock) return _hostedServices.ToList();
     }
 
-    private static bool IsSamePath(string firstPath, string secondPath)
-        => string.Equals(Path.TrimEndingDirectorySeparator(firstPath), Path.TrimEndingDirectorySeparator(secondPath), StringComparison.OrdinalIgnoreCase);
 }
