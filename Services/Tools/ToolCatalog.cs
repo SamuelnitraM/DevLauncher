@@ -23,6 +23,7 @@ public sealed class ToolCatalog
             new VisualStudioTool(),
             new SymfonyServerTool(),
             new TailwindTool(),
+            new SymfonyProxyTool(),
             new MercureTool(),
             new MessengerWorkerTool(),
             new MailpitTool(),

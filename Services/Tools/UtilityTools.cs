@@ -148,6 +148,14 @@ public sealed class BrowserTool : LaunchTool
     /// </summary>
     private static async Task<string?> WaitForSymfonyAsync(ToolExecutionContext context)
     {
+        var serverUrl = await WaitForSymfonyServerAsync(context);
+        if (serverUrl is null || !context.Profile.IsToolEnabled(ToolIds.SymfonyProxy)) return serverUrl;
+        // The local domain answers through the proxy once the server answers.
+        return $"https://{SymfonyProxyTool.GetDomain(context.ProjectPath, context.Profile)}{SymfonyProxyTool.DomainSuffix}";
+    }
+
+    private static async Task<string?> WaitForSymfonyServerAsync(ToolExecutionContext context)
+    {
         var configuredUrl = $"http://127.0.0.1:{AppSettings.SymfonyPort}";
         if (!IsServiceReadByDevLauncher(context, ToolIds.SymfonyServer))
             return await WaitForPortServerAsync(context, "Symfony Server", AppSettings.SymfonyPort, configuredUrl, context.Profile.IsToolEnabled(ToolIds.SymfonyServer));

@@ -137,6 +137,7 @@ New-Item -ItemType Directory -Force -Path $dataDirectory | Out-Null
 $settings = @{
     projectRoots = @($projectsRootPath)
     mcpServerEnabled = $true
+    theme = 'light'
     mcpServerPort = 8765
     assistants = @(
         @{ id = 'claude'; isEnabled = $true; defaultMode = 'browser'; webUrl = 'https://claude.ai/new'; applicationTarget = '';
@@ -336,31 +337,20 @@ else {
     Write-CheckResult 'Bouton de détection automatique' ($null -ne (Find-AutomationElement $settingsRoot 'Détecter automatiquement' ([System.Windows.Automation.ControlType]::Button) 5))
     Write-CheckResult 'Section import / export' ($null -ne (Find-AutomationElement $settingsRoot 'Exporter' ([System.Windows.Automation.ControlType]::Button) 5))
     Save-WindowScreenshot $settingsRoot '4-parametres.png'
-    # Light theme : chosen in the settings, applied to the open windows once saved.
+    # Light theme : set before the start, shown in the settings and kept when they are saved.
     $themeComboBox = Find-AutomationElement $settingsRoot 'Thème' ([System.Windows.Automation.ControlType]::ComboBox) 5
     $isThemeSaved = $false
-    try {
-        if ($null -ne $themeComboBox) {
-            $expandCollapsePattern = $null
-            if ($themeComboBox.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern, [ref] $expandCollapsePattern)) { $expandCollapsePattern.Expand() }
-            else { Write-Host 'Liste des thèmes : pas de motif ExpandCollapse' }
-            $lightThemeItem = Find-AutomationElement $settingsRoot 'Clair' ([System.Windows.Automation.ControlType]::ListItem) 5
-            $selectionItemPattern = $null
-            if ($null -ne $lightThemeItem -and $lightThemeItem.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref] $selectionItemPattern)) { $selectionItemPattern.Select() }
-            else { Write-Host "Thème clair : élément introuvable ou non sélectionnable ($($null -ne $lightThemeItem))" }
-            if ($null -ne $expandCollapsePattern) { $expandCollapsePattern.Collapse() }
-            $saveButton = Find-AutomationElement $settingsRoot 'Sauvegarder' ([System.Windows.Automation.ControlType]::Button) 5
-            if ($null -ne $saveButton) {
-                $saveButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-                Start-Sleep -Seconds 2
-                $isThemeSaved = (Get-Content -Path (Join-Path $dataDirectory 'settings.json') -Raw) -like '*"theme": "light"*'
-            }
+    if ($null -ne $themeComboBox) {
+        $selectedThemeName = Get-ComboBoxSelectionName $themeComboBox
+        Write-Host "Thème affiché : $selectedThemeName"
+        $saveButton = Find-AutomationElement $settingsRoot 'Sauvegarder' ([System.Windows.Automation.ControlType]::Button) 5
+        if ($selectedThemeName -like '*Clair*' -and $null -ne $saveButton) {
+            $saveButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+            Start-Sleep -Seconds 2
+            $isThemeSaved = (Get-Content -Path (Join-Path $dataDirectory 'settings.json') -Raw) -like '*"theme": "light"*'
         }
     }
-    catch {
-        Write-Host "Choix du thème impossible : $($_.Exception.Message)"
-    }
-    Write-CheckResult 'Thème clair enregistré' $isThemeSaved
+    Write-CheckResult 'Thème clair affiché et conservé' $isThemeSaved
     Save-WindowScreenshot $mainWindow '9-theme-clair.png'
     $remainingSettingsWindow = Find-DialogWindow 'Paramètres' 1
     if ($null -ne $remainingSettingsWindow) {

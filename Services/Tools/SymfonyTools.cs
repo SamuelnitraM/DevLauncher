@@ -170,3 +170,66 @@ public sealed class MailpitTool : ServiceTool
         await context.ProcessLauncher.StopProcessesAsync("Mailpit", process => process.ProcessName.Equals("mailpit", StringComparison.OrdinalIgnoreCase));
     }
 }
+
+/// <summary>
+/// Local domain of the Symfony proxy (https://projet.wip) : the domain is attached to the project folder and the proxy started,
+/// so that the browser opens the project on its domain once it uses the proxy (http://127.0.0.1:7080/proxy.pac).
+/// </summary>
+public sealed class SymfonyProxyTool : LaunchTool
+{
+    public const string DomainSuffix = ".wip";
+    private static readonly TimeSpan ProxyCommandTimeout = TimeSpan.FromSeconds(30);
+
+    public override string Id => ToolIds.SymfonyProxy;
+    public override string DisplayName => "Domaine local (symfony proxy)";
+    public override string Icon => "🔀";
+    public override ToolCategory Category => ToolCategories.ProjectServices;
+    public override LaunchStage Stage => LaunchStage.Preparation;
+    public override ToolScope Scope => ToolScope.Machine;
+    public override IReadOnlyCollection<ProjectType>? SupportedProjectTypes => new[] { ProjectType.Symfony };
+
+    public override IReadOnlyList<ToolOptionDefinition> Options { get; } = new[]
+    {
+        new ToolOptionDefinition(ToolIds.SymfonyProxyDomainOption, "Domaine (sans .wip) :", ToolOptionKind.Text,
+            _ => Array.Empty<ToolOptionChoice>(),
+            optionContext => optionContext.ProjectPath is null ? Array.Empty<string>() : new[] { BuildDefaultDomain(optionContext.ProjectPath) }),
+    };
+
+    /// <summary>The domain typed in the profile, or the folder name of the project.</summary>
+    public static string GetDomain(string projectPath, ProjectProfile profile)
+    {
+        var typedDomain = profile.GetToolSelection(ToolIds.SymfonyProxy).GetOptionValues(ToolIds.SymfonyProxyDomainOption).FirstOrDefault();
+        return string.IsNullOrWhiteSpace(typedDomain) ? BuildDefaultDomain(projectPath) : typedDomain.Trim().ToLowerInvariant().Replace(DomainSuffix, string.Empty);
+    }
+
+    public static string BuildDefaultDomain(string projectPath)
+    {
+        var hostName = Stacks.VirtualHostService.BuildHostName(projectPath);
+        return hostName[..^Stacks.VirtualHostService.HostNameSuffix.Length];
+    }
+
+    public override async Task<ToolStartResult> StartAsync(ToolExecutionContext context)
+    {
+        var domain = GetDomain(context.ProjectPath, context.Profile);
+        context.Log.Info($"🔀 Domaine {domain}{DomainSuffix} rattaché au projet…");
+        var attachExitCode = await RunSymfonyAsync(context, $"proxy:domain:attach {domain} --dir \"{context.ProjectPath}\"");
+        var startExitCode = await RunSymfonyAsync(context, "proxy:start");
+        if (attachExitCode != 0 || startExitCode != 0)
+        {
+            context.Log.Error("❌ symfony proxy n'a pas pu être configuré (Symfony CLI installé ?)");
+            return ToolStartResult.Failed;
+        }
+        context.Log.Info($"   ✅ https://{domain}{DomainSuffix} — le navigateur doit utiliser le proxy http://127.0.0.1:7080/proxy.pac");
+        return ToolStartResult.Started;
+    }
+
+    public override async Task StopAsync(ToolExecutionContext context)
+    {
+        context.Log.Info("⏹ Arrêt de symfony proxy…");
+        await RunSymfonyAsync(context, "proxy:stop");
+    }
+
+    private static Task<int?> RunSymfonyAsync(ToolExecutionContext context, string symfonyArguments)
+        => context.ProcessLauncher.RunCommandLineAsync($"symfony {symfonyArguments}", string.IsNullOrEmpty(context.ProjectPath) ? Environment.CurrentDirectory : context.ProjectPath,
+            ProxyCommandTimeout, (outputLine, isErrorStream) => PreLaunchCommandsTool.LogOutputLine(context.Log, outputLine, isErrorStream));
+}

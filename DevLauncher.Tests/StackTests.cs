@@ -135,3 +135,16 @@ public class DockerComposeDetectionTests
         Assert.False(ProjectProfile.CreateDefault(projectDetection with { HasDockerCompose = false }).IsToolEnabled(ToolIds.DockerCompose));
     }
 }
+
+public class SymfonyProxyTests
+{
+    [Fact]
+    public void DomainComesFromTheProfileOrTheFolder()
+    {
+        var projectPath = Path.Combine("htdocs", "Boutique Été");
+        Assert.Equal("boutique-ete", SymfonyProxyTool.GetDomain(projectPath, new ProjectProfile()));
+        var profile = new ProjectProfile();
+        profile.Tools[ToolIds.SymfonyProxy] = ToolSelection.Enabled((ToolIds.SymfonyProxyDomainOption, new[] { " Shop.WIP " }));
+        Assert.Equal("shop", SymfonyProxyTool.GetDomain(projectPath, profile));
+    }
+}

@@ -20,6 +20,7 @@ public static class ToolIds
     public const string Terminal = "terminal";
     public const string PreLaunchCommands = "pre-launch";
     public const string MessengerWorker = "messenger-worker";
+    public const string SymfonyProxy = "symfony-proxy";
     public const string Mailpit = "mailpit";
     public const string DockerCompose = "docker-compose";
     public const string Database = "database";
@@ -43,6 +44,9 @@ public static class ToolIds
     /// <summary>Options of the pre-launch tool : predefined commands, and a command typed by the user.</summary>
     public const string PreLaunchCommandsOption = "commands";
     public const string PreLaunchCustomCommandOption = "custom";
+
+    /// <summary>Option of the Symfony proxy tool : local domain, without its .wip suffix.</summary>
+    public const string SymfonyProxyDomainOption = "domain";
 
     /// <summary>Option of the Messenger tool : transports consumed.</summary>
     public const string MessengerTransportsOption = "transports";

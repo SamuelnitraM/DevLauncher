@@ -16,13 +16,17 @@ DevLauncher/
 │
 ├── DevLauncher.csproj              ← Projet .NET 8 WPF (CommunityToolkit.Mvvm, System.Management)
 ├── app.manifest                    ← Droits administrateur (traces WMI des processus)
-├── App.xaml / App.xaml.cs          ← Thème global + point de composition (création des services et de la fenêtre)
+├── App.xaml / App.xaml.cs          ← Styles + point de composition (instance unique, services, fenêtre, zone de notification)
+├── Themes/                         ← Couleurs des thèmes sombre et clair (ressources dynamiques)
 ├── AppSettings.cs                  ← Valeurs par défaut des chemins et ports
 │
 ├── Views/                          ← Affichage uniquement
 │   ├── MainWindow                  ← Fenêtre principale, liée à MainViewModel
-│   ├── SettingsWindow              ← Paramètres (chemins, ports)
+│   ├── SettingsWindow              ← Paramètres (chemins, ports, intégrations, apparence, IA, MCP)
+│   ├── StatisticsWindow            ← Statistiques de lancement
+│   ├── CommandPaletteWindow        ← Palette de commandes (Ctrl+K)
 │   ├── ProfileNameDialog           ← Saisie d'un nom de profil
+│   ├── Shell/                      ← Zone de notification, raccourci global, thème
 │   ├── UserInteractionService.cs   ← Boîtes de dialogue et presse-papiers demandés par les ViewModels
 │   └── Converters/                 ← Convertisseurs de binding
 │
@@ -30,6 +34,8 @@ DevLauncher/
 │   ├── MainViewModel.cs            ← Projets, profils, lancement / arrêt, journal, indicateurs
 │   ├── ToolCategoryViewModel.cs    ← Carte d'outils (catégorie exclusive = boutons radio)
 │   ├── ToolViewModel.cs            ← Outil activable et ses options
+│   ├── CommandPaletteViewModel.cs  ← Filtre et sélection de la palette de commandes
+│   ├── LogTabViewModel.cs          ← Onglets de journal : recherche, filtre des erreurs, contrôle des services
 │   └── ToolOptionViewModel.cs      ← Option d'outil (liste déroulante ou cases à cocher)
 │
 ├── Models/
@@ -50,6 +56,10 @@ DevLauncher/
     │   ├── UtilityTools.cs         ← Terminal, navigateur
     │   └── ToolCatalog.cs          ← Liste des outils connus
     ├── Assistants/                 ← Catalogue des assistants IA, détection de leurs applications
+    ├── Startup/                    ← Instance unique, ligne de commande et liens devlauncher://, intégration Windows
+    ├── Stacks/                     ← Base de données du projet (.env), hôtes virtuels Apache
+    ├── Elevation/                  ← Lancement sans les droits administrateur
+    ├── Mcp/                        ← Serveur MCP local (DevLauncher pilotable par l'IA)
     ├── Hosting/                    ← Hébergement des services : processus gérés par DevLauncher (un onglet de journal
     │                                 par service, arrêt de toute l'arborescence) ou tâches VSCode (option)
     ├── ProcessLauncher.cs          ← Démarrage / arrêt / fermeture de processus, avec journalisation
@@ -163,7 +173,8 @@ Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à cô
 - ⏳ Barre de progression du lancement étape par étape
 - ✅ Disponibilité lue dans la sortie des services (« Done in », « ready in », « listening »…) : le navigateur s'ouvre
   sur l'adresse réelle annoncée par Symfony (http ou https), une fois les assets construits
-- 📨 Worker Symfony Messenger et 📮 Mailpit (si installé) dans les services du projet
+- 📨 Worker Symfony Messenger, 📮 Mailpit (si installé) et 🔀 domaine local `symfony proxy` (`https://projet.wip`)
+  dans les services du projet
 - 🖥️ Terminal : choix du shell (profil par défaut de Windows Terminal, PowerShell, PowerShell 7, invite de commandes, Git Bash),
   console classique si Windows Terminal est absent
 - 📊 Statistiques : nombre de lancements, dernier lancement, durées par projet
