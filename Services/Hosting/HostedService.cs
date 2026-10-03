@@ -77,7 +77,7 @@ public sealed class HostedService
     }
 
     /// <summary>Raised on any thread for each output line. Parameters : line, does it look like an error ?</summary>
-    public event Action<string, bool>? OutputReceived;
+    public event Action<ServiceOutputLine>? OutputReceived;
 
     /// <summary>Raised on the starting thread when the process has started.</summary>
     public event Action? Started;
@@ -106,7 +106,8 @@ public sealed class HostedService
                 StandardErrorEncoding = Encoding.UTF8,
             };
             foreach (var argument in Command.Arguments) processStartInfo.ArgumentList.Add(argument);
-            processStartInfo.Environment["NO_COLOR"] = "1";
+            // Colors are kept and shown in the service tab, even though the output is redirected.
+            processStartInfo.Environment["FORCE_COLOR"] = "1";
             foreach (var (variableName, variableValue) in Command.EnvironmentVariables ?? new Dictionary<string, string>())
                 processStartInfo.Environment[variableName] = variableValue;
             var serviceProcess = new Process { StartInfo = processStartInfo, EnableRaisingEvents = true };
@@ -121,11 +122,11 @@ public sealed class HostedService
             catch (Win32Exception exception)
             {
                 serviceProcess.Dispose();
-                OutputReceived?.Invoke($"❌ Impossible de lancer « {Command.Executable} » : {exception.Message}", true);
+                OutputReceived?.Invoke(ServiceOutputLine.FromMessage($"❌ Impossible de lancer « {Command.Executable} » : {exception.Message}", true));
                 return false;
             }
             if (_killOnCloseJob is not null && !_killOnCloseJob.TryAssign(serviceProcess))
-                OutputReceived?.Invoke("⚠️ Ce service ne pourra pas être arrêté automatiquement si DevLauncher est tué", true);
+                OutputReceived?.Invoke(ServiceOutputLine.FromMessage("⚠️ Ce service ne pourra pas être arrêté automatiquement si DevLauncher est tué", true));
             _isStopRequested = false;
             if (_readinessCompletion.Task.IsCompleted) _readinessCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             _serviceProcess = serviceProcess;
@@ -154,7 +155,7 @@ public sealed class HostedService
         }
         catch (TimeoutException)
         {
-            OutputReceived?.Invoke($"⚠️ Le processus ne s'est pas terminé après {ProcessExitTimeout.TotalSeconds:0}s", true);
+            OutputReceived?.Invoke(ServiceOutputLine.FromMessage($"⚠️ Le processus ne s'est pas terminé après {ProcessExitTimeout.TotalSeconds:0}s", true));
         }
     }
 
@@ -209,9 +210,9 @@ public sealed class HostedService
     private void PublishOutputLine(string? outputLine)
     {
         if (outputLine is null) return;
-        var cleanLine = OutputLineClassifier.RemoveAnsiSequences(outputLine);
-        OutputReceived?.Invoke(cleanLine, OutputLineClassifier.LooksLikeError(cleanLine));
-        if (_readinessRegex is null || !_readinessRegex.IsMatch(cleanLine)) return;
+        var serviceOutputLine = ServiceOutputLine.FromRawOutput(outputLine);
+        OutputReceived?.Invoke(serviceOutputLine);
+        if (_readinessRegex is null || !_readinessRegex.IsMatch(serviceOutputLine.Text)) return;
         bool isNowReady;
         lock (_processLock) isNowReady = _readinessCompletion.TrySetResult();
         if (isNowReady) BecameReady?.Invoke();

@@ -373,6 +373,7 @@
                                            Margin="0,0,8,0" FontSize="13"/>
                                 <TextBox Grid.Column="1"
                                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="Rechercher un projet"
                                          BorderThickness="0"
                                          Foreground="{StaticResource TextPrimaryBrush}"
                                          CaretBrush="{StaticResource AccentBlueBrush}"
@@ -703,7 +704,43 @@
                                                 Command="{Binding CloseCommand}"/>
                                     </StackPanel>
                                     <!-- Log lines -->
-                                    <ListBox ItemsSource="{Binding Lines}"
+                                    <!-- Search and error filter of the tab -->
+                                    <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Background="#1A1A2E" CornerRadius="6" Padding="6,0">
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Left" Text="🔍" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                                         Background="Transparent" BorderThickness="0"
+                                                         Foreground="{StaticResource TextPrimaryBrush}"
+                                                         CaretBrush="{StaticResource AccentBlueBrush}"
+                                                         FontFamily="Consolas" FontSize="11" Padding="0,4"
+                                                         AutomationProperties.Name="Rechercher dans le journal"
+                                                         ToolTip="Rechercher dans le journal (Échap pour effacer)">
+                                                    <TextBox.InputBindings>
+                                                        <KeyBinding Key="Escape" Command="{Binding ClearSearchCommand}"/>
+                                                    </TextBox.InputBindings>
+                                                </TextBox>
+                                            </DockPanel>
+                                        </Border>
+                                        <CheckBox Grid.Column="1"
+                                                  Content="⚠ Erreurs seules"
+                                                  IsChecked="{Binding ShowsErrorsOnly, Mode=TwoWay}"
+                                                  Style="{StaticResource ModernCheckBox}"
+                                                  FontSize="11" Margin="10,0,0,0"
+                                                  VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding FilterSummary}"
+                                                   FontSize="11" Margin="10,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{StaticResource AccentBlueBrush}"
+                                                   Visibility="{Binding IsFiltered, Converter={StaticResource BooleanToVisibility}}"/>
+                                    </Grid>
+                                    <ListBox ItemsSource="{Binding VisibleLines}"
                                              behaviors:ListBoxAutoScroll.IsEnabled="True"
                                              Background="Transparent"
                                              BorderThickness="0"
@@ -722,7 +759,7 @@
                                         </ListBox.ItemContainerStyle>
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding Text}"
+                                                <TextBlock behaviors:LogLineFormatter.Entry="{Binding}"
                                                            FontFamily="Consolas" FontSize="11"
                                                            TextWrapping="Wrap">
                                                     <TextBlock.Style>

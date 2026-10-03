@@ -167,6 +167,7 @@ Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à cô
 - 🖥️ Terminal : choix du shell (profil par défaut de Windows Terminal, PowerShell, PowerShell 7, invite de commandes, Git Bash),
   console classique si Windows Terminal est absent
 - 📊 Statistiques : nombre de lancements, dernier lancement, durées par projet
+- 🎨 Onglets des services en couleurs (couleurs ANSI des outils), recherche et filtre « erreurs seules » dans chaque onglet
 - 📋 Journal de lancement horodaté, enregistré chaque jour dans `%APPDATA%\DevLauncher\Logs` (10 jours conservés),
   journal détaillé en option (commandes exécutées, sortie des services)
 - 📌 Profils partagés avec le projet : bouton 📤 du bloc Profil, qui les écrit dans `.devlauncher.json`

@@ -191,6 +191,9 @@ Write-CheckResult 'Script npm run dev proposé' (@($laravelComboBoxSelections | 
 Save-WindowScreenshot $mainWindow '3-assistants.png'
 
 # ── Whole launch : pre-launch command, progress, statistics ──
+# The projects list is virtualized : the search narrows it so that the project is displayed.
+$projectSearchBox = Find-AutomationElement $mainWindow 'Rechercher un projet' ([System.Windows.Automation.ControlType]::Edit) 5
+if ($null -ne $projectSearchBox) { $projectSearchBox.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('outil') }
 $toolItem = Find-AutomationElement $mainWindow 'outil' ([System.Windows.Automation.ControlType]::ListItem)
 Write-CheckResult 'Projet outil listé' ($null -ne $toolItem)
 if ($null -ne $toolItem) {
@@ -211,6 +214,7 @@ if ($null -ne $toolItem) {
         Save-WindowScreenshot $mainWindow '5-lancement.png'
     }
 }
+if ($null -ne $projectSearchBox) { $projectSearchBox.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('') }
 $statisticsButton = Find-AutomationElement $mainWindow 'Statistiques' ([System.Windows.Automation.ControlType]::Button) 5
 Write-CheckResult 'Bouton statistiques' ($null -ne $statisticsButton)
 if ($null -ne $statisticsButton) {
@@ -224,6 +228,16 @@ if ($null -ne $statisticsButton) {
     $closeButton = Find-AutomationElement $statisticsRoot 'Fermer' ([System.Windows.Automation.ControlType]::Button) 5
     if ($null -ne $closeButton) { $closeButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
     Start-Sleep -Seconds 1
+}
+
+# ── Log search ──
+$logSearchBox = Find-AutomationElement $mainWindow 'Rechercher dans le journal' ([System.Windows.Automation.ControlType]::Edit) 5
+Write-CheckResult 'Recherche dans le journal' ($null -ne $logSearchBox)
+if ($null -ne $logSearchBox) {
+    $logSearchBox.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('Lancement')
+    Write-CheckResult 'Résumé du filtre du journal' ($null -ne (Find-AutomationElement $mainWindow 'ligne(s)' ([System.Windows.Automation.ControlType]::Text) 5))
+    Save-WindowScreenshot $mainWindow '7-recherche-journal.png'
+    $logSearchBox.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('')
 }
 
 # ── Settings window : Claude Desktop detection ──

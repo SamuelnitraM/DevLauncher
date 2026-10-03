@@ -109,7 +109,7 @@ DevLauncher, sortie capturée. Les **terminaux interactifs** restent dans Window
 | # | Évolution | Effort |
 |---|---|---|
 | 3.1 | ✅ **Lancement direct des services** (processus enfants, sortie standard et erreur redirigées, entrée standard maintenue ouverte pour les `--watch`) : DevLauncher connaît chaque PID, arrêt exact, fin du `tasks.json` temporaire et des onglets Windows Terminal orphelins | M |
-| 3.2 | ✅ (base) **Panneau de journaux par service** : un onglet par service, copie, erreurs en rouge — reste : couleurs ANSI, recherche | M |
+| 3.2 | ✅ **Panneau de journaux par service** : un onglet par service, copie, erreurs en rouge, couleurs ANSI, recherche et filtre des erreurs | M |
 | 3.3 | ✅ **Contrôle par service** : démarrer / arrêter / redémarrer individuellement, détection immédiate d'un crash (événement de fin de processus) avec notification | S |
 | 3.4 | ✅ **Disponibilité lue dans les journaux** (« Listening on… », « Done in… ») en complément du test de port : ouverture du navigateur au bon moment, port et schéma HTTP/HTTPS réels | S |
 | 3.5 | ✅ **Terminal interactif** : bouton « Ouvrir un terminal » conservé dans Windows Terminal (onglet dans le dossier du projet, profil PowerShell / CMD / Git Bash au choix) | S |

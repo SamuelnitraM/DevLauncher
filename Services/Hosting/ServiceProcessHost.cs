@@ -48,9 +48,9 @@ public sealed class ServiceProcessHost
             {
                 hostedService = new HostedService(projectPath, serviceCommand, _killOnCloseJob);
                 var serviceTitle = $"{serviceCommand.Title} · {hostedService.ProjectName}";
-                hostedService.OutputReceived += (outputLine, isError) => _launchLog.ServiceOutput(serviceTitle, outputLine, isError);
+                hostedService.OutputReceived += outputLine => _launchLog.ServiceOutput(serviceTitle, outputLine.Text, outputLine.IsError);
                 hostedService.BecameReady += () => _launchLog.Info($"✅ {serviceTitle} prêt");
-                if (serviceCommand.AnnouncesApplicationUrl) hostedService.OutputReceived += (outputLine, _) => OnWebServerOutput(projectPath, outputLine);
+                if (serviceCommand.AnnouncesApplicationUrl) hostedService.OutputReceived += outputLine => OnWebServerOutput(projectPath, outputLine.Text);
                 lock (_hostedServicesLock) _hostedServices.Add(hostedService);
                 ServiceCreated?.Invoke(hostedService);
             }

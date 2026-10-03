@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -20,11 +21,55 @@ public partial class LogTabViewModel : ObservableObject
     {
         Title = title;
         BindingOperations.EnableCollectionSynchronization(Lines, _linesLock);
+        VisibleLines = CollectionViewSource.GetDefaultView(Lines);
+        VisibleLines.Filter = IsLineVisible;
     }
 
     public string Title { get; }
     public ObservableCollection<LogEntry> Lines { get; } = new();
+
+    /// <summary>Lines shown in the tab : all of them, or those matching the search and the error filter.</summary>
+    public ICollectionView VisibleLines { get; }
+
     public virtual bool IsService => false;
+
+    /// <summary>Text searched in the lines, case-insensitive. Empty shows every line.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFiltered))]
+    private string _searchText = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFiltered))]
+    private bool _showsErrorsOnly;
+
+    public bool IsFiltered => ShowsErrorsOnly || !string.IsNullOrWhiteSpace(SearchText);
+
+    /// <summary>Number of lines shown out of the total, displayed while a filter is active.</summary>
+    public string FilterSummary
+    {
+        get
+        {
+            lock (_linesLock) return $"{Lines.Count(IsLineVisible)} / {Lines.Count} ligne(s)";
+        }
+    }
+
+    partial void OnSearchTextChanged(string value) => RefreshFilter();
+
+    [RelayCommand]
+    private void ClearSearch() => SearchText = string.Empty;
+
+    partial void OnShowsErrorsOnlyChanged(bool value) => RefreshFilter();
+
+    private void RefreshFilter()
+    {
+        VisibleLines.Refresh();
+        OnPropertyChanged(nameof(FilterSummary));
+    }
+
+    private bool IsLineVisible(object line)
+        => line is LogEntry logEntry
+           && (!ShowsErrorsOnly || logEntry.IsError)
+           && (string.IsNullOrWhiteSpace(SearchText) || logEntry.Text.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase));
 
     [ObservableProperty]
     private bool _isRunning;
@@ -35,24 +80,27 @@ public partial class LogTabViewModel : ObservableObject
     {
     }
 
-    /// <summary>Appends a timestamped line.</summary>
-    public void AppendLine(string text, bool isError)
+    /// <summary>Appends a timestamped line, with its colors when it comes from a service.</summary>
+    public void AppendLine(string text, bool isError, IReadOnlyList<AnsiSegment>? segments = null)
     {
         lock (_linesLock)
         {
-            Lines.Add(new LogEntry($"[{DateTime.Now:HH:mm:ss}] {text}", isError));
+            Lines.Add(new LogEntry($"{DateTime.Now:HH:mm:ss}", text, isError, segments));
             while (Lines.Count > MaximumLineCount) Lines.RemoveAt(0);
         }
+        if (IsFiltered) OnPropertyChanged(nameof(FilterSummary));
     }
 
     public void ClearLines()
     {
         lock (_linesLock) Lines.Clear();
+        OnPropertyChanged(nameof(FilterSummary));
     }
 
+    /// <summary>Text of the lines shown : the filtered lines when a filter is active.</summary>
     public string GetText()
     {
-        lock (_linesLock) return string.Join(Environment.NewLine, Lines.Select(logEntry => logEntry.Text));
+        lock (_linesLock) return string.Join(Environment.NewLine, Lines.Where(IsLineVisible).Select(logEntry => logEntry.Text));
     }
 }
 
@@ -104,7 +152,7 @@ public partial class ServiceLogTabViewModel : LogTabViewModel
         _closeTab(this);
     }
 
-    private void OnOutputReceived(string outputLine, bool isError) => _runOnUiThread(() => AppendLine(outputLine, isError));
+    private void OnOutputReceived(ServiceOutputLine outputLine) => _runOnUiThread(() => AppendLine(outputLine.Text, outputLine.IsError, outputLine.Segments));
 
     private void OnServiceStarted() => _runOnUiThread(() =>
     {
