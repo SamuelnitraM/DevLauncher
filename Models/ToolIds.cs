@@ -21,6 +21,8 @@ public static class ToolIds
     public const string PreLaunchCommands = "pre-launch";
     public const string MessengerWorker = "messenger-worker";
     public const string Mailpit = "mailpit";
+    public const string DockerCompose = "docker-compose";
+    public const string Database = "database";
     public const string Browser = "browser";
 
     /// <summary>Tool of a chat assistant of the assistant catalog.</summary>
@@ -38,6 +40,11 @@ public static class ToolIds
 
     /// <summary>Option of the Messenger tool : transports consumed.</summary>
     public const string MessengerTransportsOption = "transports";
+
+    /// <summary>Options of the database tool : actions, dump imported at the creation, client opened.</summary>
+    public const string DatabaseActionsOption = "actions";
+    public const string DatabaseDumpOption = "dump";
+    public const string DatabaseClientOption = "client";
 
     /// <summary>Option of the terminal tool : shell opened in the tab.</summary>
     public const string TerminalShellOption = "shell";

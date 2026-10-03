@@ -10,7 +10,6 @@ namespace DevLauncher.Services.Tools;
 public sealed class PreLaunchCommandsTool : LaunchTool
 {
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromMinutes(10);
-    private static readonly TimeSpan DatabaseReadinessTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>Predefined command : stable identifier saved in the profiles, label, and condition on the project files.</summary>
     private sealed record PredefinedCommand(string Id, string Label, Func<string, bool> AppliesTo, Func<string> BuildCommandLine, bool NeedsDatabase = false);
@@ -67,7 +66,7 @@ public sealed class PreLaunchCommandsTool : LaunchTool
         {
             if (needsDatabase && !isDatabaseChecked)
             {
-                await WaitForDatabaseAsync(context);
+                await MySqlReadiness.WaitForMySqlAsync(context);
                 isDatabaseChecked = true;
             }
             context.Log.Info($"🧰 {commandLine}");
@@ -84,19 +83,8 @@ public sealed class PreLaunchCommandsTool : LaunchTool
         return failedCommandCount == 0 ? ToolStartResult.Started : ToolStartResult.Failed;
     }
 
-    /// <summary>Waits for MySQL when this launch starts it, so that the migrations find the database.</summary>
-    private static async Task WaitForDatabaseAsync(ToolExecutionContext context)
-    {
-        if (!context.Profile.IsToolEnabled(ToolIds.MySql)) return;
-        var mySqlPort = MySqlConfigurationReader.ReadServerPort(AppSettings.MySQLConfig);
-        if (await PortProbe.IsPortOpenAsync(mySqlPort)) return;
-        context.Log.Info($"⏳ Attente de MySQL sur le port {mySqlPort} avant les migrations…");
-        if (!await PortProbe.WaitForPortAsync(mySqlPort, DatabaseReadinessTimeout))
-            context.Log.Error($"⚠️ MySQL ne répond pas après {DatabaseReadinessTimeout.TotalSeconds:0}s : les migrations risquent d'échouer");
-    }
-
     /// <summary>Output of the commands, indented under their command line. Error stream lines are shown as errors only when they look like errors : composer and npm write their progress there.</summary>
-    private static void LogOutputLine(LaunchLog launchLog, string outputLine, bool isErrorStream)
+    public static void LogOutputLine(LaunchLog launchLog, string outputLine, bool isErrorStream)
     {
         if (string.IsNullOrWhiteSpace(outputLine)) return;
         var cleanLine = Hosting.OutputLineClassifier.RemoveAnsiSequences(outputLine);
@@ -109,4 +97,21 @@ public sealed class PreLaunchCommandsTool : LaunchTool
 
     /// <summary>The PHP of XAMPP when present, quoted for cmd.exe.</summary>
     private static string QuotedPhp() => $"\"{AppSettings.PhpExecutable}\"";
+}
+
+/// <summary>Waits for the MySQL server of XAMPP before the steps that need the database.</summary>
+public static class MySqlReadiness
+{
+    private static readonly TimeSpan DatabaseReadinessTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>Waits for MySQL when this launch starts it, so that the database steps find it.</summary>
+    public static async Task WaitForMySqlAsync(ToolExecutionContext context)
+    {
+        if (!context.Profile.IsToolEnabled(ToolIds.MySql)) return;
+        var mySqlPort = MySqlConfigurationReader.ReadServerPort(AppSettings.MySQLConfig);
+        if (await PortProbe.IsPortOpenAsync(mySqlPort)) return;
+        context.Log.Info($"⏳ Attente de MySQL sur le port {mySqlPort}…");
+        if (!await PortProbe.WaitForPortAsync(mySqlPort, DatabaseReadinessTimeout))
+            context.Log.Error($"⚠️ MySQL ne répond pas après {DatabaseReadinessTimeout.TotalSeconds:0}s : les étapes de base de données risquent d'échouer");
+    }
 }

@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using DevLauncher.Models;
 using DevLauncher.Services;
 using DevLauncher.Services.Hosting;
+using DevLauncher.Services.Stacks;
 using DevLauncher.Services.Startup;
 using DevLauncher.Services.Tools;
 
@@ -26,6 +27,7 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
     private readonly FavoriteProjectsService _favoriteProjectsService;
     private readonly GitStatusService _gitStatusService;
     private readonly LaunchStatisticsService _launchStatisticsService;
+    private readonly VirtualHostService _virtualHostService;
     private readonly ProcessLauncher _processLauncher;
     private readonly LaunchService _launchService;
     private readonly ServiceProcessHost _serviceProcessHost;
@@ -45,6 +47,7 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
         FavoriteProjectsService favoriteProjectsService,
         GitStatusService gitStatusService,
         LaunchStatisticsService launchStatisticsService,
+        VirtualHostService virtualHostService,
         ProcessLauncher processLauncher,
         ToolCatalog toolCatalog,
         LaunchService launchService,
@@ -60,6 +63,7 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
         _favoriteProjectsService = favoriteProjectsService;
         _gitStatusService = gitStatusService;
         _launchStatisticsService = launchStatisticsService;
+        _virtualHostService = virtualHostService;
         _processLauncher = processLauncher;
         _launchService = launchService;
         _serviceProcessHost = serviceProcessHost;
@@ -467,7 +471,7 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
     private void OpenLocalUrl(ProjectListEntry? projectEntry)
     {
         if (GetTargetProjectPath(projectEntry) is not { } projectPath) return;
-        var localUrl = ProjectUrlResolver.GetKnownUrl(projectPath, GetProjectType(projectPath), _serviceProcessHost.TryGetAnnouncedUrl(projectPath));
+        var localUrl = ProjectUrlResolver.GetKnownUrl(projectPath, GetProjectType(projectPath), _serviceProcessHost.TryGetAnnouncedUrl(projectPath), _virtualHostService.FindHostName(projectPath));
         if (localUrl is null)
         {
             _launchLog.Error($"❌ URL locale de « {Path.GetFileName(projectPath)} » inconnue : elle est annoncée par son serveur de développement, à lancer d'abord");
@@ -490,11 +494,49 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
             projectType,
             projectDetection.UsesTailwindBundle,
             ProjectScanner.GetNpmScripts(projectPath),
-            ProjectUrlResolver.GetKnownUrl(projectPath, projectType, _serviceProcessHost.TryGetAnnouncedUrl(projectPath)),
+            ProjectUrlResolver.GetKnownUrl(projectPath, projectType, _serviceProcessHost.TryGetAnnouncedUrl(projectPath), _virtualHostService.FindHostName(projectPath)),
             gitStatus));
         _userInteractionService.CopyToClipboard(projectContext);
         StatusText = "🧠 Contexte du projet copié : prêt à coller dans une discussion";
         _launchLog.Info($"🧠 Contexte de « {Path.GetFileName(projectPath)} » copié dans le presse-papiers");
+    }
+
+    /// <summary>
+    /// Creates the virtual host of the project (projet.test : Apache and hosts file), or removes it when it exists,
+    /// then restarts Apache when it runs so that it reads its new configuration.
+    /// </summary>
+    [RelayCommand]
+    private async Task ToggleVirtualHostAsync(ProjectListEntry? projectEntry)
+    {
+        if (GetTargetProjectPath(projectEntry) is not { } projectPath) return;
+        var existingHostName = _virtualHostService.FindHostName(projectPath);
+        try
+        {
+            if (existingHostName is null)
+            {
+                var hostName = _virtualHostService.Add(projectPath, AppSettings.LocalWebPort);
+                _launchLog.Info($"🌐 Hôte virtuel créé : {ProjectUrlResolver.BuildVirtualHostUrl(hostName, AppSettings.LocalWebPort)} → {VirtualHostService.FindDocumentRoot(projectPath)}");
+            }
+            else
+            {
+                _virtualHostService.Remove(projectPath, AppSettings.LocalWebPort);
+                _launchLog.Info($"🌐 Hôte virtuel {existingHostName} supprimé");
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _launchLog.Error($"❌ Hôte virtuel : {exception.Message}");
+            return;
+        }
+        if (!ProcessHelper.IsProcessRunning("httpd"))
+        {
+            _launchLog.Info("   ℹ️ Pris en compte au prochain démarrage d'Apache");
+            return;
+        }
+        _launchLog.Info("↻ Redémarrage d'Apache pour lire sa configuration…");
+        await _processLauncher.StopProcessesAsync("Apache", process => process.ProcessName.Equals("httpd", StringComparison.OrdinalIgnoreCase));
+        _processLauncher.StartHiddenProcess(AppSettings.ApacheExe, null);
+        _serviceMonitor.RefreshStatus();
     }
 
     /// <summary>The type chosen in the options panel for the current project, the detected type for another one.</summary>
@@ -831,6 +873,9 @@ public partial class MainViewModel : ObservableObject, IDisposable, ILaunchObser
             paletteCommands.Add(new PaletteCommand("🔗 Copier le lien de lancement", currentProjectCategory, () => RunCommand(() => CopyLaunchLink(null))));
             paletteCommands.Add(new PaletteCommand(IsCurrentProjectFavorite ? "☆ Retirer des favoris" : "★ Épingler dans les favoris", currentProjectCategory, () => RunCommand(() => ToggleFavorite(null))));
             paletteCommands.Add(new PaletteCommand("⟳ git fetch", currentProjectCategory, FetchGitAsync));
+            var virtualHostName = CurrentProjectPath is null ? null : _virtualHostService.FindHostName(CurrentProjectPath);
+            paletteCommands.Add(new PaletteCommand(virtualHostName is null ? $"🌐 Créer l'hôte virtuel {VirtualHostService.BuildHostName(CurrentProjectPath!)}" : $"🌐 Supprimer l'hôte virtuel {virtualHostName}",
+                currentProjectCategory, () => ToggleVirtualHostAsync(null)));
         }
         const string generalCategory = "Général";
         if (CanStopAll()) paletteCommands.Add(new PaletteCommand("⏹ Tout arrêter", generalCategory, StopAllAsync));

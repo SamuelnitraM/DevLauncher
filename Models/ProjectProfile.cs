@@ -27,6 +27,7 @@ public class ProjectProfile
         void EnableTool(string toolId) => defaultProfile.Tools[toolId] = ToolSelection.Enabled();
         EnableTool(ToolIds.VSCode);
         defaultProfile.Tools[ToolIds.Browser] = ToolSelection.Enabled((ToolIds.BrowserTargetsOption, new[] { ToolIds.DefaultBrowser }));
+        if (detection.HasDockerCompose) EnableTool(ToolIds.DockerCompose);
         switch (detection.ProjectType)
         {
             case ProjectType.Symfony:

@@ -40,6 +40,10 @@
             <MenuItem Header="🔗 Copier le lien de lancement (devlauncher://)"
                       Command="{Binding PlacementTarget.Tag.CopyLaunchLinkCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                       CommandParameter="{Binding}"/>
+            <Separator/>
+            <MenuItem Header="🌐 Créer / supprimer l'hôte virtuel projet.test"
+                      Command="{Binding PlacementTarget.Tag.ToggleVirtualHostCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      CommandParameter="{Binding}"/>
         </ContextMenu>
 
         <!-- Project item carrying the main view model in its Tag, for the context menu commands -->

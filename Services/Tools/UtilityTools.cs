@@ -1,5 +1,6 @@
 using System.IO;
 using DevLauncher.Models;
+using DevLauncher.Services.Stacks;
 
 namespace DevLauncher.Services.Tools;
 
@@ -163,10 +164,10 @@ public sealed class BrowserTool : LaunchTool
 
     private static async Task<string?> WaitForApacheAsync(ToolExecutionContext context)
     {
-        var apacheUrl = ProjectUrlResolver.BuildApacheUrl(context.ProjectPath, AppSettings.ApacheDocumentRoot, AppSettings.LocalWebPort);
+        var apacheUrl = ProjectUrlResolver.GetApacheUrl(context.ProjectPath, new VirtualHostService().FindHostName(context.ProjectPath));
         if (apacheUrl is null)
         {
-            context.Log.Error($"❌ Le projet n'est pas dans {AppSettings.ApacheDocumentRoot} : Apache ne le sert pas, la page ne peut pas s'ouvrir.");
+            context.Log.Error($"❌ Le projet n'est pas dans {AppSettings.ApacheDocumentRoot} : Apache ne le sert pas (crée-lui un hôte virtuel : clic droit sur le projet), la page ne peut pas s'ouvrir.");
             return null;
         }
         return await WaitForPortServerAsync(context, "Apache", AppSettings.LocalWebPort, apacheUrl, context.Profile.IsToolEnabled(ToolIds.Apache));

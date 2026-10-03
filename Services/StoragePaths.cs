@@ -21,6 +21,8 @@ public static class StoragePaths
 
     public static string LaunchStatisticsFilePath { get; } = Path.Combine(DataDirectory, "launch-statistics.json");
 
+    public static string VirtualHostsFilePath { get; } = Path.Combine(DataDirectory, "virtual-hosts.json");
+
     /// <summary>Folder of the persistent log, one file per day.</summary>
     public static string LogsDirectory { get; } = Path.Combine(DataDirectory, "Logs");
 

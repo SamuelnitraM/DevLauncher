@@ -156,7 +156,9 @@ public sealed class ProcessLauncher
     /// Runs a command line through cmd.exe in a folder, sends each output line to the callback and returns the exit code,
     /// or null when the command cannot start or exceeds the timeout (it is then killed).
     /// </summary>
-    public async Task<int?> RunCommandLineAsync(string commandLine, string workingDirectory, TimeSpan timeout, Action<string, bool> onOutputLine)
+    /// <param name="environmentVariables">Variables added to the environment of the command, never written to the log (passwords).</param>
+    public async Task<int?> RunCommandLineAsync(string commandLine, string workingDirectory, TimeSpan timeout, Action<string, bool> onOutputLine,
+        IReadOnlyDictionary<string, string>? environmentVariables = null)
     {
         var processStartInfo = new ProcessStartInfo("cmd.exe", $"/d /s /c \"{commandLine}\"")
         {
@@ -172,6 +174,8 @@ public sealed class ProcessLauncher
         processStartInfo.Environment["NO_COLOR"] = "1";
         processStartInfo.Environment["COMPOSER_NO_INTERACTION"] = "1";
         processStartInfo.Environment["GIT_TERMINAL_PROMPT"] = "0";
+        foreach (var (variableName, variableValue) in environmentVariables ?? new Dictionary<string, string>())
+            processStartInfo.Environment[variableName] = variableValue;
         _launchLog.Detail($"Commande : {commandLine} (dossier {workingDirectory})");
         try
         {

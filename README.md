@@ -179,6 +179,12 @@ Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à cô
 - ⚡ Palette de commandes (Ctrl+K ou bouton ⚡) : lancer / ouvrir n'importe quel projet, actions du projet, paramètres…
   et raccourci global (Ctrl+Alt+D par défaut) qui l'ouvre depuis n'importe quelle application
 - 🎨 Thème clair, sombre ou comme Windows (suivi en direct), barres de titre comprises
+- 🐳 Docker Compose (si Docker est installé) : `docker compose up -d` au lancement, état des conteneurs, `down` à l'arrêt ;
+  coché par défaut quand le projet a un fichier compose
+- 🗃️ Base de données du projet (lue dans `DATABASE_URL` ou `DB_*` du `.env`) : création si absente, import d'un dump `.sql`
+  à la création, ouverture dans phpMyAdmin ou HeidiSQL
+- 🌐 Hôtes virtuels `projet.test` (clic droit sur un projet) : Apache et fichier `hosts` configurés, Apache redémarré,
+  le navigateur ouvre alors `http://projet.test/`
 - 📋 Journal de lancement horodaté, enregistré chaque jour dans `%APPDATA%\DevLauncher\Logs` (10 jours conservés),
   journal détaillé en option (commandes exécutées, sortie des services)
 - 📌 Profils partagés avec le projet : bouton 📤 du bloc Profil, qui les écrit dans `.devlauncher.json`

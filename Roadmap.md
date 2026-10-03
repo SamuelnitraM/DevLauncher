@@ -92,10 +92,10 @@ choisis par assistant et modifiables par profil.
 |---|---|---|
 | 2.1 | ✅ **Détection multi-stack** : Laravel (`artisan serve`, Vite), Node (scripts `dev` / `start` de `package.json`), Vite / Next / Nuxt, Python (venv, `manage.py runserver`, `uvicorn`), .NET (`dotnet watch`), WordPress | M |
 | 2.2 | ✅ **Plusieurs dossiers racines** (pas seulement `htdocs`) + ajout manuel d'un projet n'importe où + liste d'exclusions (`dashboard`, `img`, `xampp`… de XAMPP) | S |
-| 2.3 | **Docker Compose** : détection de `compose.yaml`, `docker compose up -d` / `down`, état des conteneurs | M |
-| 2.4 | **Virtual hosts Apache automatiques** (`templateSite.test`) avec entrée dans `hosts` | M |
+| 2.3 | ✅ **Docker Compose** : détection de `compose.yaml`, `docker compose up -d` / `down`, état des conteneurs | M |
+| 2.4 | ✅ **Virtual hosts Apache automatiques** (`templateSite.test`) avec entrée dans `hosts` | M |
 | 2.5 | ✅ **Détection des conflits de ports** avant lancement (qui occupe le 80 / 3306 / 8000 ?) avec proposition d'action | S |
-| 2.6 | **Base de données par projet** : création si absente (d'après `DATABASE_URL` du `.env`), import d'un dump, ouverture de phpMyAdmin / Adminer / HeidiSQL | M |
+| 2.6 | ✅ **Base de données par projet** : création si absente (d'après `DATABASE_URL` du `.env`), import d'un dump, ouverture de phpMyAdmin / Adminer / HeidiSQL | M |
 | 2.7 | ✅ **Symfony avancé** : HTTP/HTTPS et port réels lus dans la sortie du serveur, worker Messenger, Mailpit — reste : `symfony proxy` | S |
 | 2.8 | ✅ **Commandes « pré-lancement »** par profil : `composer install`, `npm install`, `doctrine:migrations:migrate`, `git pull` | S |
 

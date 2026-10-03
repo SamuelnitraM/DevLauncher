@@ -1,6 +1,7 @@
 using System.Windows;
 using DevLauncher.Services;
 using DevLauncher.Services.Hosting;
+using DevLauncher.Services.Stacks;
 using DevLauncher.Services.Startup;
 using DevLauncher.Services.Tools;
 using DevLauncher.ViewModels;
@@ -62,6 +63,7 @@ public partial class App : Application
             new FavoriteProjectsService(),
             new GitStatusService(),
             new LaunchStatisticsService(),
+            new VirtualHostService(),
             processLauncher,
             toolCatalog,
             launchService,

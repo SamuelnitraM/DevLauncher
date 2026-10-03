@@ -64,12 +64,9 @@ public static class ProjectContextBuilder
         var stackParts = new List<string> { ProjectTypeLabels.GetName(contextInput.ProjectType) };
         if (contextInput.UsesTailwindBundle) stackParts.Add("Tailwind (symfonycasts/tailwind-bundle)");
         if (contextInput.NpmScripts.Count > 0 && contextInput.ProjectType != ProjectType.Node) stackParts.Add("npm");
-        if (DockerComposeFileExists(contextInput.ProjectPath)) stackParts.Add("Docker Compose");
+        if (ProjectScanner.FindComposeFile(contextInput.ProjectPath) is not null) stackParts.Add("Docker Compose");
         return string.Join(", ", stackParts);
     }
-
-    private static bool DockerComposeFileExists(string projectPath)
-        => new[] { "compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml" }.Any(fileName => File.Exists(Path.Combine(projectPath, fileName)));
 
     private static IEnumerable<string> GetUsefulCommands(ProjectContextInput contextInput)
     {

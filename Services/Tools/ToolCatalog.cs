@@ -26,6 +26,7 @@ public sealed class ToolCatalog
             new MercureTool(),
             new MessengerWorkerTool(),
             new MailpitTool(),
+            new DockerComposeTool(),
             new LaravelServerTool(),
             new LaravelQueueTool(),
             new NpmScriptTool(),
@@ -39,6 +40,7 @@ public sealed class ToolCatalog
         .Concat(AssistantCatalog.Definitions.Select(assistantDefinition => new ChatAssistantTool(assistantDefinition)))
         .Concat(new LaunchTool[]
         {
+            new DatabaseTool(),
             new PreLaunchCommandsTool(),
             new TerminalTool(),
             new BrowserTool(),

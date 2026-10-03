@@ -59,7 +59,8 @@ public class ProjectScanner
         var composerJsonContent = ReadTextFile(Path.Combine(projectPath, "composer.json"));
         var hasPackageJson = File.Exists(Path.Combine(projectPath, "package.json"));
         var usesTailwindBundle = composerJsonContent.Contains("symfonycasts/tailwind-bundle", StringComparison.OrdinalIgnoreCase);
-        return new ProjectDetection(DetectProjectType(projectPath, composerJsonContent, hasPackageJson), usesTailwindBundle, hasPackageJson);
+        return new ProjectDetection(DetectProjectType(projectPath, composerJsonContent, hasPackageJson), usesTailwindBundle, hasPackageJson,
+            FindComposeFile(projectPath) is not null);
     }
 
     private static ProjectType DetectProjectType(string projectPath, string composerJsonContent, bool hasPackageJson)
@@ -94,6 +95,12 @@ public class ProjectScanner
             return null;
         }
     }
+
+    /// <summary>Returns the Docker Compose file at the root of the project, or null.</summary>
+    public static string? FindComposeFile(string projectPath)
+        => new[] { "compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml" }
+            .Select(composeFileName => Path.Combine(projectPath, composeFileName))
+            .FirstOrDefault(File.Exists);
 
     /// <summary>Returns the npm scripts of the project (package.json), in their declaration order.</summary>
     public static IReadOnlyList<string> GetNpmScripts(string projectPath)
