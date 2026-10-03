@@ -44,6 +44,7 @@ public static class SettingsService
             SymfonyPort = AppSettings.SymfonyPort,
             LocalWebPort = AppSettings.LocalWebPort,
             HostServicesInVSCode = AppSettings.HostServicesInVSCode,
+            DetailedLogging = AppSettings.DetailedLogging,
             Assistants = AppSettings.Assistants,
         };
         File.WriteAllText(StoragePaths.SettingsFilePath, JsonSerializer.Serialize(settingsData, _jsonOptions));
@@ -86,6 +87,7 @@ public static class SettingsService
         AppSettings.SymfonyPort = IsValidPort(settingsData.SymfonyPort) ? settingsData.SymfonyPort : AppSettings.SymfonyPort;
         AppSettings.LocalWebPort = IsValidPort(settingsData.LocalWebPort) ? settingsData.LocalWebPort : AppSettings.LocalWebPort;
         AppSettings.HostServicesInVSCode = settingsData.HostServicesInVSCode;
+        AppSettings.DetailedLogging = settingsData.DetailedLogging;
         AppSettings.Assistants = AssistantCatalog.MergeWithDefaults(settingsData.Assistants);
     }
 
@@ -124,6 +126,7 @@ public static class SettingsService
         public int SymfonyPort { get; set; }
         public int LocalWebPort { get; set; }
         public bool HostServicesInVSCode { get; set; }
+        public bool DetailedLogging { get; set; }
         public List<AssistantSettings>? Assistants { get; set; }
     }
 }

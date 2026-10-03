@@ -1,5 +1,14 @@
 namespace DevLauncher.ViewModels;
 
+/// <summary>Outcome of the settings window.</summary>
+public enum SettingsEditResult
+{
+    Cancelled,
+    Saved,
+    /// <summary>Settings and profiles were replaced by an import.</summary>
+    Imported,
+}
+
 /// <summary>Dialogs and system interactions requested by the view models, implemented by the views.</summary>
 public interface IUserInteractionService
 {
@@ -16,8 +25,8 @@ public interface IUserInteractionService
     /// <summary>Asks for a folder. Returns null when cancelled.</summary>
     string? PickFolder(string dialogTitle);
 
-    /// <summary>Opens the settings window. Returns true when the settings were saved.</summary>
-    bool EditSettings();
+    /// <summary>Opens the settings window and tells what changed.</summary>
+    SettingsEditResult EditSettings();
 
     void CopyToClipboard(string text);
 }

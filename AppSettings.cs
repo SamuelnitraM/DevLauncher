@@ -65,6 +65,9 @@ public static class AppSettings
     /// <summary>Runs the services as VSCode tasks when VSCode is launched, instead of running them in DevLauncher</summary>
     public static bool HostServicesInVSCode { get; set; }
 
+    /// <summary>Shows the detail messages in the launch log and saves them, with the output of the services, in the persistent log</summary>
+    public static bool DetailedLogging { get; set; }
+
     /// <summary>Settings of the AI assistants, one entry per assistant of the catalog</summary>
     public static List<AssistantSettings> Assistants { get; set; } = AssistantCatalog.MergeWithDefaults(null);
 }

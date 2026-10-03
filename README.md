@@ -152,7 +152,13 @@ Au premier démarrage, les anciens `settings.json` et `Profiles\` situés à cô
 - 🧭 Plusieurs dossiers de projets, projets ajoutés un par un, dossiers ignorés (pages XAMPP par défaut)
 - 🧩 Détection Symfony, Laravel, WordPress, Node.js, Django, .NET avec leurs serveurs de développement ;
   le navigateur s'ouvre sur l'adresse annoncée par le serveur dans son journal
-- 📋 Journal de lancement horodaté
+- 📋 Journal de lancement horodaté, enregistré chaque jour dans `%APPDATA%\DevLauncher\Logs` (10 jours conservés),
+  journal détaillé en option (commandes exécutées, sortie des services)
+- 📌 Profils partagés avec le projet : bouton 📤 du bloc Profil, qui les écrit dans `.devlauncher.json`
+  à la racine du projet (à versionner avec git) ; le dernier profil utilisé reste personnel
+- 🔴 Paramètres vérifiés en direct (chemins introuvables encadrés en rouge) et bouton « Détecter automatiquement »
+  (XAMPP, VSCode, Visual Studio, Chrome, Firefox)
+- 💼 Export / import des paramètres, profils, projets récents et favoris en un seul fichier (changement de machine)
 
 ---
 

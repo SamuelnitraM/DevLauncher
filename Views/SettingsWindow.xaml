@@ -48,15 +48,34 @@
         <Border DockPanel.Dock="Top"
                 Background="{StaticResource CardBgBrush}"
                 Padding="24,16">
-            <StackPanel>
-                <TextBlock Text="⚙️ Paramètres"
-                           FontSize="20" FontWeight="Bold"
-                           Foreground="{StaticResource AccentBlueBrush}"/>
-                <TextBlock Text="Configure les chemins et options de DevLauncher"
-                           FontSize="12"
-                           Foreground="{StaticResource TextSecondaryBrush}"
-                           Margin="0,2,0,0"/>
-            </StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="⚙️ Paramètres"
+                               FontSize="20" FontWeight="Bold"
+                               Foreground="{StaticResource AccentBlueBrush}"/>
+                    <TextBlock Text="Configure les chemins et options de DevLauncher"
+                               FontSize="12"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Margin="0,2,0,0"/>
+                    <TextBlock x:Name="ValidationSummaryText"
+                               FontSize="11"
+                               Foreground="{StaticResource AccentRedBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
+                <Button x:Name="AutoDetectButton"
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Content="🔎 Détecter automatiquement"
+                        Style="{StaticResource PrimaryButton}"
+                        FontSize="12" Padding="12,6"
+                        ToolTip="Cherche XAMPP, VSCode, Visual Studio, Chrome et Firefox et remplit les chemins introuvables"
+                        Click="AutoDetect_Click"/>
+            </Grid>
         </Border>
 
         <!-- Footer -->
@@ -466,6 +485,52 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Persistent log ── -->
+                <Border Background="{StaticResource CardBgBrush}"
+                        CornerRadius="12" Padding="16" Margin="0,12,0,0">
+                    <StackPanel>
+                        <TextBlock Text="📝 Journal"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="0,0,0,4"/>
+                        <TextBlock Text="Le journal de lancement est enregistré chaque jour dans un fichier (10 derniers jours conservés)."
+                                   Style="{StaticResource SettingsCaption}"/>
+                        <CheckBox x:Name="DetailedLoggingBox"
+                                  Style="{StaticResource ModernCheckBox}">
+                            <TextBlock TextWrapping="Wrap"
+                                       Text="Journal détaillé : commandes exécutées, et sortie des services enregistrée dans le fichier"/>
+                        </CheckBox>
+                        <Button Content="📂 Ouvrir le dossier des journaux"
+                                HorizontalAlignment="Left"
+                                Style="{StaticResource PrimaryButton}"
+                                FontSize="11" Padding="10,5" Margin="0,8,0,0"
+                                Click="OpenLogsFolder_Click"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Import / export ── -->
+                <Border Background="{StaticResource CardBgBrush}"
+                        CornerRadius="12" Padding="16" Margin="0,12,0,0">
+                    <StackPanel>
+                        <TextBlock Text="💼 Sauvegarde et changement de machine"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="0,0,0,4"/>
+                        <TextBlock Text="L'export réunit dans un seul fichier les paramètres enregistrés, les profils de tous les projets, les projets récents et les favoris. L'import remplace les éléments du même nom et garde les autres."
+                                   Style="{StaticResource SettingsCaption}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="📤 Exporter…"
+                                    Style="{StaticResource PrimaryButton}"
+                                    FontSize="11" Padding="10,5" Margin="0,0,8,0"
+                                    Click="Export_Click"/>
+                            <Button Content="📥 Importer…"
+                                    Style="{StaticResource PrimaryButton}"
+                                    FontSize="11" Padding="10,5"
+                                    Click="Import_Click"/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 

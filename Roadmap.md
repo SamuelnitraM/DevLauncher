@@ -30,11 +30,11 @@ Rien n'est figé : chaque bloc est à valider avant d'être développé.
 | 0.1 | ✅ **Modèle d'outils générique** : un outil = nom, icône, commande, arguments avec variables (`{projectPath}`, `{projectName}`, `{port}`…), stratégie de disponibilité (port, processus, aucun), stratégie d'arrêt. Les profils deviennent une liste d'outils activés avec leurs options. | L | Aujourd'hui chaque outil est codé en dur (cases à cocher, champs du profil, branches dans `LaunchService`). Ajouter Claude, Docker, Laravel… sans ce socle = copier-coller à l'infini. |
 | 0.2 | ✅ **Passage en MVVM** (bindings, `ICommand`, ViewModels) | M | Supprime le code-behind qui recopie l'UI dans le profil et inversement ; indispensable pour une liste d'outils dynamique. |
 | 0.3 | ✅ **Données dans `%APPDATA%\DevLauncher`** avec migration automatique des fichiers existants | S | `settings.json` et `Profiles/` sont à côté de l'exe : perdus à chaque changement Debug/Release/publication, et non inscriptibles si l'exe est dans `Program Files`. |
-| 0.4 | **Profils versionnables dans le projet** (`.devlauncher.json` à la racine, optionnel) | S | Partager la config d'un projet avec l'équipe via git. |
-| 0.5 | **Tests unitaires** (à faire) (scanner, profils, paramètres, génération `tasks.json`) + ✅ **CI GitHub Actions** (build + publication de l'exe en artefact de release) | M | Le projet compile aussi sous Linux (`EnableWindowsTargeting`) : la CI est triviale à mettre en place. |
+| 0.4 | ✅ **Profils versionnables dans le projet** (`.devlauncher.json` à la racine, optionnel) | S | Partager la config d'un projet avec l'équipe via git. |
+| 0.5 | ✅ **Tests unitaires** (scanner, profils, paramètres, génération `tasks.json`) + ✅ **CI GitHub Actions** (build + publication de l'exe en artefact de release) | M | Le projet compile aussi sous Linux (`EnableWindowsTargeting`) : la CI est triviale à mettre en place. |
 | 0.6 | **Option « Lancer les applications sans élévation »** (par outil) : DevLauncher reste administrateur, mais peut démarrer VSCode, le navigateur ou une IA avec le jeton de l'utilisateur standard | S | Les droits administrateur sont conservés (accès total au système, traces WMI). Les applications enfants en héritent : VSCode affiche « Administrator », le navigateur tourne élevé, le glisser-déposer depuis l'Explorateur vers ces fenêtres est bloqué. L'option permet de choisir outil par outil. |
-| 0.7 | **Journal persistant** (fichier tournant) + niveau de détail | S | Diagnostiquer un lancement raté après coup. |
-| 0.8 | **Validation des paramètres** : pastille rouge sur les chemins introuvables, bouton « Détecter automatiquement » (registre, `where code`, emplacements XAMPP usuels) | S | Évite de découvrir un mauvais chemin au moment du lancement. |
+| 0.7 | ✅ **Journal persistant** (fichier tournant) + niveau de détail | S | Diagnostiquer un lancement raté après coup. |
+| 0.8 | ✅ **Validation des paramètres** : pastille rouge sur les chemins introuvables, bouton « Détecter automatiquement » (registre, `where code`, emplacements XAMPP usuels) | S | Évite de découvrir un mauvais chemin au moment du lancement. |
 
 ---
 
@@ -142,7 +142,7 @@ DevLauncher, sortie capturée. Les **terminaux interactifs** restent dans Window
 | 5.1 | **Ligne de commande** : `DevLauncher.exe --project templateSite --profile Front` | S |
 | 5.2 | **Protocole `devlauncher://launch/templateSite`** (liens dans un README, un bookmark, une note) | S |
 | 5.3 | **Menu contextuel de l'Explorateur** : « Lancer avec DevLauncher » sur un dossier | S |
-| 5.4 | **Import / export des profils et paramètres** (changement de machine) | S |
+| 5.4 | ✅ **Import / export des profils et paramètres** (changement de machine) | S |
 | 5.5 | **Statistiques** : temps de démarrage par projet, projets les plus utilisés | S |
 
 ---

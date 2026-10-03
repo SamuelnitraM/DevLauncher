@@ -145,6 +145,12 @@
                                 FontSize="11" Padding="8,5" Margin="6,0,0,0"
                                 ToolTip="Supprimer le profil"
                                 Command="{Binding DeleteProfileCommand}"/>
+                        <Button Content="{Binding ProfileSharingLabel}"
+                                Style="{StaticResource PrimaryButton}"
+                                FontSize="11" Padding="8,5" Margin="6,0,0,0"
+                                ToolTip="{Binding ProfileSharingToolTip}"
+                                AutomationProperties.Name="Partage des profils avec le projet"
+                                Command="{Binding ToggleProfileSharingCommand}"/>
                     </StackPanel>
 
                     <!-- Status -->

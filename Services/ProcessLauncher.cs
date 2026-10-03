@@ -43,6 +43,7 @@ public sealed class ProcessLauncher
                 WorkingDirectory = Path.GetDirectoryName(executablePath) ?? string.Empty,
             };
             if (arguments is not null) processStartInfo.Arguments = arguments;
+            _launchLog.Detail($"Processus caché : {executablePath} {arguments}");
             Process.Start(processStartInfo)?.Dispose();
             _launchLog.Info($"   ✅ {Path.GetFileName(executablePath)} lancé");
             return true;
@@ -61,6 +62,7 @@ public sealed class ProcessLauncher
         {
             var processStartInfo = new ProcessStartInfo(target) { UseShellExecute = true };
             if (arguments is not null) processStartInfo.Arguments = arguments;
+            _launchLog.Detail($"Ouverture par le shell : {target} {arguments}");
             Process.Start(processStartInfo)?.Dispose();
             return true;
         }
@@ -78,6 +80,7 @@ public sealed class ProcessLauncher
         {
             var processStartInfo = new ProcessStartInfo("wt.exe") { UseShellExecute = false };
             foreach (var argument in windowsTerminalArguments) processStartInfo.ArgumentList.Add(argument);
+            _launchLog.Detail($"Windows Terminal : wt.exe {string.Join(' ', processStartInfo.ArgumentList)}");
             Process.Start(processStartInfo)?.Dispose();
             return true;
         }
@@ -100,6 +103,7 @@ public sealed class ProcessLauncher
             var processStartInfo = vscodeExecutable.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
                 ? new ProcessStartInfo(vscodeExecutable, $"\"{projectPath}\"") { UseShellExecute = false }
                 : new ProcessStartInfo("cmd.exe", $"/c \"\"{vscodeExecutable}\" \"{projectPath}\"\"") { UseShellExecute = false, CreateNoWindow = true };
+            _launchLog.Detail($"VSCode : {processStartInfo.FileName} {processStartInfo.Arguments}");
             Process.Start(processStartInfo)?.Dispose();
             return true;
         }
@@ -117,6 +121,7 @@ public sealed class ProcessLauncher
         {
             var processStartInfo = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true };
             foreach (var argument in arguments) processStartInfo.ArgumentList.Add(argument);
+            _launchLog.Detail($"Commande : {executable} {string.Join(' ', processStartInfo.ArgumentList)}");
             using var commandProcess = Process.Start(processStartInfo);
             if (commandProcess is null) return;
             using var exitCancellation = new CancellationTokenSource(ProcessExitTimeout);

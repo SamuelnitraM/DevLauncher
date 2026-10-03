@@ -47,6 +47,8 @@ public sealed class ServiceProcessHost
             if (hostedService is null)
             {
                 hostedService = new HostedService(projectPath, serviceCommand, _killOnCloseJob);
+                var serviceTitle = $"{serviceCommand.Title} · {hostedService.ProjectName}";
+                hostedService.OutputReceived += (outputLine, isError) => _launchLog.ServiceOutput(serviceTitle, outputLine, isError);
                 if (serviceCommand.AnnouncesApplicationUrl) hostedService.OutputReceived += (outputLine, _) => OnWebServerOutput(projectPath, outputLine);
                 lock (_hostedServicesLock) _hostedServices.Add(hostedService);
                 ServiceCreated?.Invoke(hostedService);
@@ -54,6 +56,7 @@ public sealed class ServiceProcessHost
             // A restarted web server may announce another port : the previous URL is forgotten.
             if (serviceCommand.AnnouncesApplicationUrl) ForgetAnnouncedUrl(projectPath);
             _launchLog.Info($"   → {serviceCommand.Title} (journal dans son onglet)");
+            _launchLog.Detail($"Service : {serviceCommand.Executable} {string.Join(' ', serviceCommand.Arguments)} (dossier {serviceCommand.WorkingDirectory})");
             if (!hostedService.Start()) _launchLog.Error($"❌ {serviceCommand.Title} n'a pas pu démarrer : voir son onglet");
         }
     }

@@ -142,6 +142,9 @@ $comboBoxSelections = @($mainWindow.FindAll([System.Windows.Automation.TreeScope
 Write-Host "Listes déroulantes : $($comboBoxSelections -join ' | ')"
 Write-CheckResult 'Projet Claude présélectionné' (@($comboBoxSelections | Where-Object { $_ -like '*highlightforge*' }).Count -gt 0)
 
+# ── Profiles shared with the project ──
+Write-CheckResult 'Bouton de partage des profils' ($null -ne (Find-AutomationElement $mainWindow 'Partage des profils' ([System.Windows.Automation.ControlType]::Button) 5))
+
 # ── Laravel project : detected, with its development server and its npm scripts ──
 $laravelItem = Find-AutomationElement $mainWindow 'boutique' ([System.Windows.Automation.ControlType]::ListItem)
 Write-CheckResult 'Projet Laravel listé' ($null -ne $laravelItem)
@@ -175,11 +178,18 @@ if ($null -ne $settingsButton) {
     if ($ExpectClaudeDesktopDetected) {
         Write-CheckResult 'Claude Desktop détecté' ((@($claudeHint)[0]) -like '*Détectée automatiquement*') (@($claudeHint)[0])
     }
+    Write-CheckResult 'Bouton de détection automatique' ($null -ne (Find-AutomationElement $settingsRoot 'Détecter automatiquement' ([System.Windows.Automation.ControlType]::Button) 5))
+    Write-CheckResult 'Section import / export' ($null -ne (Find-AutomationElement $settingsRoot 'Exporter' ([System.Windows.Automation.ControlType]::Button) 5))
     Save-WindowScreenshot $settingsRoot '4-parametres.png'
     $cancelButton = Find-AutomationElement $settingsRoot 'Annuler' ([System.Windows.Automation.ControlType]::Button) 5
     if ($null -ne $cancelButton) { $cancelButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
     Start-Sleep -Seconds 1
 }
+
+# ── Persistent log ──
+$todayLogPath = Join-Path $dataDirectory ("Logs\devlauncher-{0}.log" -f (Get-Date -Format 'yyyy-MM-dd'))
+$isLogWritten = (Test-Path $todayLogPath) -and ((Get-Content -Path $todayLogPath -Raw -Encoding UTF8) -like '*DevLauncher*')
+Write-CheckResult 'Journal persistant écrit' $isLogWritten $todayLogPath
 
 # ── Closing ──
 Write-CheckResult 'DevLauncher toujours actif' (-not $devLauncherProcess.HasExited)

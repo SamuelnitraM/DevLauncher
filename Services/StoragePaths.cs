@@ -17,6 +17,9 @@ public static class StoragePaths
 
     public static string RecentProjectsFilePath { get; } = Path.Combine(DataDirectory, "recent-projects.json");
 
+    /// <summary>Folder of the persistent log, one file per day.</summary>
+    public static string LogsDirectory { get; } = Path.Combine(DataDirectory, "Logs");
+
     /// <summary>Folder of the executable, where the data was stored by the versions prior to the data directory.</summary>
     private static string LegacyDataDirectory => AppDomain.CurrentDomain.BaseDirectory;
 

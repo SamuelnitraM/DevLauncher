@@ -39,7 +39,12 @@ public sealed class UserInteractionService : IUserInteractionService
         return folderDialog.ShowDialog(_ownerWindow) == true ? folderDialog.FolderName : null;
     }
 
-    public bool EditSettings() => new SettingsWindow { Owner = _ownerWindow }.ShowDialog() == true;
+    public SettingsEditResult EditSettings()
+    {
+        var settingsWindow = new SettingsWindow { Owner = _ownerWindow };
+        if (settingsWindow.ShowDialog() != true) return SettingsEditResult.Cancelled;
+        return settingsWindow.IsImported ? SettingsEditResult.Imported : SettingsEditResult.Saved;
+    }
 
     public void CopyToClipboard(string text)
     {

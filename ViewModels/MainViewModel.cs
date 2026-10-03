@@ -123,6 +123,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _statusText = NoProjectStatus;
 
+    /// <summary>The profiles of the current project are read from and written to its .devlauncher.json file.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProfileSharingLabel), nameof(ProfileSharingToolTip))]
+    private bool _isProfileSharedInProject;
+
+    public string ProfileSharingLabel => IsProfileSharedInProject ? "📌" : "📤";
+
+    public string ProfileSharingToolTip => IsProfileSharedInProject
+        ? $"Profils partagés avec le projet ({ProfileService.ProjectProfilesFileName}) — cliquer pour les garder dans DevLauncher uniquement"
+        : $"Partager les profils avec le projet ({ProfileService.ProjectProfilesFileName}, versionnable avec git)";
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
     private bool _isLaunchInProgress;
@@ -152,9 +163,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnActiveProfileNameChanged(string? value)
     {
-        if (_isUpdatingProfileList || value is null || CurrentProjectName is not { } projectName) return;
-        var profile = _profileService.GetProfile(projectName, value);
-        if (profile is not null) ActivateProfile(profile);
+        if (_isUpdatingProfileList || value is null || CurrentProjectPath is not { } projectPath) return;
+        TryRunProfileOperation("Chargement du profil", () =>
+        {
+            var profile = _profileService.GetProfile(projectPath, value);
+            if (profile is not null) ActivateProfile(profile);
+        });
     }
 
     partial void OnIsLaunchInProgressChanged(bool value) => RefreshCommandStates();
@@ -259,7 +273,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (DetectedProjectTypeText is not null) _launchLog.Info($"{DetectedProjectTypeText} dans « {projectName} »");
         // The choices can depend on the project (sessions of an assistant) : they are read before the profile is applied.
         ReloadOptionChoices();
-        LoadProfilesForProject(projectName, projectDetection);
+        LoadProfilesForProject(projectPath, projectDetection);
         StatusText = $"Prêt à lancer : {projectName}";
     }
 
@@ -267,6 +281,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         CurrentProjectPath = null;
         DetectedProjectTypeText = null;
+        IsProfileSharedInProject = false;
         StatusText = NoProjectStatus;
         UpdateProfileList(Array.Empty<string>(), null);
     }
@@ -314,19 +329,52 @@ public partial class MainViewModel : ObservableObject, IDisposable
     //  PROFILES
     // ════════════════════════════════════════════════════════════
 
-    private void LoadProfilesForProject(string projectName, ProjectDetection projectDetection)
+    /// <summary>
+    /// Loads the profiles of a project, creating the default profile when it has none.
+    /// When the profiles cannot be read, the default profile is shown without being saved.
+    /// </summary>
+    private void LoadProfilesForProject(string projectPath, ProjectDetection projectDetection)
     {
-        var profiles = _profileService.GetProfiles(projectName);
-        if (profiles.Count == 0)
+        IsProfileSharedInProject = ProfileService.IsSharedInProject(projectPath);
+        List<ProjectProfile> profiles;
+        try
         {
-            var defaultProfile = ProjectProfile.CreateDefault(projectDetection);
-            _profileService.SaveProfile(projectName, defaultProfile);
-            profiles.Add(defaultProfile);
+            profiles = _profileService.GetProfiles(projectPath);
+            if (profiles.Count == 0)
+            {
+                var defaultProfile = ProjectProfile.CreateDefault(projectDetection);
+                _profileService.SaveProfile(projectPath, defaultProfile);
+                profiles.Add(defaultProfile);
+            }
         }
-        var lastUsedProfileName = _profileService.GetLastUsedProfile(projectName);
+        catch (Exception exception) when (IsProfileStorageException(exception))
+        {
+            _launchLog.Error($"❌ Profils de « {Path.GetFileName(projectPath)} » illisibles : {exception.Message} — profil par défaut affiché, non sauvegardé");
+            profiles = new List<ProjectProfile> { ProjectProfile.CreateDefault(projectDetection) };
+        }
+        var lastUsedProfileName = _profileService.GetLastUsedProfile(projectPath);
         var profileToActivate = profiles.FirstOrDefault(profile => profile.Name == lastUsedProfileName) ?? profiles[0];
         UpdateProfileList(profiles.Select(profile => profile.Name), profileToActivate.Name);
         ActivateProfile(profileToActivate);
+    }
+
+    private static bool IsProfileStorageException(Exception exception)
+        => exception is IOException or UnauthorizedAccessException or InvalidDataException;
+
+    /// <summary>Runs a profile read or write, logging the storage errors instead of letting them escape.</summary>
+    private bool TryRunProfileOperation(string operationName, Action profileOperation)
+    {
+        try
+        {
+            profileOperation();
+            return true;
+        }
+        catch (Exception exception) when (IsProfileStorageException(exception))
+        {
+            _launchLog.Error($"❌ {operationName} impossible : {exception.Message}");
+            StatusText = $"❌ {operationName} impossible";
+            return false;
+        }
     }
 
     /// <summary>Fills the profiles dropdown and selects a profile, without loading it.</summary>
@@ -359,7 +407,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private void RememberActiveProfile(string profileName)
     {
-        if (CurrentProjectName is { } projectName) _profileService.SaveLastUsedProfile(projectName, profileName);
+        if (CurrentProjectPath is { } projectPath) TryRunProfileOperation("Mémorisation du profil", () => _profileService.SaveLastUsedProfile(projectPath, profileName));
     }
 
     private bool CanEditProfiles() => HasProject && ActiveProfileName is not null;
@@ -369,8 +417,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanEditProfiles))]
     private void SaveProfile()
     {
-        if (CurrentProjectName is not { } projectName || ActiveProfileName is not { } profileName) return;
-        _profileService.SaveProfile(projectName, CaptureCurrentOptions(profileName));
+        if (CurrentProjectPath is not { } projectPath || ActiveProfileName is not { } profileName) return;
+        if (!TryRunProfileOperation("Sauvegarde du profil", () => _profileService.SaveProfile(projectPath, CaptureCurrentOptions(profileName)))) return;
         _launchLog.Info($"💾 Profil « {profileName} » sauvegardé");
         StatusText = $"✅ Profil « {profileName} » sauvegardé";
     }
@@ -378,10 +426,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanEditProfiles))]
     private void CreateProfile()
     {
-        if (CurrentProjectName is not { } projectName) return;
+        if (CurrentProjectPath is not { } projectPath) return;
         var newProfileName = AskUniqueProfileName("Nouveau profil", "Créer", string.Empty);
         if (newProfileName is null) return;
-        _profileService.SaveProfile(projectName, CaptureCurrentOptions(newProfileName));
+        if (!TryRunProfileOperation("Création du profil", () => _profileService.SaveProfile(projectPath, CaptureCurrentOptions(newProfileName)))) return;
         UpdateProfileList(ProfileNames.Append(newProfileName), newProfileName);
         RememberActiveProfile(newProfileName);
         _launchLog.Info($"✨ Nouveau profil « {newProfileName} » créé");
@@ -390,10 +438,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanEditProfiles))]
     private void RenameProfile()
     {
-        if (CurrentProjectName is not { } projectName || ActiveProfileName is not { } currentProfileName) return;
+        if (CurrentProjectPath is not { } projectPath || ActiveProfileName is not { } currentProfileName) return;
         var newProfileName = AskUniqueProfileName("Renommer le profil", "Renommer", currentProfileName);
         if (newProfileName is null || newProfileName == currentProfileName) return;
-        _profileService.RenameProfile(projectName, currentProfileName, newProfileName);
+        if (!TryRunProfileOperation("Renommage du profil", () => _profileService.RenameProfile(projectPath, currentProfileName, newProfileName))) return;
         UpdateProfileList(ProfileNames.Select(profileName => profileName == currentProfileName ? newProfileName : profileName), newProfileName);
         _launchLog.Info($"✏️ Profil « {currentProfileName} » renommé en « {newProfileName} »");
     }
@@ -401,11 +449,35 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanDeleteProfile))]
     private void DeleteProfile()
     {
-        if (CurrentProjectPath is not { } projectPath || CurrentProjectName is not { } projectName || ActiveProfileName is not { } profileNameToDelete) return;
+        if (CurrentProjectPath is not { } projectPath || ActiveProfileName is not { } profileNameToDelete) return;
         if (!_userInteractionService.Confirm($"Supprimer le profil « {profileNameToDelete} » ?", "Confirmation")) return;
-        _profileService.DeleteProfile(projectName, profileNameToDelete);
+        if (!TryRunProfileOperation("Suppression du profil", () => _profileService.DeleteProfile(projectPath, profileNameToDelete))) return;
         _launchLog.Info($"🗑️ Profil « {profileNameToDelete} » supprimé");
-        LoadProfilesForProject(projectName, _projectScanner.DetectProject(projectPath));
+        LoadProfilesForProject(projectPath, _projectScanner.DetectProject(projectPath));
+    }
+
+    /// <summary>Moves the profiles of the project between the local storage and the .devlauncher.json file of the project.</summary>
+    [RelayCommand(CanExecute = nameof(CanEditProfiles))]
+    private void ToggleProfileSharing()
+    {
+        if (CurrentProjectPath is not { } projectPath) return;
+        if (IsProfileSharedInProject)
+        {
+            if (!_userInteractionService.Confirm(
+                    $"Ne plus partager les profils avec le projet ?\n\nLes profils sont recopiés dans DevLauncher et {ProfileService.ProjectProfilesFileName} est supprimé du dossier du projet.",
+                    "Profils du projet")) return;
+            if (!TryRunProfileOperation("Arrêt du partage des profils", () => _profileService.StopSharingInProject(projectPath))) return;
+            _launchLog.Info($"🔓 Profils de « {CurrentProjectName} » gardés dans DevLauncher, {ProfileService.ProjectProfilesFileName} supprimé");
+        }
+        else
+        {
+            if (!_userInteractionService.Confirm(
+                    $"Enregistrer les profils dans {ProfileService.ProjectProfilesFileName}, à la racine du projet ?\n\nLe fichier peut être versionné avec git pour partager la configuration avec l'équipe. Le dernier profil utilisé reste personnel.",
+                    "Profils du projet")) return;
+            if (!TryRunProfileOperation("Partage des profils", () => _profileService.ShareInProject(projectPath))) return;
+            _launchLog.Info($"📌 Profils de « {CurrentProjectName} » enregistrés dans {ProfileService.GetProjectProfilesFilePath(projectPath)}");
+        }
+        LoadProfilesForProject(projectPath, _projectScanner.DetectProject(projectPath));
     }
 
     /// <summary>Asks for a profile name until it is unique. Returns null when cancelled.</summary>
@@ -520,6 +592,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         CreateProfileCommand.NotifyCanExecuteChanged();
         RenameProfileCommand.NotifyCanExecuteChanged();
         DeleteProfileCommand.NotifyCanExecuteChanged();
+        ToggleProfileSharingCommand.NotifyCanExecuteChanged();
     }
 
     // ════════════════════════════════════════════════════════════
@@ -529,11 +602,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void OpenSettings()
     {
-        if (!_userInteractionService.EditSettings()) return;
-        _launchLog.Info("⚙️ Paramètres mis à jour");
+        var settingsEditResult = _userInteractionService.EditSettings();
+        if (settingsEditResult == SettingsEditResult.Cancelled) return;
+        _launchLog.Info(settingsEditResult == SettingsEditResult.Imported ? "📥 Paramètres et profils importés" : "⚙️ Paramètres mis à jour");
         ReloadOptionChoices();
         UpdateToolAvailability();
         RefreshProjects();
+        // Imported profiles replace the ones displayed for the current project.
+        if (settingsEditResult == SettingsEditResult.Imported && CurrentProjectPath is { } projectPath)
+            LoadProfilesForProject(projectPath, _projectScanner.DetectProject(projectPath));
     }
 
     // ════════════════════════════════════════════════════════════
@@ -546,7 +623,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void CopyLog() => _userInteractionService.CopyToClipboard((SelectedLogTab ?? LaunchLogTab).GetText());
 
-    private void OnMessageLogged(string message, bool isError) => RunOnUiThread(() => LaunchLogTab.AppendLine(message, isError));
+    private void OnMessageLogged(string message, LogLevel level)
+    {
+        if (level == LogLevel.Detail && !AppSettings.DetailedLogging) return;
+        RunOnUiThread(() => LaunchLogTab.AppendLine(level == LogLevel.Detail ? $"🔍 {message}" : message, level == LogLevel.Error));
+    }
 
     /// <summary>Adds a log tab for each new service run by DevLauncher.</summary>
     private void OnServiceCreated(HostedService hostedService) => RunOnUiThread(() =>

@@ -22,7 +22,7 @@ public class ProfileServiceTests
         using var temporaryDirectory = new TemporaryDirectory();
         File.WriteAllText(temporaryDirectory.Combine("highlightforge.json"), LegacyProfilesJson);
         var profileService = new ProfileService(temporaryDirectory.DirectoryPath);
-        var profiles = profileService.GetProfiles("highlightforge");
+        var profiles = profileService.GetProfiles(temporaryDirectory.Combine("projects", "highlightforge"));
         Assert.Equal(new[] { "Défaut", "Front" }, profiles.Select(profile => profile.Name));
         var symfonyProfile = profiles[0];
         Assert.Equal(ProjectType.Symfony, symfonyProfile.ProjectType);
@@ -44,13 +44,14 @@ public class ProfileServiceTests
     {
         using var temporaryDirectory = new TemporaryDirectory();
         var profileService = new ProfileService(temporaryDirectory.DirectoryPath);
-        profileService.SaveProfile("site", new ProjectProfile { Name = "A" });
-        profileService.SaveProfile("site", new ProjectProfile { Name = "B" });
-        profileService.SaveProfile("site", new ProjectProfile { Name = "C" });
-        profileService.SaveLastUsedProfile("site", "B");
-        profileService.RenameProfile("site", "B", "B2");
-        Assert.Equal(new[] { "A", "B2", "C" }, profileService.GetProfiles("site").Select(profile => profile.Name));
-        Assert.Equal("B2", profileService.GetLastUsedProfile("site"));
+        var projectPath = temporaryDirectory.Combine("projects", "site");
+        profileService.SaveProfile(projectPath, new ProjectProfile { Name = "A" });
+        profileService.SaveProfile(projectPath, new ProjectProfile { Name = "B" });
+        profileService.SaveProfile(projectPath, new ProjectProfile { Name = "C" });
+        profileService.SaveLastUsedProfile(projectPath, "B");
+        profileService.RenameProfile(projectPath, "B", "B2");
+        Assert.Equal(new[] { "A", "B2", "C" }, profileService.GetProfiles(projectPath).Select(profile => profile.Name));
+        Assert.Equal("B2", profileService.GetLastUsedProfile(projectPath));
     }
 
     [Fact]
@@ -78,6 +79,60 @@ public class ProfileServiceTests
     {
         using var temporaryDirectory = new TemporaryDirectory();
         File.WriteAllText(temporaryDirectory.Combine("broken.json"), "{ not json");
-        Assert.Empty(new ProfileService(temporaryDirectory.DirectoryPath).GetProfiles("broken"));
+        Assert.Empty(new ProfileService(temporaryDirectory.DirectoryPath).GetProfiles(temporaryDirectory.Combine("projects", "broken")));
+    }
+
+    [Fact]
+    public void SharedProfilesAreReadAndWrittenInTheProject()
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var profileService = new ProfileService(temporaryDirectory.Combine("data"));
+        var projectPath = temporaryDirectory.Combine("site");
+        Directory.CreateDirectory(projectPath);
+        profileService.SaveProfile(projectPath, new ProjectProfile { Name = "Local", ProjectType = ProjectType.Laravel });
+        Assert.False(ProfileService.IsSharedInProject(projectPath));
+        profileService.ShareInProject(projectPath);
+        Assert.True(ProfileService.IsSharedInProject(projectPath));
+        var sharedJson = File.ReadAllText(Path.Combine(projectPath, ProfileService.ProjectProfilesFileName));
+        Assert.Contains("\"version\": 1", sharedJson);
+        Assert.Contains("\"Laravel\"", sharedJson);
+        profileService.SaveProfile(projectPath, new ProjectProfile { Name = "Équipe" });
+        Assert.Equal(new[] { "Local", "Équipe" }, profileService.GetProfiles(projectPath).Select(profile => profile.Name));
+        Assert.Contains("Équipe", File.ReadAllText(Path.Combine(projectPath, ProfileService.ProjectProfilesFileName)));
+        profileService.SaveLastUsedProfile(projectPath, "Équipe");
+        Assert.DoesNotContain("Équipe", File.ReadAllText(temporaryDirectory.Combine("data", "site.json")));
+        profileService.StopSharingInProject(projectPath);
+        Assert.False(ProfileService.IsSharedInProject(projectPath));
+        Assert.Equal(new[] { "Local", "Équipe" }, profileService.GetProfiles(projectPath).Select(profile => profile.Name));
+        Assert.Equal("Équipe", profileService.GetLastUsedProfile(projectPath));
+    }
+
+    [Fact]
+    public void SharedFileAcceptsAPlainArrayAndComments()
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var projectPath = temporaryDirectory.Combine("site");
+        Directory.CreateDirectory(projectPath);
+        File.WriteAllText(Path.Combine(projectPath, ProfileService.ProjectProfilesFileName), """
+            // Profils de l'équipe
+            [ { "name": "Front", "projectType": "Node", "tools": { "npm-script": { "isEnabled": true } } }, ]
+            """);
+        var profile = Assert.Single(new ProfileService(temporaryDirectory.Combine("data")).GetProfiles(projectPath));
+        Assert.Equal(ProjectType.Node, profile.ProjectType);
+        Assert.True(profile.IsToolEnabled(ToolIds.NpmScript));
+    }
+
+    [Fact]
+    public void BrokenSharedFileIsNeverOverwritten()
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var projectPath = temporaryDirectory.Combine("site");
+        Directory.CreateDirectory(projectPath);
+        var sharedFilePath = Path.Combine(projectPath, ProfileService.ProjectProfilesFileName);
+        File.WriteAllText(sharedFilePath, "{ conflict <<<<<<< HEAD");
+        var profileService = new ProfileService(temporaryDirectory.Combine("data"));
+        Assert.Throws<InvalidDataException>(() => profileService.GetProfiles(projectPath));
+        Assert.Throws<InvalidDataException>(() => profileService.SaveProfile(projectPath, new ProjectProfile { Name = "X" }));
+        Assert.Equal("{ conflict <<<<<<< HEAD", File.ReadAllText(sharedFilePath));
     }
 }
